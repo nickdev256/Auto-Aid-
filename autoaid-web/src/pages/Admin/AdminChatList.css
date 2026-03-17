@@ -1,0 +1,45 @@
+.conv-root {
+  padding: 20px;
+}
+
+.conv-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.conv-card {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px;
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  cursor: pointer;
+}
+
+.conv-left .service {
+  font-size: 12px;
+  font-weight: bold;
+  opacity: 0.7;
+}
+
+.conv-left .user {
+  font-size: 16px;
+  margin-top: 4px;
+}
+
+.conv-right {
+  text-align: right;
+}
+
+.conv-right .preview {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.conv-right .status {
+  font-size: 12px;
+  color: #0077ff;
+  margin-top: 3px;
+}

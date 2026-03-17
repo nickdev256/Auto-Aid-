@@ -1,0 +1,105 @@
+
+.reports-container {
+  padding: 20px;
+}
+
+.back-btn {
+  background: #ddd;
+  padding: 8px 15px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: none;
+}
+
+.btn-download {
+  margin-top: 10px;
+  background: #0088FE;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: none;
+}
+
+.report-content {
+  background: white;
+  padding: 20px;
+  margin-top: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.divider {
+  margin: 30px 0;
+}
+
+/* Summary Cards */
+.cards-container {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.card {
+  flex: 1;
+  min-width: 200px;
+  padding: 15px;
+  background: #f0f4ff;
+  border-radius: 12px;
+  text-align: center;
+}
+
+/* Charts Layout */
+.charts-container {
+  display: flex;
+  justify-content: space-between;
+  gap: 30px;
+  flex-wrap: nowrap;
+}
+
+.chart {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
+}
+
+.large-chart {
+  width: 48%;
+}
+
+.chart h3 {
+  text-align: center;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.chart-desc {
+  text-align: center;
+  margin-top: -5px;
+  margin-bottom: 15px;
+  font-size: 14px;
+  color: #666;
+}
+
+/* Tables */
+.table-section {
+  margin-top: 20px;
+}
+
+.styled-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.styled-table th,
+.styled-table td {
+  padding: 12px;
+  border-bottom: 1px solid #ddd;
+}
+
+.styled-table th {
+  background: #f3f3f3;
+  font-weight: bold;
+}

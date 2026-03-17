@@ -1,0 +1,20 @@
+<resources>
+
+    <style name="Theme.AutoAid" parent="Theme.AppCompat.DayNight.NoActionBar">
+
+        <!-- Main colors -->
+        <item name="colorPrimary">@color/AutoAid_primary</item>
+        <item name="colorPrimaryDark">@color/AutoAid_primary_dark</item>
+        <item name="colorAccent">@color/AutoAid_secondary</item>
+
+        <!-- Window -->
+        <item name="android:windowBackground">@color/AutoAid_background</item>
+        <item name="android:statusBarColor">@color/AutoAid_status_bar</item>
+
+        <!-- Text -->
+        <item name="android:textColorPrimary">@color/AutoAid_text_primary</item>
+        <item name="android:textColorSecondary">@color/AutoAid_text_secondary</item>
+
+    </style>
+
+</resources>

@@ -1,0 +1,22 @@
+/* src/pages/Provider/ProviderMap.css */
+.provider-map-page {
+  max-width: 1100px;
+  margin: 18px auto;
+  padding: 10px;
+  font-family: "Poppins", sans-serif;
+}
+
+.map-wrapper {
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+  overflow: hidden;
+}
+
+/* route summary */
+.route-summary {
+  margin-top: 12px;
+  background: #fff;
+  padding: 12px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}

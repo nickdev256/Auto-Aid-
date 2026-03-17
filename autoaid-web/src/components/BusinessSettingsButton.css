@@ -1,0 +1,26 @@
+.business-settings-btn {
+  background: #222;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: none;
+  color: white;
+  font-size: 20px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.2s;
+}
+
+.business-settings-btn:hover {
+  background: #444;
+  transform: scale(1.07);
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}

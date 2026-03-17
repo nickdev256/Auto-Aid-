@@ -1,0 +1,430 @@
+/* =========================================================
+   Global Dashboard Layout
+========================================================= */
+.dash-container {
+  padding: 22px;
+  background: #f5f7fb;
+  min-height: 100vh;
+  font-family: 'Inter', sans-serif;
+  animation: fadeIn 0.6s ease;
+}
+
+/* Fade animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* =========================================================
+   HEADER SECTION – Modern, clean top section
+========================================================= */
+.dash-header {
+  background: linear-gradient(120deg, #1f2d48, #0d1b2a);
+  color: white;
+  padding: 24px;
+  border-radius: 18px;
+  margin-bottom: 30px;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  box-shadow: 0 10px 20px rgba(0,0,0,0.25);
+}
+
+.header-left .welcome {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.subtitle {
+  opacity: 0.75;
+  font-size: 14px;
+  margin-top: 6px;
+}
+
+/* =========================================================
+   PROFILE CARD – Blue/Premium look
+========================================================= */
+.profile-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  padding: 14px 22px;
+  border-radius: 16px;
+
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.25);
+
+  box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+}
+
+.profile-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+
+  background: linear-gradient(145deg, #2b87ff, #0057c2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.profile-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.profile-name {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.profile-role {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+/* Logout button */
+.logout-small {
+  background: #ffffff;
+  color: #000;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.logout-small:hover {
+  background: #e6e6e6;
+}
+
+/* =========================================
+   PREMIUM QUICK ACTIONS (With CTA & description)
+========================================= */
+
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  margin-bottom: 32px;
+}
+
+/* Parent Card */
+.quick-action.improved {
+  background: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(14px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+
+  padding: 22px 18px;
+  border-radius: 18px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+
+  cursor: pointer;
+  text-align: center;
+
+  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+  transition: 0.28s ease;
+}
+
+/* Hover */
+.quick-action.improved:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 18px 36px rgba(0,60,150,0.28);
+  background: rgba(255,255,255,0.28);
+}
+
+/* Icon Circle */
+.qa-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 32px;
+  background: linear-gradient(135deg, #2b87ff, #0068e6);
+  color: #fff;
+
+  box-shadow: 0 8px 18px rgba(43,135,255,0.45);
+  transition: 0.25s ease;
+}
+
+/* Icon Hover Animation */
+.quick-action.improved:hover .qa-icon {
+  transform: scale(1.12);
+  box-shadow: 0 10px 25px rgba(43, 135, 255, 0.65);
+}
+
+/* Title */
+.quick-action.improved h4 {
+  margin: 8px 0 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0d1b2a;
+}
+
+/* Description */
+.qa-desc {
+  font-size: 0.88rem;
+  opacity: 0.75;
+  color: #0d1b2a;
+  margin-bottom: 8px;
+}
+
+/* CTA BUTTON */
+.qa-btn {
+  padding: 8px 20px;
+  border-radius: 30px;
+  border: none;
+
+  background: linear-gradient(90deg, #2b87ff, #00b0e6);
+  color: white;
+
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+
+  box-shadow: 0 8px 20px rgba(43,135,255,0.32);
+  transition: 0.25s ease;
+}
+
+/* CTA Hover */
+.qa-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(43,135,255,0.45);
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .quick-actions {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 500px) {
+  .quick-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* =========================================================
+   MAP PREVIEW – Fake static map box
+========================================================= */
+.map-preview {
+  height: 160px;
+  border-radius: 18px;
+
+  background: url("/images/uganda-map.jpg") center/cover no-repeat;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 35px;
+}
+
+.map-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 25, 47, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.map-label {
+  position: absolute;
+  bottom: 14px;
+  left: 18px;
+
+  font-size: 15px;
+  font-weight: 600;
+  color: white;
+}
+
+/* =========================================================
+   RECENT REQUESTS – Beautiful clean list
+========================================================= */
+.history-section {
+  margin-top: 20px;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+.history-box {
+  background: #ffffff;
+  padding: 22px;
+  border-radius: 16px;
+  box-shadow: 0 5px 14px rgba(0,0,0,0.08);
+}
+
+/* Skeleton loading */
+.skeleton-box {
+  height: 58px;
+  background: linear-gradient(90deg, #e6e6e6, #f5f5f5, #e6e6e6);
+  background-size: 200%;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  animation: skeletonLoading 1.6s infinite;
+}
+
+@keyframes skeletonLoading {
+  0% { background-position: 200%; }
+  100% { background-position: -200%; }
+}
+
+.history-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.history-item {
+  background: #fff;
+  padding: 14px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  border-left: 4px solid #2b87ff;
+
+  box-shadow: 0 3px 8px rgba(0,0,0,0.06);
+  transition: 0.25s ease;
+}
+
+.history-item:hover {
+  transform: translateY(-3px);
+}
+
+.history-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.req-service {
+  color: #0d1b2a;
+  letter-spacing: 0.5px;
+}
+
+.req-time {
+  color: #555;
+  font-size: 13px;
+}
+
+.req-status {
+  margin-top: 6px;
+  color: #444;
+  font-size: 14px;
+}
+/* ===========================
+   LOGOUT MODAL
+=========================== */
+
+/* Background blur overlay */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  animation: fadeIn 0.3s ease;
+}
+
+/* Modal box */
+.modal-box {
+  width: 90%;
+  max-width: 380px;
+  background: rgba(255,255,255,0.18);
+  border-radius: 16px;
+  backdrop-filter: blur(20px) saturate(150%);
+  padding: 25px;
+  text-align: center;
+  border: 1px solid rgba(255,255,255,0.35);
+  box-shadow: 0 10px 45px rgba(0,0,0,0.25);
+  animation: scaleIn 0.25s ease;
+}
+
+.modal-box h3 {
+  margin-bottom: 10px;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.modal-box p {
+  font-size: 1rem;
+  color: #e2e8f0;
+  margin-bottom: 25px;
+}
+
+/* Buttons */
+.modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+}
+
+.modal-cancel,
+.modal-logout {
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: none;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: 0.25s ease;
+  font-weight: 600;
+}
+
+/* Cancel */
+.modal-cancel {
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  backdrop-filter: blur(8px);
+}
+
+.modal-cancel:hover {
+  background: rgba(255,255,255,0.3);
+}
+
+/* Logout */
+.modal-logout {
+  background: linear-gradient(90deg, #ff4444, #ff0000);
+  color: white;
+  box-shadow: 0 6px 18px rgba(255,0,0,0.35);
+}
+
+.modal-logout:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(255,0,0,0.45);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}

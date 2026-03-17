@@ -1,0 +1,18 @@
+<resources>
+
+    <!-- AutoAid Primary Colors -->
+    <color name="AutoAid_primary">#0A9AD9</color>
+    <color name="AutoAid_primary_dark">#087DB3</color>
+    <color name="AutoAid_secondary">#FFFFFF</color>
+
+    <!-- Background -->
+    <color name="AutoAid_background">#FFFFFF</color>
+
+    <!-- Status Bar -->
+    <color name="AutoAid_status_bar">#0A9AD9</color>
+
+    <!-- Text -->
+    <color name="AutoAid_text_primary">#000000</color>
+    <color name="AutoAid_text_secondary">#666666</color>
+
+</resources>

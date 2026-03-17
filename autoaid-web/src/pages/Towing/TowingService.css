@@ -1,0 +1,130 @@
+:root {
+  --navy: #072049;
+  --accent: #0ea5ff;
+  --muted: #6b85a3;
+  --bg: #f3f7ff;
+}
+
+/* Page root */
+.towing-service-root {
+  padding: 22px;
+  min-height: calc(100vh - 120px);
+  background: linear-gradient(180deg, #f7fbff, #eef5ff);
+  display: flex;
+  justify-content: center;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+/* Main card */
+.towing-card {
+  width: 100%;
+  max-width: 700px;
+  background: white;
+  padding: 26px 22px;
+  border-radius: 16px;
+  border: 1px solid rgba(7, 32, 73, 0.05);
+  box-shadow: 0 18px 48px rgba(6, 20, 50, 0.08);
+  position: relative;
+  animation: fadeInUp 0.35s ease;
+  text-align: center;
+}
+
+/* Back button */
+.back {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  background: rgba(7, 32, 73, 0.08);
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-weight: 700;
+  color: var(--navy);
+  border: none;
+  cursor: pointer;
+  transition: 0.15s ease;
+}
+
+.back:hover {
+  background: rgba(7, 32, 73, 0.16);
+  transform: translateY(-2px);
+}
+
+/* Page header */
+.towing-card h1 {
+  color: var(--navy);
+  margin: 18px 0 4px;
+  font-weight: 800;
+}
+
+.muted {
+  color: var(--muted);
+  margin-bottom: 22px;
+  font-size: 0.96rem;
+}
+
+/* Buttons section */
+.towing-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+/* Buttons */
+.primary,
+.ghost {
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-weight: 800;
+  font-size: 1rem;
+  cursor: pointer;
+  border: none;
+  transition: 0.2s ease;
+}
+
+/* Primary */
+.primary {
+  background: linear-gradient(135deg, var(--navy), #0a4a8a);
+  color: white;
+  box-shadow: 0 10px 24px rgba(7, 32, 73, 0.22);
+}
+
+.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 32px rgba(7, 32, 73, 0.28);
+}
+
+/* Ghost buttons */
+.ghost {
+  background: transparent;
+  border: 1px solid rgba(7, 32, 73, 0.15);
+  color: var(--navy);
+}
+
+.ghost:hover {
+  background: rgba(14, 63, 120, 0.06);
+  transform: translateY(-1px);
+}
+
+/* Animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 560px) {
+  .towing-card {
+    padding: 22px 18px;
+  }
+  .primary,
+  .ghost {
+    width: 100%;
+  }
+}

@@ -1,0 +1,92 @@
+:root {
+  --navy: #072049;
+  --accent: #0ea5ff;
+  --muted: #6b85a3;
+  --green: #10b981;
+  --red: #ef4444;
+  --yellow: #f59e0b;
+}
+
+.admin-sub-root {
+  padding: 24px;
+  max-width: 1100px;
+  margin: auto;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.admin-sub-root h1 {
+  color: var(--navy);
+  margin-bottom: 18px;
+  font-size: 1.8rem;
+  font-weight: 800;
+}
+
+.search-box {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #d0d8e4;
+  margin-bottom: 20px;
+  font-size: 1rem;
+}
+
+.sub-table {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sub-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr 1fr 1fr 1.2fr;
+  align-items: center;
+  background: white;
+  padding: 14px;
+  border-radius: 14px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.05);
+}
+
+.sub-row.header {
+  background: #f3f8ff;
+  font-weight: 800;
+}
+
+.badge {
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: capitalize;
+  width: fit-content;
+}
+
+.status.active { background: var(--green); color: white; }
+.status.inactive { background: var(--red); color: white; }
+.status.pending { background: var(--yellow); color: #222; }
+
+.sub.active { background: var(--accent); color: white; }
+.sub.inactive { background: #bcc8d6; color: #333; }
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  color: white;
+}
+
+.btn.approve { background: var(--green); }
+.btn.activate { background: var(--navy); }
+
+.empty {
+  text-align: center;
+  color: var(--muted);
+  padding: 20px;
+}

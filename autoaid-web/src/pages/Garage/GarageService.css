@@ -1,0 +1,274 @@
+/* GarageService.css
+   Modern glass-morphism styles for GarageService
+   Matches AutoAID theme (sky-blue accents)
+*/
+
+/* Reset / wrapper */
+.garage-service-wrapper {
+  padding: 28px;
+  max-width: 1100px;
+  margin: 0 auto 80px;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  color: #0d1b2a;
+}
+
+/* Top row: back button */
+.garage-toprow {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 12px;
+  z-index: 2;
+}
+
+.back-to-dash {
+  background: rgba(255,255,255,0.95);
+  border: 1px solid rgba(13,27,42,0.06);
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #0d1b2a;
+  box-shadow: 0 6px 16px rgba(6,18,40,0.06);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.back-to-dash:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(6,18,40,0.12);
+}
+
+/* HERO */
+.garage-hero {
+  display: grid;
+  grid-template-columns: 1fr;
+  background: linear-gradient(180deg, rgba(43,135,255,0.09), rgba(43,135,255,0.03));
+  border-radius: 14px;
+  padding: 28px;
+  margin-bottom: 28px;
+  box-shadow: 0 8px 24px rgba(11,22,45,0.06);
+}
+
+.garage-hero-content h1 {
+  margin: 0 0 8px;
+  font-size: 2.1rem;
+  color: #072240;
+  font-weight: 800;
+}
+
+.garage-hero-content p {
+  margin: 0 0 18px;
+  color: #0f273d;
+  opacity: 0.85;
+  font-size: 1.05rem;
+}
+
+/* Hero CTA */
+.hero-request-btn {
+  padding: 12px 20px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  color: white;
+  background: linear-gradient(90deg, #2b87ff, #00b0e6);
+  box-shadow: 0 10px 28px rgba(43,135,255,0.18);
+  transition: transform .16s ease, box-shadow .16s ease;
+}
+.hero-request-btn:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(43,135,255,0.22);
+}
+
+/* FEATURES SECTION */
+.garage-features {
+  margin-top: 8px;
+  margin-bottom: 28px;
+}
+
+.garage-features h2 {
+  font-size: 1.4rem;
+  margin-bottom: 14px;
+  color: #072240;
+  font-weight: 800;
+}
+
+/* Grid */
+.garage-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+
+/* Card */
+.g-card {
+  background: rgba(255,255,255,0.95);
+  border-radius: 14px;
+  padding: 18px;
+  text-align: center;
+  box-shadow: 0 8px 22px rgba(11,22,45,0.06);
+  border: 1px solid rgba(10,25,47,0.03);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.g-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 40px rgba(11,22,45,0.09);
+}
+
+/* Icon */
+.g-icon {
+  font-size: 28px;
+  color: #2b87ff;
+  margin-bottom: 10px;
+}
+
+/* Title & desc */
+.g-card h4 {
+  margin: 6px 0;
+  font-size: 1.02rem;
+  color: #072240;
+  font-weight: 700;
+}
+.g-card p {
+  margin: 0;
+  color: #0d273e;
+  opacity: 0.8;
+  font-size: 0.95rem;
+}
+
+/* HOW IT WORKS */
+.garage-how {
+  margin-top: 18px;
+  margin-bottom: 28px;
+}
+
+.garage-how h2 {
+  font-size: 1.4rem;
+  color: #072240;
+  margin-bottom: 14px;
+  font-weight: 800;
+}
+
+/* Steps grid */
+.how-steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+
+/* Individual step */
+.how-step {
+  background: linear-gradient(180deg, rgba(43,135,255,0.03), rgba(255,255,255,0.6));
+  border-radius: 12px;
+  padding: 18px;
+  text-align: center;
+  border: 1px solid rgba(10,25,47,0.03);
+  box-shadow: 0 8px 20px rgba(11,22,45,0.04);
+  transition: transform .18s ease;
+}
+.how-step:hover {
+  transform: translateY(-4px);
+}
+
+/* circle */
+.step-circle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg,#2b87ff,#0068e6);
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  margin-bottom: 12px;
+  box-shadow: 0 12px 28px rgba(43,135,255,0.16);
+}
+
+.how-step h4 {
+  margin: 10px 0 6px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #072240;
+}
+
+.how-step p {
+  margin: 0;
+  color: #0d273e;
+  opacity: 0.85;
+  font-size: 0.95rem;
+}
+
+/* CTA */
+.garage-cta {
+  margin-top: 22px;
+  display: flex;
+  justify-content: center;
+}
+
+.cta-box {
+  width: 100%;
+  max-width: 760px;
+  background: linear-gradient(180deg, rgba(43,135,255,0.06), rgba(255,255,255,0.85));
+  border-radius: 14px;
+  padding: 22px;
+  text-align: center;
+  box-shadow: 0 12px 36px rgba(11,22,45,0.06);
+  border: 1px solid rgba(10,25,47,0.03);
+}
+
+.cta-box h2 {
+  margin: 0 0 8px;
+  color: #072240;
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.cta-box p {
+  margin: 0 0 14px;
+  color: #0d273e;
+  opacity: 0.85;
+}
+
+.cta-btn {
+  padding: 12px 18px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font-weight: 800;
+  color: white;
+  background: linear-gradient(90deg,#2b87ff,#00b0e6);
+  box-shadow: 0 12px 36px rgba(43,135,255,0.16);
+}
+
+.cta-btn:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 18px 44px rgba(43,135,255,0.22);
+}
+
+/* RESPONSIVE */
+@media (max-width: 1100px) {
+  .garage-grid, .how-steps {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .garage-service-wrapper {
+    padding: 18px;
+  }
+
+  .garage-grid, .how-steps {
+    grid-template-columns: 1fr;
+  }
+
+  .garage-hero {
+    padding: 20px;
+  }
+
+  .hero-request-btn, .cta-btn {
+    width: 100%;
+  }
+
+  .back-to-dash {
+    padding: 10px 14px;
+  }
+}

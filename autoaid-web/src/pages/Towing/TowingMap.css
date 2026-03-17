@@ -1,0 +1,135 @@
+:root {
+  --navy: #072049;
+  --accent: #0ea5ff;
+  --muted: #6b85a3;
+  --bg: #f4f8ff;
+}
+
+/* Root layout */
+.towing-map-root {
+  padding: 22px;
+  min-height: calc(100vh - 110px);
+  background: linear-gradient(180deg, #f7fbff, #eef6ff);
+  display: flex;
+  justify-content: center;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+/* Card */
+.towing-card {
+  width: 100%;
+  max-width: 780px;
+  background: #fff;
+  padding: 26px 24px;
+  border-radius: 18px;
+  position: relative;
+  box-shadow: 0 20px 55px rgba(6, 20, 50, 0.10);
+  border: 1px solid rgba(7, 32, 73, 0.04);
+  animation: fadeIn 0.35s ease;
+}
+
+/* Back button */
+.back {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  background: rgba(7, 32, 73, 0.08);
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--navy);
+  transition: 0.15s ease;
+}
+
+.back:hover {
+  background: rgba(7, 32, 73, 0.18);
+  transform: translateY(-2px);
+}
+
+/* Headings */
+.towing-card h2 {
+  margin-top: 28px;
+  margin-bottom: 10px;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--navy);
+}
+
+/* Request metadata */
+.map-info {
+  margin-top: 8px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fbfdff, #f4f9ff);
+  border: 1px solid rgba(7, 32, 73, 0.06);
+}
+
+.map-info p {
+  margin: 4px 0;
+  font-weight: 600;
+  color: var(--navy);
+}
+
+/* Map placeholder */
+.map-placeholder {
+  height: 330px;
+  border-radius: 14px;
+  background: repeating-linear-gradient(
+    45deg,
+    #e6f0ff,
+    #e6f0ff 10px,
+    #f5f9ff 10px,
+    #f5f9ff 20px
+  );
+  border: 1px solid rgba(7, 32, 73, 0.08);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--navy);
+  font-weight: 600;
+  text-align: center;
+  padding: 14px;
+  margin-top: 14px;
+}
+
+/* Action buttons */
+.actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ghost {
+  background: transparent;
+  border: 1px solid rgba(7, 32, 73, 0.10);
+  color: var(--navy);
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.ghost:hover {
+  background: rgba(7, 32, 73, 0.08);
+}
+
+/* Animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Mobile */
+@media (max-width: 550px) {
+  .towing-card {
+    padding: 22px 18px;
+  }
+
+  .map-placeholder {
+    height: 260px;
+  }
+}

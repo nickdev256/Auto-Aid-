@@ -1,0 +1,406 @@
+/* =========================
+   THEME
+========================= */
+:root{
+  --bg: #f4f7fb;
+  --card: rgba(255,255,255,0.92);
+  --border: rgba(15,23,42,0.10);
+  --text: #0f172a;
+  --muted: #64748b;
+
+  --shadow-1: 0 10px 25px rgba(2, 6, 23, 0.10);
+  --shadow-2: 0 18px 45px rgba(2, 6, 23, 0.16);
+  --shadow-inset: inset 0 1px 0 rgba(255,255,255,0.70);
+
+  --blue: #2563eb;
+  --blue-2: rgba(37,99,235,0.14);
+
+  --green: #16a34a;
+  --green-2: rgba(22,163,74,0.14);
+
+  --amber: #f59e0b;
+  --amber-2: rgba(245,158,11,0.16);
+
+  --violet: #7c3aed;
+  --violet-2: rgba(124,58,237,0.14);
+
+  --radius: 18px;
+}
+
+* { box-sizing: border-box; }
+
+/* =========================
+   ROOT LAYOUT
+========================= */
+.admin-preview-root{
+  display: flex;
+  min-height: 100vh;
+  background: radial-gradient(1200px 600px at 20% 0%, #e8f0ff 0%, transparent 55%),
+              radial-gradient(1200px 600px at 90% 20%, #e7fff1 0%, transparent 55%),
+              var(--bg);
+}
+
+.admin-dashboard-container{
+  flex: 1;
+  padding: 24px;
+}
+
+/* =========================
+   TOP HEADER
+========================= */
+.top-row{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.page-title h1{
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: -0.4px;
+  color: var(--text);
+}
+
+.subtitle{
+  margin: 6px 0 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* =========================
+   3D CARD BASE
+========================= */
+.card-acrylic{
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-1), var(--shadow-inset);
+  backdrop-filter: blur(10px);
+}
+
+.card-acrylic:hover{
+  box-shadow: var(--shadow-2), var(--shadow-inset);
+}
+
+/* =========================
+   BUTTONS
+========================= */
+.outline-btn{
+  padding: 9px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(37,99,235,0.35);
+  background: rgba(37,99,235,0.06);
+  color: #1e40af;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+  box-shadow: 0 8px 18px rgba(37,99,235,0.10);
+}
+
+.outline-btn:hover{
+  transform: translateY(-1px);
+  background: rgba(37,99,235,0.10);
+}
+
+.ghost-btn{
+  padding: 9px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(15,23,42,0.12);
+  background: rgba(255,255,255,0.60);
+  color: #0f172a;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform .15s ease, background .15s ease;
+}
+
+.ghost-btn:hover{
+  transform: translateY(-1px);
+  background: rgba(255,255,255,0.85);
+}
+
+.link-btn{
+  border: none;
+  background: transparent;
+  color: #2563eb;
+  font-weight: 800;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 10px;
+}
+
+.link-btn:hover{
+  background: rgba(37,99,235,0.10);
+}
+
+.view-btn{
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(37,99,235,0.28);
+  background: linear-gradient(180deg, rgba(37,99,235,0.95), rgba(29,78,216,0.95));
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 12px 26px rgba(37,99,235,0.22);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.view-btn:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 16px 34px rgba(37,99,235,0.28);
+}
+
+/* =========================
+   LOADING
+========================= */
+.loading-shell{
+  padding: 18px;
+  border-radius: var(--radius);
+  border: 1px dashed rgba(15,23,42,0.20);
+  background: rgba(255,255,255,0.70);
+  color: var(--muted);
+}
+
+/* =========================
+   STATS GRID (3D)
+========================= */
+.stats-grid{
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.stat-card{
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+
+  /* 3D look */
+  transform: translateZ(0);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(600px 220px at 20% 0%, rgba(255,255,255,0.70), transparent 55%);
+  pointer-events: none;
+}
+
+.stat-card:hover{
+  transform: translateY(-4px);
+  border-color: rgba(37,99,235,0.18);
+}
+
+.stat-left h2{
+  margin: 0;
+  font-size: 26px;
+  color: var(--text);
+  letter-spacing: -0.6px;
+}
+
+.stat-left p{
+  margin: 6px 0 0 0;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.stat-right{
+  font-size: 26px;
+  filter: drop-shadow(0 10px 14px rgba(2,6,23,0.12));
+}
+
+/* Optional accent variants (you used these class names) */
+.stat-card.users{ border-color: rgba(124,58,237,0.18); }
+.stat-card.providers{ border-color: rgba(37,99,235,0.18); }
+.stat-card.active{ border-color: rgba(245,158,11,0.22); }
+.stat-card.completed{ border-color: rgba(22,163,74,0.22); }
+
+/* =========================
+   ROW 2 LAYOUT
+========================= */
+.row-2{
+  display: grid;
+  grid-template-columns: 1.05fr 1.55fr;
+  gap: 14px;
+}
+
+/* =========================
+   PENDING CARD
+========================= */
+.pending-card,
+.requests-card{
+  padding: 16px;
+}
+
+.card-header{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.card-header h3{
+  margin: 0;
+  color: var(--text);
+  font-size: 15px;
+  letter-spacing: -0.2px;
+}
+
+.empty{
+  padding: 16px;
+  border-radius: 14px;
+  background: rgba(15,23,42,0.04);
+  border: 1px dashed rgba(15,23,42,0.16);
+  color: var(--muted);
+  text-align: center;
+}
+
+/* Pending list */
+.pending-list{
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.pending-row{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.70);
+  border: 1px solid rgba(15,23,42,0.08);
+  box-shadow: 0 10px 22px rgba(2,6,23,0.06);
+}
+
+.pending-row strong{
+  color: var(--text);
+}
+
+.small{
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 3px;
+}
+
+.row-actions{
+  display: flex;
+  gap: 8px;
+}
+
+/* =========================
+   REQUESTS LIST
+========================= */
+.requests-list{
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.request-row{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  padding: 12px 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.70);
+  border: 1px solid rgba(15,23,42,0.08);
+  box-shadow: 0 10px 22px rgba(2,6,23,0.06);
+}
+
+.request-row .left strong{
+  color: var(--text);
+  text-transform: capitalize;
+}
+
+.request-row .right{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.date{
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+/* ✅ Fix your inline "prettyFrom" chip (Web/Android) */
+.request-row .left span{
+  color: #0f172a;
+  background: rgba(15,23,42,0.06);
+  border: 1px solid rgba(15,23,42,0.12);
+}
+
+/* =========================
+   ADMIN MENU BUTTONS (BOTTOM)
+========================= */
+.admin-menu-buttons{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.admin-menu-buttons button{
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(15,23,42,0.12);
+  background: rgba(255,255,255,0.85);
+  color: #0f172a;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 14px 30px rgba(2,6,23,0.08);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.admin-menu-buttons button:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 18px 40px rgba(2,6,23,0.12);
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+@media (max-width: 1200px){
+  .stats-grid{
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px){
+  .row-2{
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px){
+  .admin-dashboard-container{
+    padding: 16px;
+  }
+
+  .stats-grid{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .top-row{
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

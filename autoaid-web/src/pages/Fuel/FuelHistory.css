@@ -1,0 +1,142 @@
+/* FULL SCREEN LAYOUT */
+.fuel-history-root {
+  min-height: 100vh;
+  padding: 26px;
+  background: #f5f7fa;
+  display: flex;
+  justify-content: center;
+}
+
+/* MAIN CONTENT CONTAINER */
+.history-container {
+  background: #fff;
+  width: 100%;
+  max-width: 850px;
+  padding: 30px;
+  border-radius: 16px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+}
+
+/* BACK BUTTON */
+.back-btn {
+  background: #f1f3f7;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #0d6efd;
+  font-weight: 600;
+  margin-bottom: 16px;
+  transition: 0.25s ease;
+}
+
+.back-btn:hover {
+  background: #e4e7ec;
+  transform: translateX(-2px);
+}
+
+/* TITLE */
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 22px;
+}
+
+/* EMPTY STATE */
+.empty-box {
+  text-align: center;
+  padding: 40px 0;
+}
+
+.primary {
+  background: #0d6efd;
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  margin-top: 10px;
+  font-size: 15px;
+}
+
+.primary:hover {
+  background: #0b5ed7;
+}
+
+/* HISTORY LIST */
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* INDIVIDUAL HISTORY CARD */
+.history-card-item {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 18px 20px;
+  border: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: 0.25s ease;
+}
+
+.history-card-item:hover {
+  border-color: #0d6efd;
+  transform: translateY(-3px);
+}
+
+/* LEFT INFO */
+.history-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.h-type {
+  font-size: 18px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.h-qty {
+  font-size: 15px;
+  color: #555;
+}
+
+.h-status {
+  font-size: 14px;
+  margin-top: 4px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  width: fit-content;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+/* STATUS COLORS */
+.status-pending { background: #fff3cd; color: #856404; }
+.status-ongoing { background: #d1ecf1; color: #0c5460; }
+.status-completed { background: #d4edda; color: #155724; }
+
+/* DATE */
+.h-date {
+  font-size: 13px;
+  color: #888;
+}
+
+/* RIGHT ACTION */
+.view-btn {
+  background: #f1f3f7;
+  border: 1px solid #d0d5dd;
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: 0.25s ease;
+}
+
+.view-btn:hover {
+  background: #e5e7ec;
+}

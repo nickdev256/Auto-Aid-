@@ -1,0 +1,239 @@
+/* =====================================
+   🔹 GLOBAL THEME VARIABLES
+===================================== */
+:root {
+  --primary: #0d47a1;
+  --primary-dark: #062d6f;
+  --accent: #00c2a8;
+  --accent-dark: #009f88;
+  --danger: #ff4b4b;
+  --bg: #f6f9fc;
+  --text: #222;
+  --text-muted: #6b7280;
+  --card: #ffffff;
+  --shadow: rgba(13, 32, 68, 0.10);
+  --radius: 14px;
+}
+
+body.dark-mode {
+  --bg: #1d2433;
+  --card: #273142;
+  --text: #eef1f7;
+  --text-muted: #9ca3af;
+  --shadow: rgba(0, 0, 0, 0.4);
+}
+
+/* =====================================
+   🔹 CONTAINER
+===================================== */
+.provider-dashboard-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px;
+  background: var(--bg);
+  transition: background 0.3s ease;
+}
+
+.provider-dashboard-container h1 {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: var(--primary);
+}
+
+.provider-dashboard-container h2 {
+  font-size: 20px;
+  margin: 20px 0 10px;
+  font-weight: 600;
+}
+
+/* =====================================
+   🔹 SUBSCRIPTION SECTIONS
+===================================== */
+.subscription-warning,
+.subscription-bar {
+  background: var(--card);
+  padding: 20px;
+  border-radius: var(--radius);
+  margin: 20px 0;
+  box-shadow: 0 8px 24px var(--shadow);
+  animation: fadeIn 0.4s ease-in-out;
+  border-left: 6px solid var(--primary);
+}
+
+.subscription-warning strong {
+  color: var(--danger);
+}
+
+.subscribe-btn {
+  background: var(--accent);
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: var(--radius);
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: all 0.25s;
+}
+
+.subscribe-btn:hover {
+  background: var(--accent-dark);
+  transform: translateY(-2px);
+}
+
+/* =====================================
+   🔹 JOB REQUEST GRID
+===================================== */
+.jobs-grid {
+  display: grid;
+  gap: 24px;
+  margin-top: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+}
+
+.job-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 22px;
+  box-shadow: 0 10px 28px var(--shadow);
+  animation: fadeUp 0.35s ease;
+  transition: transform 0.25s, box-shadow 0.25s;
+}
+
+.job-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 15px 35px var(--shadow);
+}
+
+.job-card h3 {
+  font-size: 18px;
+  color: var(--primary);
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.job-card p {
+  margin: 3px 0;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+/* =====================================
+   🔹 ACTION BUTTONS
+===================================== */
+.provider-actions {
+  margin-top: 15px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.provider-actions button {
+  flex: 1;
+  padding: 10px;
+  border-radius: var(--radius);
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: 0.25s;
+}
+
+/* Styles */
+.details-btn {
+  background: transparent;
+  border: 1px solid #d1d5db;
+}
+.details-btn:hover {
+  background: #e5e7eb;
+}
+
+.map-btn {
+  background: var(--primary);
+  color: #fff;
+}
+.map-btn:hover {
+  background: var(--primary-dark);
+}
+
+.chat-btn {
+  background: var(--accent);
+  color: #fff;
+}
+.chat-btn:hover {
+  background: var(--accent-dark);
+}
+
+.complete-btn {
+  background: #0ea5e9;
+  color: white;
+}
+.complete-btn:hover {
+  background: #0284c7;
+}
+
+/* =====================================
+   ⚠ NO SUBSCRIPTION
+===================================== */
+.no-subscription-box {
+  text-align: center;
+  padding: 25px;
+  background: var(--card);
+  border-radius: var(--radius);
+  margin-top: 25px;
+  box-shadow: 0 10px 24px var(--shadow);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* =====================================
+   🔹 LOGOUT BUTTON
+===================================== */
+.logout-btn {
+  margin-top: 40px;
+  background: var(--danger);
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  border: none;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  transition: 0.25s;
+}
+
+.logout-btn:hover {
+  background: #c40000;
+  transform: scale(1.02);
+}
+
+/* =====================================
+   🔹 ANIMATIONS
+===================================== */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* =====================================
+   🔹 RESPONSIVE
+===================================== */
+@media (max-width: 600px) {
+  .provider-actions {
+    flex-direction: column;
+  }
+}

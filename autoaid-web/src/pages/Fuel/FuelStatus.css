@@ -1,0 +1,127 @@
+/* ROOT */
+.fuel-status-root {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 40px 16px;
+  background: #f4f6f9;
+  font-family: "Inter", sans-serif;
+}
+
+/* MAIN CARD */
+.fuel-status-card {
+  width: 100%;
+  max-width: 420px;
+  background: #ffffff;
+  padding: 28px;
+  border-radius: 16px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* BACK BUTTON */
+.back-btn {
+  background: none;
+  border: none;
+  font-size: 15px;
+  cursor: pointer;
+  margin-bottom: 10px;
+  color: #0d6efd;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 14px;
+  text-align: center;
+}
+
+/* STATUS BADGES */
+.badge {
+  display: inline-block;
+  padding: 8px 14px;
+  border-radius: 12px;
+  color: #fff;
+  font-weight: 600;
+  margin: 0 auto 18px;
+  text-align: center;
+}
+
+.badge.pending { background: #f0ad4e; }
+.badge.assigned { background: #0d6efd; }
+.badge.enroute { background: #6f42c1; }
+.badge.completed { background: #198754; }
+.badge.unknown { background: #6c757d; }
+
+/* DETAIL ROWS */
+.details-box {
+  background: #f8f9fb;
+  padding: 18px;
+  border-radius: 12px;
+  border: 1px solid #e6e8ec;
+  margin-bottom: 22px;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+
+.label {
+  color: #6c757d;
+}
+
+.value {
+  font-weight: 600;
+}
+
+/* ACTION BUTTONS */
+.action-buttons {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.btn {
+  flex: 1;
+  padding: 12px;
+  font-size: 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn.primary {
+  background: #0d6efd;
+  color: #fff;
+  border: none;
+}
+
+.btn.primary:hover {
+  background: #0b5ed7;
+}
+
+.btn.outline {
+  background: transparent;
+  border: 2px solid #0d6efd;
+  color: #0d6efd;
+}
+
+.btn.outline:hover {
+  background: #e7f0ff;
+}
+
+.map-preview {
+  margin-top: 10px;
+  padding: 12px;
+  background: #f1f3f5;
+  border-radius: 10px;
+  text-align: center;
+  color: #6c757d;
+}

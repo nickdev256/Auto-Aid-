@@ -1,0 +1,137 @@
+/* --- CONTAINER --- */
+.nearby-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: auto;
+  color: #111;
+  font-family: "Inter", sans-serif;
+}
+
+.nearby-container h1 {
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 26px;
+  font-weight: 700;
+}
+
+/* --- GRID LAYOUT --- */
+.nearby-grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 20px;
+}
+
+.map-column {
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(14px);
+  padding: 10px;
+  border-radius: 16px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+}
+
+/* --- LOADING & EMPTY STATES --- */
+.nearby-loading,
+.nearby-empty {
+  text-align: center;
+  padding: 20px;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+/* --- GARAGE LIST --- */
+.list-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 440px;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+
+/* Custom scrollbar */
+.list-column::-webkit-scrollbar {
+  width: 6px;
+}
+.list-column::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.25);
+  border-radius: 10px;
+}
+
+/* --- GARAGE CARD --- */
+.garage-card {
+  background: #fff;
+  padding: 15px;
+  border-radius: 12px;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.12);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.garage-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+}
+
+.garage-card h3 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.garage-card p {
+  margin: 4px 0;
+  color: #444;
+  font-size: 15px;
+}
+
+/* --- CARD BUTTONS --- */
+.card-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.request-btn,
+.profile-btn {
+  flex: 1;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.25s ease;
+}
+
+/* Request Button */
+.request-btn {
+  background: #0a66c2;
+  color: white;
+}
+.request-btn:hover {
+  background: #084d96;
+}
+
+/* Profile Button */
+.profile-btn {
+  background: #eee;
+}
+.profile-btn:hover {
+  background: #ddd;
+}
+
+/* --- MAP LEAFLET OVERRIDES --- */
+.leaflet-container {
+  border-radius: 12px !important;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+}
+
+/* --- MOBILE RESPONSIVE --- */
+@media (max-width: 900px) {
+  .nearby-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .list-column {
+    max-height: unset;
+  }
+}

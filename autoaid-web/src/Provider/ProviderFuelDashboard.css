@@ -1,0 +1,356 @@
+/* =========================================================
+   GLOBAL LAYOUT + BACKGROUND
+========================================================= */
+
+.provider-fuel-upgraded {
+  min-height: 100vh;
+  padding: 22px;
+
+  background-image:
+    linear-gradient(rgba(0,0,0,0.25), rgba(0,0,0,0.35)),
+    url("/images/fg.jpg");
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+.provider-fuel-upgraded * {
+  font-family: "Inter", sans-serif;
+  transition: 0.25s ease;
+}
+
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+.pf-top {
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(8px);
+  border-radius: 16px;
+  padding: 26px;
+  border: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: var(--shadow);
+}
+
+.pf-title {
+  font-size: 26px;
+  font-weight: 800;
+  color: #000;
+}
+
+.pf-sub {
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+
+/* Search & Filters */
+
+.pf-controls {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.search-input {
+  padding: 12px 16px;
+  width: 290px;
+  border-radius: 14px;
+  background: #f2f4f7;
+  border: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.search-input:focus {
+  outline: 2px solid var(--primary);
+  background: #fff;
+}
+
+.select {
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: #f2f4f7;
+  border: 1px solid var(--border);
+  font-size: 14px;
+}
+
+
+/* =========================================================
+   SETTINGS BUTTON (NEW STYLE)
+========================================================= */
+
+
+
+
+/* =========================================================
+   LOGOUT BUTTON
+========================================================= */
+
+.logout {
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: #dc3545;
+  color: white;
+  border: none;
+}
+
+.logout:hover {
+  background: #b02a37;
+}
+
+
+/* =========================================================
+   SUBSCRIPTION WARNING BAR
+========================================================= */
+
+.subscription-warning {
+  margin-top: 16px;
+  background: rgba(255, 230, 230, 0.92);
+  border-left: 6px solid #dc3545;
+  padding: 14px 18px;
+  color: #7d1a1a;
+  font-weight: 600;
+  border-radius: 12px;
+  backdrop-filter: blur(4px);
+}
+
+.subscribe-link {
+  margin-left: 10px;
+  font-weight: bold;
+  color: #dc3545;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+
+/* =========================================================
+   BADGES
+========================================================= */
+
+.badges {
+  display: flex;
+  gap: 14px;
+  margin: 22px 0;
+}
+
+.badge {
+  padding: 8px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+}
+
+.badge.pending { background: #ffa726; }
+.badge.ongoing { background: #42a5f5; }
+.badge.done { background: #66bb6a; }
+
+
+/* =========================================================
+   MAIN GRID
+========================================================= */
+
+.pf-main {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 26px;
+}
+
+
+/* =========================================================
+   SECTION
+========================================================= */
+
+.section-col {
+  background: rgba(255, 255, 255, 0.83);
+  border-radius: var(--radius);
+  padding: 20px;
+  border: 1px solid var(--border);
+  backdrop-filter: blur(8px);
+  box-shadow: var(--shadow);
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+
+/* =========================================================
+   REQUEST CARDS
+========================================================= */
+
+.req-card {
+  background: rgba(255,255,255,0.92);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.06);
+}
+
+.req-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--primary);
+}
+
+.req-card.completed {
+  background: #e8f5e9;
+  border-color: #c8e6c9;
+}
+
+.req-issue {
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+}
+
+.req-meta {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.req-small {
+  font-size: 13px;
+  color: #777;
+}
+
+.req-right {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.small-muted {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.btn.outline {
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  border-radius: 12px;
+}
+
+.btn.outline:hover {
+  background: var(--primary);
+  color: white;
+}
+
+.btn.danger {
+  background: #dc3545;
+  color: white;
+  border-radius: 12px;
+}
+
+.btn.danger:hover {
+  background: #b02a37;
+}
+
+.accept {
+  background: #0d6efd;
+  color: white;
+  border-radius: 12px;
+}
+
+.accept:hover {
+  background: #0b5ed7;
+}
+
+.accept.disabled {
+  background: gray;
+  cursor: not-allowed;
+}
+
+
+/* =========================================================
+   TOAST
+========================================================= */
+
+.pf-toast {
+  position: fixed;
+  top: 20px;
+  right: 26px;
+  padding: 14px 20px;
+  border-radius: 14px;
+  color: white;
+  font-weight: 700;
+  box-shadow: var(--shadow);
+  animation: slideDown 0.35s ease;
+}
+
+.toast-new { background: #0d6efd; }
+.toast-success { background: #198754; }
+
+@keyframes slideDown {
+  from { transform: translateY(-10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+
+/* =========================================================
+   LOGOUT MODAL
+========================================================= */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: grid;
+  place-items: center;
+}
+
+.modal-card {
+  background: white;
+  padding: 30px;
+  width: 340px;
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 1100px) {
+  .pf-main {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 780px) {
+  .pf-top {
+    flex-direction: column;
+    text-align: center;
+    gap: 14px;
+  }
+
+  .pf-controls {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .pf-main {
+    grid-template-columns: 1fr;
+  }
+
+  .search-input {
+    width: 100%;
+  }
+}

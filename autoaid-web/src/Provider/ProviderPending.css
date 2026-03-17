@@ -1,0 +1,50 @@
+/* src/Provider/ProviderPending.css */
+
+.pending-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 80vh;
+  background: #fff8e1;
+  padding: 20px;
+}
+
+.pending-card {
+  background: #fff;
+  padding: 40px 30px;
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+  max-width: 500px;
+}
+
+.pending-card h1 {
+  color: #ff9800;
+  margin-bottom: 20px;
+  font-size: 28px;
+}
+
+.pending-card p {
+  margin-bottom: 15px;
+  font-size: 16px;
+  color: #333;
+}
+
+.status-pending {
+  font-weight: bold;
+  color: #ff9800;
+}
+
+.btn-home {
+  display: inline-block;
+  padding: 10px 25px;
+  background: #ff9800;
+  color: #fff;
+  text-decoration: none;
+  border-radius: 5px;
+  transition: background 0.3s ease;
+}
+
+.btn-home:hover {
+  background: #e68900;
+}

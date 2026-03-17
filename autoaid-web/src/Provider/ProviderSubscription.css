@@ -1,0 +1,265 @@
+/* ===============================================
+   PAGE STYLES
+================================================= */
+
+.subscription-page {
+  padding: 20px;
+  min-height: 100vh;
+  background: #f6f7fb;
+  font-family: "Inter", sans-serif;
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  color: #444;
+  font-size: 15px;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+
+.page-title {
+  font-size: 28px;
+  margin-bottom: 25px;
+}
+
+/* ===============================================
+   CURRENT SUBSCRIPTION BOX
+================================================= */
+
+.current-sub-box {
+  background: white;
+  padding: 18px;
+  border-radius: 12px;
+  margin-bottom: 25px;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.05);
+}
+
+.active-sub strong {
+  font-size: 17px;
+}
+
+.active-pill {
+  background: #4caf50;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 8px;
+  margin-left: 5px;
+  font-size: 12px;
+}
+
+.inactive-sub {
+  color: #777;
+}
+
+/* ===============================================
+   PLAN CARDS
+================================================= */
+
+.plans-grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.plan-card {
+  background: white;
+  padding: 22px;
+  border-radius: 14px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+  text-align: center;
+  position: relative;
+  transition: 0.2s;
+}
+
+.plan-card:hover {
+  transform: translateY(-4px);
+}
+
+.recommended {
+  border: 2px solid #1a73e8;
+}
+
+.recommended-badge {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  background: #1a73e8;
+  color: white;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.price {
+  font-size: 22px;
+  margin: 6px 0;
+  font-weight: 700;
+}
+
+.features {
+  list-style: none;
+  padding: 0;
+  margin: 15px 0;
+  color: #555;
+}
+
+.choose-btn {
+  padding: 10px 16px;
+  background: #1a73e8;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  width: 100%;
+}
+
+.choose-btn:hover {
+  background: #155ac0;
+}
+
+/* ===============================================
+   PAYMENT MODAL
+================================================= */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.modal {
+  background: white;
+  padding: 28px;
+  width: 360px;
+  border-radius: 14px;
+  animation: popupDrop 0.25s ease;
+}
+
+.modal-plan {
+  margin-bottom: 14px;
+  font-size: 15px;
+}
+
+.network-select {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 15px;
+}
+
+.network-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.network-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.cancel-btn {
+  flex: 1;
+  background: #ddd;
+  border: none;
+  padding: 10px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.pay-btn {
+  flex: 1;
+  background: #1a73e8;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.momo-note {
+  font-size: 13px;
+  color: #555;
+  margin-top: 10px;
+}
+
+/* ===============================================
+   POPUP MESSAGE
+================================================= */
+
+.popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 3000;
+  animation: fadeIn 0.25s ease;
+}
+
+.popup-card {
+  background: white;
+  width: 330px;
+  padding: 24px;
+  border-radius: 14px;
+  text-align: center;
+  animation: popupDrop 0.25s ease;
+}
+
+.popup-card h3 {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.popup-card p {
+  margin: 10px 0 16px;
+  font-size: 15px;
+}
+
+.popup-btn {
+  background: #1a73e8;
+  color: white;
+  border: none;
+  padding: 10px;
+  width: 100%;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.popup-overlay.success h3 {
+  color: #2e7d32;
+}
+
+.popup-overlay.info h3 {
+  color: #1a73e8;
+}
+
+/* Animations */
+@keyframes popupDrop {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

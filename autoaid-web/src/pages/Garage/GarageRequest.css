@@ -1,0 +1,180 @@
+/* === PAGE LAYOUT === */
+.garage-request-container {
+  max-width: 900px;
+  margin: auto;
+  padding: 20px;
+  font-family: "Inter", sans-serif;
+  color: #111;
+}
+
+/* === BACK BUTTON === */
+.back-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  margin-bottom: 15px;
+  padding: 6px 0;
+  color: #0a66c2;
+  font-weight: 600;
+  transition: 0.2s;
+}
+.back-btn:hover {
+  opacity: 0.7;
+}
+
+/* === MAIN CARD === */
+.garage-request-card {
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(14px);
+  padding: 25px;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+
+.garage-request-card h1 {
+  margin-bottom: 20px;
+  font-size: 24px;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* === FORM INPUTS === */
+label {
+  font-weight: 600;
+  margin-top: 12px;
+  display: block;
+  font-size: 14px;
+}
+
+input,
+textarea {
+  width: 100%;
+  padding: 12px;
+  margin-top: 6px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+  background: #fff;
+  outline: none;
+  transition: 0.2s;
+}
+
+input:focus,
+textarea:focus {
+  border-color: #0a66c2;
+  box-shadow: 0 0 4px rgba(10, 102, 194, 0.3);
+}
+
+textarea {
+  height: 90px;
+  resize: vertical;
+}
+
+/* === LOCATION ROW === */
+.loc-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+/* Capture Location Button */
+.btn-loc {
+  background: #0a66c2;
+  color: white;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: 0.25s;
+  font-weight: 600;
+}
+.btn-loc:hover {
+  background: #084d96;
+}
+
+/* Place name text */
+.place-name {
+  flex: 1;
+  font-size: 14px;
+  color: #333;
+  font-style: italic;
+}
+
+/* === MINI MAP === */
+.mini-map {
+  height: 250px;
+  margin-top: 10px;
+  border-radius: 12px;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.25);
+  overflow: hidden;
+}
+
+/* === ACTION BUTTONS === */
+.actions {
+  margin-top: 20px;
+  display: flex;
+  gap: 15px;
+}
+
+.btn-submit {
+  flex: 1;
+  background: #0a66c2;
+  color: white;
+  border: none;
+  padding: 12px;
+  font-size: 15px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.25s;
+}
+
+.btn-submit:hover {
+  background: #084d96;
+}
+
+/* Disabled state */
+.btn-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Cancel / ghost button */
+.btn-ghost {
+  flex: 1;
+  background: #eee;
+  border: none;
+  padding: 12px;
+  font-size: 15px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.25s;
+}
+
+.btn-ghost:hover {
+  background: #ddd;
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 700px) {
+  .actions {
+    flex-direction: column;
+  }
+
+  .loc-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .btn-loc {
+    width: 100%;
+  }
+
+  .place-name {
+    width: 100%;
+  }
+}

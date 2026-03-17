@@ -1,0 +1,26 @@
+.track-container {
+  padding: 20px;
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.eta-box {
+  background: #f4f4f4;
+  padding: 12px;
+  border-radius: 10px;
+  margin: 12px 0;
+}
+
+.muted {
+  color: #777;
+}
+
+.map-wrap {
+  margin-top: 20px;
+}

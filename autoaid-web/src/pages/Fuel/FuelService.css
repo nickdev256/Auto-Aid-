@@ -1,0 +1,107 @@
+/* =============================== */
+/* MAIN PAGE ROOT */
+/* =============================== */
+.fuel-service-root {
+  min-height: 100vh;
+  padding: 20px;
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  background-size: cover;
+  color: #fff;
+  animation: fadeIn 0.4s ease;
+}
+
+/* =============================== */
+/* BACK BUTTON */
+/* =============================== */
+.back-top {
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  padding: 10px 16px;
+  border-radius: 12px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  backdrop-filter: blur(6px);
+  margin-bottom: 20px;
+  transition: 0.25s ease;
+}
+
+.back-top:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* =============================== */
+/* HEADER */
+/* =============================== */
+.fuel-service-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.fuel-service-header h1 {
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.fuel-service-header p {
+  font-size: 15px;
+  opacity: 0.8;
+}
+
+/* =============================== */
+/* GRID */
+/* =============================== */
+.fuel-service-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 18px;
+  padding: 10px;
+}
+
+/* =============================== */
+/* CARD */
+/* =============================== */
+.fuel-service-card {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: 0.25s ease;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.fuel-service-card:hover {
+  transform: translateY(-6px);
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* ICON */
+.fuel-service-card .icon {
+  font-size: 42px;
+  margin-bottom: 12px;
+}
+
+/* TITLE */
+.fuel-service-card h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #fff;
+}
+
+/* DESCRIPTION */
+.fuel-service-card p {
+  font-size: 14px;
+  opacity: 0.85;
+}
+
+/* =============================== */
+/* ANIMATION */
+/* =============================== */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

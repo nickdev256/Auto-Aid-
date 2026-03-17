@@ -1,0 +1,208 @@
+/* ------- MAIN CONTAINER ------- */
+.requests-container {
+  padding: 30px;
+  background: #f5f8ff;
+  min-height: 100vh;
+  font-family: "Poppins", sans-serif;
+  color: #1d2b53;
+}
+
+/* ------- TITLE ------- */
+.requests-container h2 {
+  margin-bottom: 20px;
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a2b4c;
+}
+
+/* ------- GENERAL BUTTON ------- */
+.requests-container button {
+  font-family: inherit;
+}
+
+/* ------- BACK BUTTON ------- */
+.admin-back {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  font-weight: 700;
+  color: #0d2446;
+  transition: 0.15s ease;
+  margin-bottom: 20px;
+}
+
+.admin-back:hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: translateY(-2px);
+}
+
+/* ------- FILTER BUTTONS ------- */
+.outline-btn,
+.ghost-btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #cfd9ee;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease-in-out;
+}
+
+.outline-btn {
+  background: #dce8ff;
+  color: #12376b;
+}
+
+.outline-btn:hover {
+  background: #cfe0ff;
+}
+
+.ghost-btn {
+  background: #ffffff;
+  color: #1a2b4c;
+}
+
+.ghost-btn:hover {
+  background: #edf3ff;
+}
+
+/* ------- TABLE ------- */
+.requests-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0, 0, 80, 0.06);
+  margin-top: 16px;
+}
+
+.requests-table th {
+  background: #e6eeff;
+  padding: 14px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a2b4c;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid #d6e0f5;
+}
+
+.requests-table td {
+  padding: 14px;
+  border-bottom: 1px solid #eef2fb;
+  font-size: 15px;
+  color: #2b3655;
+  vertical-align: middle;
+}
+
+.requests-table tbody tr:hover {
+  background: #f0f5ff;
+}
+
+/* ------- BADGES ------- */
+.badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 20px;
+  text-transform: capitalize;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.badge.pending {
+  background: #fff6d6;
+  color: #d8a400;
+}
+
+.badge.completed {
+  background: #d4ffe4;
+  color: #17a746;
+}
+
+.badge.cancelled {
+  background: #ffe1e1;
+  color: #d64545;
+}
+
+/* ------- ACTION BUTTONS ------- */
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-view,
+.btn-complete {
+  padding: 8px 14px;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: 0.2s ease-in-out;
+  font-weight: 600;
+}
+
+.btn-view {
+  background: #2563eb;
+}
+
+.btn-view:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.btn-complete {
+  background: #16a34a;
+}
+
+.btn-complete:hover {
+  background: #15803d;
+  transform: translateY(-1px);
+}
+
+/* ------- DETAILS BOX ------- */
+.single-request-box {
+  background: #ffffff;
+  border: 1px solid #dbe6fb;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 20px 0;
+  box-shadow: 0 4px 10px rgba(0, 0, 80, 0.05);
+}
+
+.single-request-box h3 {
+  margin-top: 0;
+  margin-bottom: 14px;
+  color: #1a2b4c;
+}
+
+.single-request-box p {
+  margin: 8px 0;
+  line-height: 1.5;
+}
+
+/* ------- ERROR ------- */
+.error-box {
+  background: #ffe5e5;
+  color: #b42318;
+  border: 1px solid #f5b5b5;
+  padding: 12px 14px;
+  border-radius: 8px;
+}
+
+/* ------- MOBILE ------- */
+@media (max-width: 900px) {
+  .requests-container {
+    padding: 16px;
+  }
+
+  .requests-table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}

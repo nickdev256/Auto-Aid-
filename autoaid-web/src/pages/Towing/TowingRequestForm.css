@@ -1,0 +1,160 @@
+/* === Premium Towing Request UI Redesign === */
+
+.towing-request-root {
+  display: flex;
+  justify-content: center;
+  padding: 50px 20px;
+  background: linear-gradient(135deg, #eef3ff, #f7f9ff);
+  min-height: 100vh;
+}
+
+.towing-card {
+  background: #ffffffcc;
+  backdrop-filter: blur(20px);
+  box-shadow: 0px 20px 40px rgba(0,0,0,0.08);
+  width: 100%;
+  max-width: 680px;
+  padding: 32px;
+  border-radius: 22px;
+  animation: fadeIn 0.4s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Back button */
+.back {
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: #4a5cff;
+  margin-bottom: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.7;
+  transition: 0.2s;
+}
+
+.back:hover {
+  opacity: 1;
+  transform: translateX(-3px);
+}
+
+/* Title */
+.towing-card h2 {
+  font-weight: 700;
+  color: #2a2d45;
+  margin-bottom: 24px;
+}
+
+/* Form */
+.towing-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.towing-form label {
+  font-size: 15px;
+  font-weight: 600;
+  color: #4a4d63;
+}
+
+.towing-form input,
+.towing-form textarea,
+.towing-form select {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid #dce1ff;
+  background: #f8f9ff;
+  font-size: 15px;
+  transition: 0.2s;
+  outline: none;
+}
+
+.towing-form textarea {
+  resize: vertical;
+}
+
+.towing-form input:focus,
+.towing-form textarea:focus,
+.towing-form select:focus {
+  border-color: #4a63ff;
+  background: #ffffff;
+  box-shadow: 0px 0px 0px 4px #4a63ff1a;
+}
+
+/* Location area */
+.location-brief {
+  margin-top: -8px;
+  font-size: 14px;
+  color: #6b6f85;
+  background: #eef2ff;
+  padding: 10px 16px;
+  border-radius: 12px;
+}
+
+/* Buttons */
+.form-actions {
+  display: flex;
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.primary {
+  flex: 1;
+  background: #1767e0;
+  color: white;
+  border: none;
+  padding: 14px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.25s ease;
+}
+
+.primary:hover {
+  background: #0f57c5;
+  transform: translateY(-2px);
+  box-shadow: 0px 8px 18px rgba(23,103,224,0.25);
+}
+
+.primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ghost {
+  flex: 1;
+  background: none;
+  border: 2px solid #d0d5fb;
+  padding: 14px;
+  border-radius: 12px;
+  font-size: 16px;
+  color: #3f4e9d;
+  cursor: pointer;
+  transition: 0.25s ease;
+}
+
+.ghost:hover {
+  border-color: #4a63ff;
+  color: #4a63ff;
+  background: #eef2ff;
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .towing-card {
+    padding: 24px 20px;
+  }
+
+  .form-actions {
+    flex-direction: column;
+  }
+}

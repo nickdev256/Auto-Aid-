@@ -1,0 +1,222 @@
+/* ROOT WRAPPER */
+.ambulance-request-root {
+  display: flex;
+  justify-content: center;
+  padding: 40px 20px;
+  background: #f5f7fa;
+  min-height: 100vh;
+}
+
+/* CARD UI */
+.request-card {
+  width: 100%;
+  max-width: 520px;
+  padding: 30px;
+  border-radius: 20px;
+
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+
+  box-shadow: 0px 8px 30px rgba(0, 0, 0, 0.08),
+              0px 0px 30px rgba(255, 0, 0, 0.06);
+  animation: slideUp 0.6s ease;
+}
+
+/* HEADER */
+.request-header h1 {
+  margin: 0 0 5px;
+  font-size: 1.8rem;
+  text-align: center;
+}
+
+.request-header p {
+  text-align: center;
+  color: #555;
+  margin-bottom: 20px;
+}
+
+/* STEP INDICATOR */
+.step-indicator {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 25px;
+  gap: 14px;
+}
+
+.step-indicator span {
+  width: 34px;
+  height: 34px;
+  background: #ddd;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  font-weight: 600;
+  color: #777;
+  transition: 0.3s;
+}
+
+.step-indicator span.active {
+  background: linear-gradient(135deg, #ff4444, #ff7979);
+  color: #fff;
+  transform: scale(1.15);
+  box-shadow: 0px 0px 10px rgba(255, 0, 0, 0.4);
+}
+
+/* SECTIONS */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.fade {
+  animation: fadeIn 0.4s ease;
+}
+
+/* LABELS */
+label {
+  font-weight: 600;
+  margin-top: 6px;
+}
+
+/* INPUTS */
+select, textarea {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+
+  background: #ffffff;
+  border: 1px solid #ccc;
+
+  font-size: 0.95rem;
+  transition: all 0.25s ease;
+}
+
+select:focus, textarea:focus {
+  outline: none;
+  border: 1px solid #ff4d4d;
+  box-shadow: 0px 0px 8px rgba(255, 0, 0, 0.3);
+}
+
+/* TEXTAREA */
+textarea {
+  min-height: 100px;
+  resize: none;
+}
+
+/* BUTTONS */
+.next-btn,
+.request-btn,
+.refresh-btn,
+.actions-row button {
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-size: 1rem;
+
+  border: none;
+  cursor: pointer;
+  transition: 0.2s ease-in-out;
+}
+
+/* NEXT BUTTON */
+.next-btn {
+  background: linear-gradient(135deg, #ff4f4f, #ff8383);
+  color: #fff;
+}
+
+.next-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0px 4px 12px rgba(255, 0, 0, 0.25);
+}
+
+/* REFRESH GPS BUTTON */
+.refresh-btn {
+  background: #ececec;
+}
+
+.refresh-btn:hover {
+  background: #dcdcdc;
+}
+
+/* REQUEST BUTTON */
+.request-btn {
+  background: linear-gradient(135deg, #ff2727, #ff5f5f);
+  color: #fff;
+  font-weight: 600;
+}
+
+.request-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0px 4px 14px rgba(255, 0, 0, 0.25);
+}
+
+/* ACTION BUTTON ROW */
+.actions-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+/* BACK BUTTON IN FORM */
+.actions-row button:not(.next-btn):not(.request-btn) {
+  background: #e3e3e3;
+}
+
+/* GPS BOX */
+.gps-box {
+  padding: 15px;
+  background: rgba(255, 245, 245, 0.7);
+  border-radius: 12px;
+  border-left: 4px solid #ff4d4d;
+
+  box-shadow: 0px 4px 10px rgba(255, 50, 50, 0.15);
+  animation: glowPulse 1.6s infinite ease-in-out;
+}
+
+.gps-loading {
+  color: #666;
+  text-align: center;
+}
+
+.gps-error {
+  color: #d30000;
+  text-align: center;
+  font-weight: 600;
+}
+
+/* ANIMATIONS */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes glowPulse {
+  0% {
+    box-shadow: 0px 4px 10px rgba(255, 60, 60, 0.2);
+  }
+  50% {
+    box-shadow: 0px 4px 14px rgba(255, 80, 80, 0.35);
+  }
+  100% {
+    box-shadow: 0px 4px 10px rgba(255, 60, 60, 0.2);
+  }
+}
+
+/* MOBILE */
+@media (max-width: 600px) {
+  .request-card {
+    padding: 24px;
+  }
+
+  .step-indicator span {
+    width: 30px;
+    height: 30px;
+  }
+}

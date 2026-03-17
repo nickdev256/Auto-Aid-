@@ -1,0 +1,123 @@
+/* === FORCE PREMIUM TOWING HISTORY UI === */
+
+.towing-history-root {
+  display: flex !important;
+  justify-content: center !important;
+  padding: 50px 20px !important;
+  min-height: 100vh !important;
+  background: linear-gradient(135deg, #eef3ff, #f7f9ff) !important;
+}
+
+.towing-card {
+  width: 100% !important;
+  max-width: 760px !important;
+  background: #ffffffdd !important;
+  backdrop-filter: blur(22px) !important;
+  border-radius: 22px !important;
+  padding: 32px !important;
+  box-shadow: 0px 20px 40px rgba(0,0,0,0.08) !important;
+  animation: fadeInHistory 0.4s ease !important;
+}
+
+@keyframes fadeInHistory {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.back {
+  border: none !important;
+  background: none !important;
+  font-size: 14px !important;
+  color: #4a5cff !important;
+  margin-bottom: 14px !important;
+  cursor: pointer !important;
+  opacity: 0.7 !important;
+  transition: 0.2s !important;
+}
+
+.back:hover {
+  opacity: 1 !important;
+  transform: translateX(-4px) !important;
+}
+
+.towing-card h2 {
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  color: #2a2d45 !important;
+  margin-bottom: 22px !important;
+}
+
+/* EMPTY STATE */
+.empty {
+  background: #eef2ff !important;
+  padding: 28px !important;
+  border-radius: 16px !important;
+  text-align: center !important;
+  color: #6c7090 !important;
+  font-size: 15px !important;
+}
+
+/* HISTORY LIST */
+.history-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 18px !important;
+}
+
+.history-card {
+  background: #ffffff !important;
+  border-radius: 18px !important;
+  padding: 18px 20px !important;
+  border: 1px solid #e2e7ff !important;
+  box-shadow: 0px 10px 20px rgba(0,0,0,0.05) !important;
+  transition: 0.25s ease !important;
+  cursor: pointer !important;
+}
+
+.history-card:hover {
+  transform: translateY(-4px) !important;
+  border-color: #4a63ff !important;
+  box-shadow: 0px 12px 24px rgba(74,99,255,0.18) !important;
+}
+
+/* ROW LAYOUT */
+.row {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+}
+
+.title {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: #2a2d45 !important;
+}
+
+/* BADGE COLORS */
+.badge {
+  padding: 6px 12px !important;
+  border-radius: 10px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  color: #fff !important;
+}
+
+.badge.pending { background: #ff9800 !important; }
+.badge.assigned { background: #4a63ff !important; }
+.badge.completed { background: #4caf50 !important; }
+.badge.cancelled { background: #e53935 !important; }
+
+/* DATE */
+.muted {
+  margin-top: 6px !important;
+  color: #6d7087 !important;
+  font-size: 13px !important;
+}
+
+/* MOBILE */
+@media (max-width: 600px) {
+  .towing-card {
+    padding: 26px 18px !important;
+  }
+}

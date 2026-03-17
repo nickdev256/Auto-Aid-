@@ -1,0 +1,5 @@
+.conv-root { max-width:900px; margin:0 auto; padding:12px; }
+.conv-list { display:flex; flex-direction:column; gap:8px; }
+.conv-card { display:flex; justify-content:space-between; padding:12px; border-radius:8px; border:1px solid #f0f4f8; cursor:pointer; background:#fff; box-shadow: 0 4px 12px rgba(14,21,47,0.04); }
+.conv-left .service { font-weight:700; color:#0b3b5a; }
+.conv-right .preview { color:#666; font-size:13px; }

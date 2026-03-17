@@ -1,0 +1,226 @@
+.admin-revenue-page {
+  min-height: 100vh;
+  background: #f8fafc;
+  padding: 24px;
+}
+
+.admin-revenue-container {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.admin-revenue-header {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.admin-revenue-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.admin-revenue-subtitle {
+  margin: 6px 0 0;
+  color: #475569;
+}
+
+.admin-revenue-card {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+}
+
+.admin-revenue-alert {
+  margin-bottom: 16px;
+}
+
+.admin-revenue-alert-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.admin-revenue-refresh-btn {
+  border: none;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+  background: #0f172a;
+  color: #fff;
+}
+
+.admin-revenue-refresh-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.admin-revenue-refresh-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.admin-revenue-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.admin-revenue-summary-label {
+  color: #64748b;
+  font-size: 14px;
+}
+
+.admin-revenue-summary-value {
+  font-size: 24px;
+  font-weight: 800;
+  margin-top: 6px;
+  color: #0f172a;
+}
+
+.admin-revenue-summary-value.revenue {
+  color: #15803d;
+}
+
+.admin-revenue-summary-value.subscriptions {
+  color: #2563eb;
+}
+
+.admin-revenue-summary-value.escrow {
+  color: #a16207;
+}
+
+.admin-revenue-summary-value.pending {
+  color: #b45309;
+}
+
+.admin-revenue-filters {
+  margin-bottom: 18px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.admin-revenue-search {
+  flex: 1 1 320px;
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  padding: 0 14px;
+  outline: none;
+  background: #fff;
+}
+
+.admin-revenue-select {
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  padding: 0 14px;
+  background: #fff;
+  outline: none;
+}
+
+.admin-revenue-state-box {
+  text-align: center;
+  padding: 40px;
+}
+
+.admin-revenue-list {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-revenue-item-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.admin-revenue-amount {
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.admin-revenue-status-chip {
+  margin-top: 6px;
+  display: inline-flex;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.admin-revenue-meta {
+  text-align: right;
+  color: #64748b;
+}
+
+.admin-revenue-details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.admin-revenue-section-title {
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: #0f172a;
+}
+
+.admin-revenue-detail-line {
+  color: #334155;
+  margin-bottom: 4px;
+  word-break: break-word;
+}
+
+.admin-revenue-status-unpaid {
+  background: rgba(161, 98, 7, 0.08);
+  color: #a16207;
+}
+
+.admin-revenue-status-escrow {
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+}
+
+.admin-revenue-status-released {
+  background: rgba(21, 128, 61, 0.1);
+  color: #15803d;
+}
+
+.admin-revenue-status-refunded {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+}
+
+@media (max-width: 768px) {
+  .admin-revenue-page {
+    padding: 16px;
+  }
+
+  .admin-revenue-title {
+    font-size: 24px;
+  }
+
+  .admin-revenue-meta {
+    text-align: left;
+  }
+
+  .admin-revenue-item-top {
+    flex-direction: column;
+  }
+}
