@@ -95,10 +95,7 @@ object AppColors {
     val referralCardIcon = Color(0xFF7C3AED)
 }
 
-data class QuickAccessItem(
-    val icon: ImageVector,
-    val title: String
-)
+data class QuickAccessItem(val iconRes: Int, val title: String)
 
 data class RecentItem(
     val requestId: String,
@@ -124,10 +121,10 @@ data class LiveFeaturedServiceItem(
 )
 
 val quickAccessData = listOf(
-    QuickAccessItem(Icons.Filled.CarRepair, "Garage"),
-    QuickAccessItem(Icons.Filled.LocalShipping, "Towing Track"),
-    QuickAccessItem(Icons.Filled.LocalGasStation, "Fuel Delivery"),
-    QuickAccessItem(Icons.Filled.MedicalServices, "Ambulance")
+    QuickAccessItem(R.drawable.garage, "Garage"),
+    QuickAccessItem(R.drawable.towing_vehicle, "Towing Track"),
+    QuickAccessItem(R.drawable.fu, "Fuel Delivery"),
+    QuickAccessItem(R.drawable.ambulance, "Ambulance")
 )
 
 object AppImages {
@@ -433,6 +430,13 @@ fun HomeScreen(navController: NavHostController) {
         }
 
         runCatching {
+            referralState = ReferralUiData(
+                title = "Refer a friend",
+                subtitle = "Earn rewards instantly",
+                code = "AUTOAID",
+                earnedAmount = "UGX 0"
+            )
+        }.onFailure {
             referralState = ReferralUiData()
         }
 
@@ -640,7 +644,7 @@ fun SearchAndProfileBar(
         if (pickedLabel.isNotBlank()) {
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "Picked: $pickedLabel  ($pickedLat, $pickedLng)",
+                text = "Picked: $pickedLabel ($pickedLat, $pickedLng)",
                 style = MaterialTheme.typography.bodySmall
             )
         }
@@ -657,7 +661,7 @@ fun QuickAccessGrid(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         quickAccessData.forEach { item ->
@@ -687,16 +691,13 @@ fun QuickAccessItemView(
             .padding(horizontal = 4.dp)
             .clickable {
                 navController.currentBackStackEntry?.savedStateHandle?.set(
-                    "picked_location_label",
-                    pickedLabel
+                    "picked_location_label", pickedLabel
                 )
                 navController.currentBackStackEntry?.savedStateHandle?.set(
-                    "picked_location_lat",
-                    pickedLat
+                    "picked_location_lat", pickedLat
                 )
                 navController.currentBackStackEntry?.savedStateHandle?.set(
-                    "picked_location_lng",
-                    pickedLng
+                    "picked_location_lng", pickedLng
                 )
 
                 when (item.title) {
@@ -717,11 +718,10 @@ fun QuickAccessItemView(
                 .border(1.dp, AppColors.primary, RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = item.icon,
+            Image(
+                painter = painterResource(id = item.iconRes),
                 contentDescription = item.title,
-                modifier = Modifier.size(36.dp),
-                tint = AppColors.textPrimary
+                modifier = Modifier.size(36.dp)
             )
         }
 
@@ -763,12 +763,12 @@ fun ReferralCard(referral: ReferralUiData) {
 
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Code: ${referral.code}",
+                    "Code: ${referral.code}",
                     fontSize = 12.sp,
                     color = AppColors.textSecondary
                 )
                 Text(
-                    text = "Earned: ${referral.earnedAmount}",
+                    "Earned: ${referral.earnedAmount}",
                     fontSize = 12.sp,
                     color = AppColors.textSecondary
                 )
@@ -805,9 +805,7 @@ fun FeaturesSection(
         contentPadding = PaddingValues(horizontal = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(items) { item ->
-            ServiceCard(item)
-        }
+        items(items) { ServiceCard(it) }
     }
 }
 
@@ -823,7 +821,7 @@ fun ServiceCard(item: LiveFeaturedServiceItem) {
     ) {
         Box {
             Image(
-                painter = painterResource(item.imageRes),
+                painter = painterResource(id = item.imageRes),
                 contentDescription = item.name,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()

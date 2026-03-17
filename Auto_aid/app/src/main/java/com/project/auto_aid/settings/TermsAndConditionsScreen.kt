@@ -1,6 +1,7 @@
 package com.project.auto_aid.settings
 
 import android.app.Activity
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -47,7 +48,7 @@ fun TermsAndConditionsScreen(
                     onClick = { showDialog = false },
                     colors = ButtonDefaults.textButtonColors(
                         contentColor = Color(0xFF0A9AD9))
-                    ) {
+                ) {
                     Text("Cancel")
                 }
             },
@@ -69,10 +70,7 @@ fun TermsAndConditionsScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = null
-                        )
+
                     }
                 }
             )
@@ -131,11 +129,11 @@ fun TermsAndConditionsScreen(
                     Checkbox(
                         checked = accepted,
                         onCheckedChange = { accepted = it },
-                                colors = CheckboxDefaults.colors(
-                                checkedColor = Color(0xFF0A9AD9),      // Box color when checked
-                        checkmarkColor = Color.White,         // Tick color
-                        uncheckedColor = Color.Black           // Border color when not checked
-                    )
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = Color(0xFF0A9AD9),      // Box color when checked
+                            checkmarkColor = Color.White,         // Tick color
+                            uncheckedColor = Color.Black           // Border color when not checked
+                        )
                     )
 
 
@@ -166,20 +164,20 @@ fun TermsAndConditionsScreen(
                         }
                     },
 
-            enabled = accepted,
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.medium,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (isClicked)
-                    Color(0xFF1565C0)     // Darker blue when clicked
-                else
-                    Color(0xFF0A9AD9),    // Normal blue
+                    enabled = accepted,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isClicked)
+                            Color(0xFF1565C0)     // Darker blue when clicked
+                        else
+                            Color(0xFF0A9AD9),    // Normal blue
 
-                contentColor = Color.White
-            )
-            ) {
-            Text("ACCEPT")
-        }
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("ACCEPT")
+                }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -187,7 +185,11 @@ fun TermsAndConditionsScreen(
                     onClick = {
                         showDialog = true
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Color.Red
+                    ),
+                    border = BorderStroke(1.dp, Color.Red)
                 ) {
                     Text("DECLINE")
                 }

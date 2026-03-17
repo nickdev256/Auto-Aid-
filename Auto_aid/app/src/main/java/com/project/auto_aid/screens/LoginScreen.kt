@@ -43,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -73,10 +74,10 @@ fun LoginScreen(navController: NavController) {
 
     val isPreview = LocalInspectionMode.current
     val context = LocalContext.current
-    val tokenStore = remember(context) { TokenStore(context) }
+    val tokenStore = if (isPreview) null else remember(context) { TokenStore(context) }
 
-    val vm: AuthViewModel = viewModel()
-    val authState by vm.state.collectAsState()
+    val vm: AuthViewModel? = if (isPreview) null else viewModel()
+    val authState = if (isPreview) null else vm!!.state.collectAsState().value
 
     var role by remember {
         mutableStateOf<String?>(if (isPreview) "User" else null)
@@ -87,8 +88,8 @@ fun LoginScreen(navController: NavController) {
     var showPassword by remember { mutableStateOf(false) }
     var navigated by remember { mutableStateOf(false) }
 
-    val loading = authState.loading
-    val errorMsg = authState.error
+    val loading = authState?.loading ?: false
+    val errorMsg = authState?.error ?: ""
 
     if (role == null) {
         RoleSelectionScreen { selectedRole ->
@@ -124,15 +125,15 @@ fun LoginScreen(navController: NavController) {
         }
     }
 
-    LaunchedEffect(authState.data) {
-        val data = authState.data ?: return@LaunchedEffect
+    LaunchedEffect(authState?.data) {
+        val data = authState?.data ?: return@LaunchedEffect
         if (navigated) return@LaunchedEffect
 
         val userRole = (data.user.role ?: "").lowercase()
         val selectedRole = (role ?: "").lowercase()
 
         if (userRole == selectedRole) {
-            val token = tokenStore.getToken()
+            val token = tokenStore?.getToken()
 
             if (!token.isNullOrBlank()) {
                 SocketManager.connect(
@@ -162,7 +163,7 @@ fun LoginScreen(navController: NavController) {
                 launchSingleTop = true
             }
         } else {
-            vm.logout()
+            vm?.logout()
             SocketManager.disconnect()
             Toast.makeText(context, "Wrong role selected", Toast.LENGTH_SHORT).show()
         }
@@ -210,6 +211,7 @@ fun LoginScreen(navController: NavController) {
             ) {
 
                 Text(
+                    modifier = Modifier.padding(bottom = 5.dp),
                     text = "Welcome back!",
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Bold
@@ -222,10 +224,13 @@ fun LoginScreen(navController: NavController) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth(0.90f)
-                        .padding(1.dp),
+                        .padding(1.dp)
+                        .shadow(12.dp, RoundedCornerShape(20.dp)),
                     shape = RoundedCornerShape(20.dp),
-                    elevation = CardDefaults.cardElevation(10.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White)
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.White
+                    )
                 ) {
 
                     Column(
@@ -298,7 +303,7 @@ fun LoginScreen(navController: NavController) {
                         if (loading || isPreview) return@Button
                         navigated = false
                         SocketManager.disconnect()
-                        vm.login(email, password)
+                        vm?.login(email, password)
                     },
                     modifier = Modifier
                         .fillMaxWidth()

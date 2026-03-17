@@ -22,9 +22,19 @@ fun HeroImageSlider() {
 
     val images = listOf(
         R.drawable.total_1,
+        R.drawable.fuel1,
+        R.drawable.logo14,
+        R.drawable.amb1,
+        R.drawable.ambu2,
         R.drawable.shell_2,
-        R.drawable.logo14
-    )
+        R.drawable.gara1,
+        R.drawable.towi1,
+        R.drawable.amb1,
+        R.drawable.fuel,
+        R.drawable.towi1,
+        R.drawable.fuel33,
+
+        )
 
     var index by remember { mutableIntStateOf(0) }
 

@@ -1,5 +1,6 @@
 package com.project.auto_aid.screens
 
+import Components.HeroImageSlider
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
@@ -16,9 +17,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -26,10 +29,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import com.project.auto_aid.R
 import com.project.auto_aid.data.local.TokenStore
@@ -43,12 +48,13 @@ import kotlinx.coroutines.launch
 @Composable
 fun SignupScreen(navController: NavController) {
 
+    val isPreview = LocalInspectionMode.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
-    val tokenStore = remember { TokenStore(context) }
-    val api = remember { RetrofitClient.create(tokenStore) }
+    val tokenStore = if (isPreview) null else remember { TokenStore(context) }
+    val api = if (isPreview) null else remember { RetrofitClient.create(tokenStore!!) }
 
     var role by remember { mutableStateOf<String?>(null) }
 
@@ -98,55 +104,35 @@ fun SignupScreen(navController: NavController) {
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        Card(
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            shape = RoundedCornerShape(22.dp),
-            elevation = CardDefaults.cardElevation(18.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+                .fillMaxSize(), // take the full screen
+            contentAlignment = Alignment.Center // center content vertically and horizontally
         ) {
-            Column(
+            Card(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) {
-
-                InputField("Full Name", name) { name = it }
-                InputField("Email Address", email) { email = it }
-
-                UgandaPhoneInput(
-                    phone = phone,
-                    onPhoneChange = { phone = it },
-                    isError = phone.isNotEmpty() && !isValidUgandaPhone(phone)
+                    .fillMaxWidth(0.90f)
+                    .shadow(12.dp, RoundedCornerShape(20.dp)),
+                shape = RoundedCornerShape(20.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color.White
                 )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
                 ) {
-                    Box(modifier = Modifier.weight(1f)) {
-                        PasswordInput(
-                            label = "Password",
-                            value = password,
-                            show = showPassword,
-                            toggle = { showPassword = !showPassword }
-                        ) { password = it }
-                    }
+                    InputField("Full Name", name) { name = it }
+                    InputField("Email Address", email) { email = it }
 
-                    Box(modifier = Modifier.weight(1f)) {
-                        PasswordInput(
-                            label = "Confirm",
-                            value = confirmPassword,
-                            show = showConfirm,
-                            toggle = { showConfirm = !showConfirm }
-                        ) { confirmPassword = it }
-                    }
-                }
+                    UgandaPhoneInput(
+                        phone = phone,
+                        onPhoneChange = { phone = it },
+                        isError = phone.isNotEmpty() && !isValidUgandaPhone(phone)
+                    )
 
-                if (role == "provider") {
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Row(
@@ -154,21 +140,48 @@ fun SignupScreen(navController: NavController) {
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Box(modifier = Modifier.weight(1f)) {
-                            Dropdown(
-                                label = "Service Type",
-                                options = listOf("Towing", "Garage", "Fuel", "Ambulance"),
-                                selected = serviceTypeUi,
-                                onSelect = { serviceTypeUi = it }
-                            )
+                            PasswordInput(
+                                label = "Password",
+                                value = password,
+                                show = showPassword,
+                                toggle = { showPassword = !showPassword }
+                            ) { password = it }
                         }
 
                         Box(modifier = Modifier.weight(1f)) {
-                            Dropdown(
-                                label = "Subscription",
-                                options = listOf("Monthly", "Quarterly", "Yearly"),
-                                selected = subscriptionUi,
-                                onSelect = { subscriptionUi = it }
-                            )
+                            PasswordInput(
+                                label = "Confirm",
+                                value = confirmPassword,
+                                show = showConfirm,
+                                toggle = { showConfirm = !showConfirm }
+                            ) { confirmPassword = it }
+                        }
+                    }
+
+                    if (role == "provider") {
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(modifier = Modifier.weight(1f)) {
+                                Dropdown(
+                                    label = "Service Type",
+                                    options = listOf("Towing", "Garage", "Fuel", "Ambulance"),
+                                    selected = serviceTypeUi,
+                                    onSelect = { serviceTypeUi = it }
+                                )
+                            }
+
+                            Box(modifier = Modifier.weight(1f)) {
+                                Dropdown(
+                                    label = "Subscription",
+                                    options = listOf("Monthly", "Quarterly", "Yearly"),
+                                    selected = subscriptionUi,
+                                    onSelect = { subscriptionUi = it }
+                                )
+                            }
                         }
                     }
                 }
@@ -179,7 +192,7 @@ fun SignupScreen(navController: NavController) {
 
         Button(
             onClick = {
-                if (loading) return@Button
+                if (loading || isPreview) return@Button
 
                 if (name.isBlank() || email.isBlank() || phone.isBlank() || password.isBlank()) {
                     toast(context, "Fill in all fields")
@@ -225,7 +238,7 @@ fun SignupScreen(navController: NavController) {
                     )
 
                     val res = try {
-                        api.signup(body)
+                        api?.signup(body)
                     } catch (e: MaintenanceException) {
                         loading = false
                         navController.navigate(
@@ -245,16 +258,16 @@ fun SignupScreen(navController: NavController) {
 
                     loading = false
 
-                    if (res.isSuccessful) {
+                    if (res?.isSuccessful == true) {
                         val data = res.body()
                         val pendingEmail = (data?.email ?: body.email).trim().lowercase()
 
                         toast(context, "OTP sent to $pendingEmail ✅")
                         navController.navigate(Routes.VerifyCodeScreen.createRoute(pendingEmail))
                     } else {
-                        val err = res.errorBody()?.string()
-                        Log.e("AUTH", "❌ signup ${res.code()} err=$err body=$body")
-                        toast(context, err ?: "Signup failed (${res.code()})")
+                        val err = res?.errorBody()?.string()
+                        Log.e("AUTH", "❌ signup ${res?.code()} err=$err body=$body")
+                        toast(context, err ?: "Signup failed (${res?.code()})")
                     }
                 }
             },
@@ -434,6 +447,7 @@ fun Dropdown(
     }
 }
 
+
 /* ================= ROLE SELECTION ================= */
 
 @Composable
@@ -502,6 +516,8 @@ fun RoleSelection(onSelect: (String) -> Unit) {
     }
 }
 
+
+
 /* ================= UTILS ================= */
 
 fun isValidUgandaPhone(phone: String): Boolean {
@@ -511,4 +527,11 @@ fun isValidUgandaPhone(phone: String): Boolean {
 
 fun toast(context: Context, msg: String) {
     Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+}
+
+
+@Preview(showBackground = true)
+@Composable
+fun SignupScreenPreview() {
+    SignupScreen(navController = rememberNavController())
 }
