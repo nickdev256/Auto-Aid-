@@ -6,14 +6,43 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Card
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -22,11 +51,12 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
+import com.project.auto_aid.components.LocationSelectionKeys
 import com.project.auto_aid.data.local.TokenStore
 import com.project.auto_aid.data.network.RetrofitClient
 import com.project.auto_aid.data.network.dto.CreateRequestBody
-import com.project.auto_aid.data.network.dto.RequestDto
 import com.project.auto_aid.data.network.dto.LocationBody
+import com.project.auto_aid.data.network.dto.RequestDto
 import com.project.auto_aid.navigation.Routes
 import kotlinx.coroutines.launch
 import java.io.File
@@ -36,27 +66,33 @@ import java.util.UUID
 @Composable
 fun FuelRequestScreen(
     navController: NavHostController,
-    providerId: String? = null,
-    userLat: Double = 0.3476,
-    userLng: Double = 32.5825
+    providerId: String? = null
 ) {
     val context = LocalContext.current
     val tokenStore = remember(context) { TokenStore(context) }
-    val api = remember(context) { RetrofitClient.create(tokenStore) }
+    val api = remember(tokenStore) { RetrofitClient.create(tokenStore) }
 
     val savedStateHandle = navController.previousBackStackEntry?.savedStateHandle
         ?: navController.currentBackStackEntry?.savedStateHandle
 
     val pickedLocationLabelState =
-        savedStateHandle?.getStateFlow("picked_location_label", "")?.collectAsState()
+        savedStateHandle
+            ?.getStateFlow(LocationSelectionKeys.PICKED_LOCATION_LABEL, "")
+            ?.collectAsState()
+
     val pickedLocationLatState =
-        savedStateHandle?.getStateFlow("picked_location_lat", userLat)?.collectAsState()
+        savedStateHandle
+            ?.getStateFlow(LocationSelectionKeys.PICKED_LOCATION_LAT, 0.0)
+            ?.collectAsState()
+
     val pickedLocationLngState =
-        savedStateHandle?.getStateFlow("picked_location_lng", userLng)?.collectAsState()
+        savedStateHandle
+            ?.getStateFlow(LocationSelectionKeys.PICKED_LOCATION_LNG, 0.0)
+            ?.collectAsState()
 
     val pickedLabel = pickedLocationLabelState?.value.orEmpty()
-    val finalLat = pickedLocationLatState?.value ?: userLat
-    val finalLng = pickedLocationLngState?.value ?: userLng
+    val finalLat = pickedLocationLatState?.value ?: 0.0
+    val finalLng = pickedLocationLngState?.value ?: 0.0
 
     var fuelType by remember { mutableStateOf("Petrol") }
     var quantity by remember { mutableStateOf("") }
@@ -73,7 +109,9 @@ fun FuelRequestScreen(
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
-        if (!granted) error = "Camera permission denied. Enable it in Settings."
+        if (!granted) {
+            error = "Camera permission denied. Enable it in Settings."
+        }
     }
 
     val takePictureLauncher = rememberLauncherForActivityResult(
@@ -121,7 +159,10 @@ fun FuelRequestScreen(
                 .padding(20.dp)
         ) {
             if (providerId != null) {
-                AssistChip(onClick = {}, label = { Text("Target provider selected") })
+                AssistChip(
+                    onClick = {},
+                    label = { Text("Target provider selected") }
+                )
             } else {
                 AssistChip(
                     onClick = {},
@@ -130,14 +171,14 @@ fun FuelRequestScreen(
             }
 
             if (pickedLabel.isNotBlank()) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 AssistChip(
                     onClick = {},
                     label = { Text("Location: $pickedLabel") }
                 )
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             Text(
                 text = "Coordinates: $finalLat, $finalLng",
@@ -145,9 +186,12 @@ fun FuelRequestScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            Text("Fuel Type", fontWeight = FontWeight.SemiBold)
+            Text(
+                text = "Fuel Type",
+                fontWeight = FontWeight.SemiBold
+            )
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 FilterChip(
@@ -167,7 +211,7 @@ fun FuelRequestScreen(
                 )
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedTextField(
                 value = quantity,
@@ -177,9 +221,12 @@ fun FuelRequestScreen(
                 shape = RoundedCornerShape(12.dp)
             )
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            Text("Payment Method", fontWeight = FontWeight.SemiBold)
+            Text(
+                text = "Payment Method",
+                fontWeight = FontWeight.SemiBold
+            )
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 FilterChip(
@@ -194,29 +241,34 @@ fun FuelRequestScreen(
                 )
             }
 
-            Spacer(Modifier.height(16.dp))
-            Text("Dashboard Fuel Gauge Photo", fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "Dashboard Fuel Gauge Photo",
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp)
             ) {
-                Column(Modifier.padding(14.dp)) {
+                Column(modifier = Modifier.padding(14.dp)) {
                     Text(
-                        "Take a clear photo from inside the car showing the dashboard fuel gauge on empty or near empty.",
+                        text = "Take a clear photo from inside the car showing the dashboard fuel gauge on empty or near empty.",
                         style = MaterialTheme.typography.bodyMedium
                     )
 
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        "Make sure the fuel meter is clearly visible. If possible, turn ignition on so the gauge shows properly.",
+                        text = "Make sure the fuel meter is clearly visible. If possible, turn ignition on so the gauge shows properly.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -239,23 +291,29 @@ fun FuelRequestScreen(
                                 takePictureLauncher.launch(uri)
                             }
                         ) {
-                            Text(if (photoUri == null) "Take Dashboard Photo" else "Retake Photo")
+                            Text(
+                                if (photoUri == null) "Take Dashboard Photo" else "Retake Photo"
+                            )
                         }
 
                         AssistChip(
                             onClick = {},
-                            label = { Text(if (photoUri != null) "Photo added" else "No photo") }
+                            label = {
+                                Text(if (photoUri != null) "Photo added" else "No photo")
+                            }
                         )
                     }
 
                     if (photoUri != null) {
-                        Spacer(Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Image(
-                                painter = rememberAsyncImagePainter(model = "${photoUri}?v=$photoRefreshKey"),
+                                painter = rememberAsyncImagePainter(
+                                    model = "${photoUri}?v=$photoRefreshKey"
+                                ),
                                 contentDescription = "Fuel dashboard preview",
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -266,12 +324,23 @@ fun FuelRequestScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "The selected map location will be used for fuel delivery.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
             error?.let {
-                Spacer(Modifier.height(12.dp))
-                Text(it, color = MaterialTheme.colorScheme.error)
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = it,
+                    color = MaterialTheme.colorScheme.error
+                )
             }
 
-            Spacer(Modifier.height(22.dp))
+            Spacer(modifier = Modifier.height(22.dp))
 
             Button(
                 onClick = {
@@ -280,6 +349,11 @@ fun FuelRequestScreen(
                     val token = tokenStore.getToken()
                     if (token.isNullOrBlank()) {
                         error = "Please login first."
+                        return@Button
+                    }
+
+                    if (finalLat == 0.0 && finalLng == 0.0) {
+                        error = "Please choose your service location first."
                         return@Button
                     }
 
@@ -304,8 +378,17 @@ fun FuelRequestScreen(
                                     providerType = "fuel",
                                     vehicleInfo = "$fuelType • ${quantity.trim()} L",
                                     problem = "Payment: $paymentMethod",
+                                    note = if (pickedLabel.isNotBlank()) {
+                                        "Location: $pickedLabel"
+                                    } else {
+                                        ""
+                                    },
                                     towType = fuelType,
-                                    userLocation = LocationBody(finalLat, finalLng),
+                                    urgency = "normal",
+                                    userLocation = LocationBody(
+                                        lat = finalLat,
+                                        lng = finalLng
+                                    ),
                                     targetProviderId = providerId
                                 )
                             )
@@ -318,7 +401,9 @@ fun FuelRequestScreen(
                                 response.body() ?: throw Exception("Empty response body")
 
                             val rid = created._id ?: created.id ?: ""
-                            if (rid.isBlank()) throw Exception("Missing request ID")
+                            if (rid.isBlank()) {
+                                throw Exception("Missing request ID")
+                            }
 
                             tokenStore.saveLastFuelRequestId(rid)
                             navController.navigate(Routes.FuelActiveScreen.createRoute(rid))
@@ -342,11 +427,14 @@ fun FuelRequestScreen(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text("Send Request", fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "Send Request",
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             OutlinedButton(
                 onClick = { navController.popBackStack() },
@@ -355,7 +443,7 @@ fun FuelRequestScreen(
                 Text("Cancel")
             }
 
-            Spacer(Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(14.dp))
         }
     }
 }

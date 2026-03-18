@@ -54,6 +54,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import com.project.auto_aid.components.LocationSelectionKeys
 import com.project.auto_aid.data.local.TokenStore
 import com.project.auto_aid.data.network.RetrofitClient
 import com.project.auto_aid.data.network.dto.ProviderLiteDto
@@ -117,6 +118,51 @@ fun ProviderSelectionScreen(
         }
     }
 
+    fun continueToRequest(provider: ProviderLiteDto) {
+        val providerId = provider.resolvedId()
+        if (providerId.isBlank()) {
+            errorMessage = "Selected provider ID is missing."
+            return
+        }
+
+        navController.currentBackStackEntry?.savedStateHandle?.apply {
+            set(LocationSelectionKeys.PICKED_LOCATION_LABEL, pickedLocationLabel)
+            set(LocationSelectionKeys.PICKED_LOCATION_LAT, userLat)
+            set(LocationSelectionKeys.PICKED_LOCATION_LNG, userLng)
+
+            set("selected_provider_id", providerId)
+            set("selected_provider_name", provider.name.orEmpty())
+            set("selected_provider_business_name", provider.businessName.orEmpty())
+            set("selected_provider_type", providerType)
+        }
+
+        when (providerType.lowercase()) {
+            "garage" -> {
+                navController.navigate(
+                    Routes.GarageRequestScreen.createRoute(providerId)
+                )
+            }
+            "fuel" -> {
+                navController.navigate(
+                    Routes.FuelRequestScreen.createRoute(providerId)
+                )
+            }
+            "towing" -> {
+                navController.navigate(
+                    Routes.TowingRequestScreen.createRoute(providerId)
+                )
+            }
+            "ambulance" -> {
+                navController.navigate(
+                    Routes.AmbulanceRequestScreen.createRoute(providerId)
+                )
+            }
+            else -> {
+                errorMessage = "Unknown service type: $providerType"
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -162,6 +208,12 @@ fun ProviderSelectionScreen(
                             )
                             Text(
                                 text = pickedLocationLabel,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.Gray
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Lat: $userLat, Lng: $userLng",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color.Gray
                             )
@@ -232,37 +284,7 @@ fun ProviderSelectionScreen(
                                 provider = provider,
                                 serviceType = providerType,
                                 onChoose = {
-                                    val providerId = provider.resolvedId()
-                                    if (providerId.isBlank()) {
-                                        errorMessage = "Selected provider ID is missing."
-                                        return@ProviderSelectionCard
-                                    }
-
-                                    when (providerType.lowercase()) {
-                                        "garage" -> {
-                                            navController.navigate(
-                                                Routes.GarageRequestScreen.createRoute(providerId)
-                                            )
-                                        }
-                                        "fuel" -> {
-                                            navController.navigate(
-                                                Routes.FuelRequestScreen.createRoute(providerId)
-                                            )
-                                        }
-                                        "towing" -> {
-                                            navController.navigate(
-                                                Routes.TowingRequestScreen.createRoute(providerId)
-                                            )
-                                        }
-                                        "ambulance" -> {
-                                            navController.navigate(
-                                                Routes.AmbulanceRequestScreen.createRoute(providerId)
-                                            )
-                                        }
-                                        else -> {
-                                            errorMessage = "Unknown service type: $providerType"
-                                        }
-                                    }
+                                    continueToRequest(provider)
                                 }
                             )
                         }

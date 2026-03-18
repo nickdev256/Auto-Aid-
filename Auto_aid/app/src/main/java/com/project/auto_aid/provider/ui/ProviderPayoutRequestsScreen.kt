@@ -337,11 +337,7 @@ private fun PayoutRequestCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = formatUgx(item.amount ?: 0.0),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+
 
             Text(
                 text = "Status: ${item.status?.uppercase() ?: "PENDING"}",
@@ -422,13 +418,4 @@ private fun PayoutRequestCard(
     }
 }
 
-private fun formatUgx(amount: Double): String {
-    return try {
-        val formatter = NumberFormat.getNumberInstance(Locale.US)
-        formatter.maximumFractionDigits = 0
-        formatter.minimumFractionDigits = 0
-        "UGX ${formatter.format(amount.roundToInt())}"
-    } catch (_: Exception) {
-        "UGX ${amount.roundToInt()}"
-    }
-}
+

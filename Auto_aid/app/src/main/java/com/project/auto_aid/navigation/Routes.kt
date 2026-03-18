@@ -46,16 +46,8 @@ sealed class Routes(val route: String) {
     /* ---------- Provider Selection ---------- */
 
     object ProviderSelection : Routes(
-        "provider_selection/" +
-                "{providerType}/" +
-                "{lat}/" +
-                "{lng}?" +
-                "pickedLabel={pickedLabel}&" +
-                "vehicleInfo={vehicleInfo}&" +
-                "problem={problem}&" +
-                "note={note}&" +
-                "urgency={urgency}&" +
-                "towType={towType}"
+        "provider_selection/{providerType}/{lat}/{lng}?" +
+                "pickedLabel={pickedLabel}&vehicleInfo={vehicleInfo}&problem={problem}&note={note}&urgency={urgency}&towType={towType}"
     ) {
         fun createRoute(
             providerType: String,
@@ -81,12 +73,7 @@ sealed class Routes(val route: String) {
     /* ---------- Create Request Form ---------- */
 
     object CreateRequestForm : Routes(
-        "create_request_form?" +
-                "providerType={providerType}&" +
-                "providerId={providerId}&" +
-                "lat={lat}&" +
-                "lng={lng}&" +
-                "locationLabel={locationLabel}"
+        "create_request_form?providerType={providerType}&providerId={providerId}&lat={lat}&lng={lng}&locationLabel={locationLabel}"
     ) {
         fun createRoute(
             providerType: String,
@@ -107,10 +94,7 @@ sealed class Routes(val route: String) {
     /* ---------- Location Picker ---------- */
 
     object LocationPicker : Routes("location_picker?lat={lat}&lng={lng}") {
-        fun createRoute(
-            lat: Double? = null,
-            lng: Double? = null
-        ): String {
+        fun createRoute(lat: Double? = null, lng: Double? = null): String {
             return if (lat == null || lng == null) {
                 "location_picker"
             } else {
@@ -123,7 +107,6 @@ sealed class Routes(val route: String) {
 
     object SettingsScreen : Routes("settings")
     object UserInfoScreen : Routes("user_info")
-
     object AboutUsScreen : Routes("about_us")
     object PrivacyPolicyScreen : Routes("privacy_policy")
     object PromotionScreen : Routes("promotion")
@@ -232,21 +215,29 @@ sealed class Routes(val route: String) {
     object ProviderPayoutRequests : Routes("provider_payout_requests")
 
     object ProviderChatThread : Routes("provider_chat_thread/{requestId}") {
-        fun createRoute(requestId: String) = "provider_chat_thread/${Uri.encode(requestId)}"
+        fun createRoute(requestId: String) =
+            "provider_chat_thread/${Uri.encode(requestId)}"
     }
 
     object ProviderActiveJob : Routes("provider_active_job/{requestId}") {
-        fun createRoute(requestId: String) = "provider_active_job/${Uri.encode(requestId)}"
+        fun createRoute(requestId: String) =
+            "provider_active_job/${Uri.encode(requestId)}"
     }
 
+    /* 🔥 FIXED MAP ROUTE */
+
     object ProviderMapScreen :
-        Routes("provider_map/{requestId}?pickupLat={pickupLat}&pickupLng={pickupLng}") {
+        Routes("provider_map?requestId={requestId}&pickupLat={pickupLat}&pickupLng={pickupLng}") {
+
         fun createRoute(
             requestId: String,
             pickupLat: Double,
             pickupLng: Double
         ): String {
-            return "provider_map/${Uri.encode(requestId)}?pickupLat=$pickupLat&pickupLng=$pickupLng"
+            return "provider_map" +
+                    "?requestId=${Uri.encode(requestId)}" +
+                    "&pickupLat=${Uri.encode(pickupLat.toString())}" +
+                    "&pickupLng=${Uri.encode(pickupLng.toString())}"
         }
     }
 

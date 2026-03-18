@@ -26,8 +26,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -35,30 +40,35 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import com.project.auto_aid.components.LocationSelectionKeys
 import com.project.auto_aid.data.local.TokenStore
 import com.project.auto_aid.navigation.Routes
 import kotlinx.coroutines.launch
 
 @Composable
 fun AmbulanceScreen(navController: NavHostController) {
-
     val context = LocalContext.current
     val tokenStore = remember(context) { TokenStore(context) }
     val scope = rememberCoroutineScope()
 
     var error by remember { mutableStateOf<String?>(null) }
 
-    val savedStateHandle = navController.previousBackStackEntry?.savedStateHandle
-        ?: navController.currentBackStackEntry?.savedStateHandle
+    val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
 
     val pickedLocationLabelState =
-        savedStateHandle?.getStateFlow("picked_location_label", "")?.collectAsState()
+        savedStateHandle
+            ?.getStateFlow(LocationSelectionKeys.PICKED_LOCATION_LABEL, "")
+            ?.collectAsState()
 
     val pickedLocationLatState =
-        savedStateHandle?.getStateFlow("picked_location_lat", 0.0)?.collectAsState()
+        savedStateHandle
+            ?.getStateFlow(LocationSelectionKeys.PICKED_LOCATION_LAT, 0.0)
+            ?.collectAsState()
 
     val pickedLocationLngState =
-        savedStateHandle?.getStateFlow("picked_location_lng", 0.0)?.collectAsState()
+        savedStateHandle
+            ?.getStateFlow(LocationSelectionKeys.PICKED_LOCATION_LNG, 0.0)
+            ?.collectAsState()
 
     val pickedLabel = pickedLocationLabelState?.value.orEmpty()
     val pickedLat = pickedLocationLatState?.value ?: 0.0
@@ -71,7 +81,6 @@ fun AmbulanceScreen(navController: NavHostController) {
             .padding(20.dp),
         verticalArrangement = Arrangement.Top
     ) {
-
         Text(
             text = "Ambulance Service",
             style = MaterialTheme.typography.headlineSmall,
@@ -88,17 +97,32 @@ fun AmbulanceScreen(navController: NavHostController) {
         Spacer(modifier = Modifier.height(12.dp))
 
         if (pickedLabel.isNotBlank()) {
-
-            AssistChip(
-                onClick = {},
-                label = { Text("Pickup: $pickedLabel") }
-            )
-
-        } else {
-
             AssistChip(
                 onClick = {
-                    navController.navigate(Routes.LocationPicker.createRoute())
+                    navController.navigate(
+                        Routes.LocationPicker.createRoute(
+                            lat = pickedLat,
+                            lng = pickedLng
+                        )
+                    )
+                },
+                label = { Text("Pickup: $pickedLabel") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = null
+                    )
+                }
+            )
+        } else {
+            AssistChip(
+                onClick = {
+                    navController.navigate(
+                        Routes.LocationPicker.createRoute(
+                            lat = pickedLat,
+                            lng = pickedLng
+                        )
+                    )
                 },
                 label = { Text("Choose service location") },
                 leadingIcon = {
@@ -121,7 +145,6 @@ fun AmbulanceScreen(navController: NavHostController) {
         }
 
         AmbulanceServiceCard(
-
             icon = {
                 Icon(
                     Icons.Default.LocalHospital,
@@ -129,32 +152,26 @@ fun AmbulanceScreen(navController: NavHostController) {
                     tint = Color.Red
                 )
             },
-
             title = "Request Ambulance",
             subtitle = "Choose the closest available ambulance"
-
         ) {
-
             error = null
 
             if (pickedLat == 0.0 && pickedLng == 0.0) {
-
                 error = "Please choose your service location first."
                 return@AmbulanceServiceCard
             }
 
             navController.currentBackStackEntry?.savedStateHandle?.set(
-                "picked_location_label",
+                LocationSelectionKeys.PICKED_LOCATION_LABEL,
                 pickedLabel
             )
-
             navController.currentBackStackEntry?.savedStateHandle?.set(
-                "picked_location_lat",
+                LocationSelectionKeys.PICKED_LOCATION_LAT,
                 pickedLat
             )
-
             navController.currentBackStackEntry?.savedStateHandle?.set(
-                "picked_location_lng",
+                LocationSelectionKeys.PICKED_LOCATION_LNG,
                 pickedLng
             )
 
@@ -176,7 +193,6 @@ fun AmbulanceScreen(navController: NavHostController) {
         Spacer(modifier = Modifier.height(16.dp))
 
         AmbulanceServiceCard(
-
             icon = {
                 Icon(
                     Icons.Default.PlayArrow,
@@ -184,24 +200,18 @@ fun AmbulanceScreen(navController: NavHostController) {
                     tint = Color(0xFF16A34A)
                 )
             },
-
             title = "Active Request",
             subtitle = "Track your ongoing ambulance request"
-
         ) {
-
             scope.launch {
-
                 val rid = tokenStore.getLastAmbulanceRequestId()
 
                 if (rid.isNullOrBlank()) {
-
                     error = "No active ambulance request yet. Please request ambulance first."
                     return@launch
                 }
 
                 error = null
-
                 navController.navigate(
                     Routes.AmbulanceActiveScreen.createRoute(rid)
                 )
@@ -211,7 +221,6 @@ fun AmbulanceScreen(navController: NavHostController) {
         Spacer(modifier = Modifier.height(16.dp))
 
         AmbulanceServiceCard(
-
             icon = {
                 Icon(
                     Icons.Default.History,
@@ -219,12 +228,9 @@ fun AmbulanceScreen(navController: NavHostController) {
                     tint = Color(0xFF0284C7)
                 )
             },
-
             title = "Ambulance History",
             subtitle = "View past ambulance requests"
-
         ) {
-
             error = null
             navController.navigate(Routes.AmbulanceHistoryScreen.route)
         }
@@ -247,24 +253,19 @@ private fun AmbulanceServiceCard(
     subtitle: String,
     onClick: () -> Unit
 ) {
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-
         shape = RoundedCornerShape(16.dp),
-
         colors = CardDefaults.cardColors(
             containerColor = Color.White
         )
     ) {
-
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-
             Box(
                 modifier = Modifier.size(28.dp),
                 contentAlignment = Alignment.Center
@@ -275,7 +276,6 @@ private fun AmbulanceServiceCard(
             Spacer(modifier = Modifier.width(16.dp))
 
             Column {
-
                 Text(
                     text = title,
                     fontWeight = FontWeight.SemiBold

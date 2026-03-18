@@ -54,18 +54,22 @@ fun GpsLocationSearchField(
 
         if (fine || coarse) {
             scope.launch {
-                val loc = getLastLocationLatLng(context) ?: (lat to lng)
+                // If user already picked a location before, open map from that exact point
+                if (lat != 0.0 || lng != 0.0) {
+                    onOpenMapPicker(lat, lng)
+                    return@launch
+                }
 
-                if (loc.first == 0.0 && loc.second == 0.0) {
+                val loc = getLastLocationLatLng(context)
+                if (loc != null) {
+                    onOpenMapPicker(loc.first, loc.second)
+                } else {
                     Toast.makeText(
                         context,
                         "Could not get GPS. Turn on Location.",
                         Toast.LENGTH_SHORT
                     ).show()
-                    return@launch
                 }
-
-                onOpenMapPicker(loc.first, loc.second)
             }
         } else {
             Toast.makeText(context, "Location permission denied", Toast.LENGTH_SHORT).show()

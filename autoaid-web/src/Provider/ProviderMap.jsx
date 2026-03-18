@@ -1,6 +1,6 @@
 // src/pages/Provider/ProviderMap.jsx
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import {
@@ -9,110 +9,248 @@ import {
   DirectionsRenderer,
   useJsApiLoader,
 } from "@react-google-maps/api";
-
+console.log("ALL ENV:", import.meta.env);
 import "./ProviderMap.css";
 
 const BASE = import.meta.env.VITE_API_URL || "http://localhost:5001";
-
-// ✅ FIXED – USE ENV VARIABLE CORRECTLY
-const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-
-// FIX PERFORMANCE WARNING
+const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
 const LIBRARIES = ["places"];
 
 export default function ProviderMap() {
   const { id: requestId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const mapRef = useRef(null);
 
   const [request, setRequest] = useState(null);
   const [directions, setDirections] = useState(null);
-  const mapRef = useRef(null);
+  const [loadingRequest, setLoadingRequest] = useState(true);
+  const [requestError, setRequestError] = useState("");
 
-  // For debugging – REMOVE later
-  console.log("MAP KEY LOADED:", GOOGLE_API_KEY);
-
-  // READ SERVICE TYPE FROM URL
   const query = new URLSearchParams(location.search);
   const forcedService = query.get("service");
 
-  // LOAD GOOGLE MAPS SDK
-  const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: GOOGLE_API_KEY, // ✅ FIXED
-    libraries: LIBRARIES, // ✅ FIXED
+  console.log("MAP KEY LOADED:", GOOGLE_API_KEY || "undefined");
+
+  const { isLoaded, loadError } = useJsApiLoader({
+    googleMapsApiKey: GOOGLE_API_KEY,
+    libraries: LIBRARIES,
   });
 
-  // --------------------------------------------
-  // Fetch Request Based on service parameter
-  // --------------------------------------------
-  const loadRequest = async () => {
-    try {
-      let endpoint = null;
+  const titles = useMemo(
+    () => ({
+      garage: "Garage Navigation",
+      towing: "Towing Navigation",
+      fuel: "Fuel Delivery Navigation",
+      ambulance: "Ambulance Navigation",
+    }),
+    []
+  );
 
-      if (forcedService) {
-        endpoint = `${BASE}/api/${forcedService}/${requestId}`;
-      }
+  const normalizeLatLng = (value) => {
+    if (!value) return null;
 
-      const endpoints = endpoint
-        ? [endpoint]
-        : [
-            `${BASE}/api/garage/${requestId}`,
-            `${BASE}/api/fuel/${requestId}`,
-            `${BASE}/api/towing/${requestId}`,
-            `${BASE}/api/ambulance/${requestId}`,
-          ];
+    const lat = Number(value.lat);
+    const lng = Number(value.lng);
 
-      for (const url of endpoints) {
-        try {
-          const res = await axios.get(url);
-          if (res.data) {
-            setRequest(res.data);
+    if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
 
-            if (res.data.providerLocation) {
-              calcRoute(res.data.providerLocation, {
-                lat: res.data.lat,
-                lng: res.data.lng,
-              });
-            }
-            return;
-          }
-        } catch {}
-      }
-    } catch (err) {
-      console.error("❌ Could not load request:", err);
-    }
+    return { lat, lng };
   };
 
-  const calcRoute = (origin, dest) => {
+  const calcRoute = useCallback((origin, destination) => {
     if (!window.google) return;
+    if (!GOOGLE_API_KEY) {
+      console.warn("Google Maps API key missing. Directions skipped.");
+      setDirections(null);
+      return;
+    }
+    if (!origin || !destination) {
+      setDirections(null);
+      return;
+    }
 
-    const service = new window.google.maps.DirectionsService();
-    service.route(
-      { origin, destination: dest, travelMode: "DRIVING" },
+    const directionsService = new window.google.maps.DirectionsService();
+
+    directionsService.route(
+      {
+        origin,
+        destination,
+        travelMode: window.google.maps.TravelMode.DRIVING,
+      },
       (result, status) => {
-        if (status === "OK") setDirections(result);
+        if (status === "OK" && result) {
+          setDirections(result);
+        } else {
+          console.warn("Directions request failed:", status);
+          setDirections(null);
+        }
       }
     );
-  };
+  }, [GOOGLE_API_KEY]);
+
+  const loadRequest = useCallback(async () => {
+    try {
+      setLoadingRequest(true);
+      setRequestError("");
+
+      const candidateEndpoints = [
+        `${BASE}/api/requests/${requestId}`,
+        `${BASE}/api/request/${requestId}`,
+        `${BASE}/api/provider/requests/${requestId}`,
+      ];
+
+      let found = null;
+
+      for (const url of candidateEndpoints) {
+        try {
+          const res = await axios.get(url);
+          if (res?.data) {
+            found = res.data;
+            break;
+          }
+        } catch (_) {
+          // try next endpoint
+        }
+      }
+
+      if (!found) {
+        throw new Error("Request not found");
+      }
+
+      setRequest(found);
+
+      const providerPosition = normalizeLatLng(found.providerLocation);
+      const userPosition =
+        normalizeLatLng(found.userLocation) ||
+        normalizeLatLng({
+          lat: found.lat,
+          lng: found.lng,
+        });
+
+      if (providerPosition && userPosition) {
+        calcRoute(providerPosition, userPosition);
+      } else {
+        setDirections(null);
+      }
+    } catch (err) {
+      console.error("Could not load request:", err);
+      setRequest(null);
+      setDirections(null);
+      setRequestError(err?.message || "Failed to load request");
+    } finally {
+      setLoadingRequest(false);
+    }
+  }, [BASE, requestId, calcRoute]);
 
   useEffect(() => {
     loadRequest();
-    const iv = setInterval(loadRequest, 5000);
-    return () => clearInterval(iv);
-  }, [requestId, forcedService]);
+  }, [loadRequest]);
 
-  if (!isLoaded) return <p>Loading map...</p>;
-  if (!request) return <p>Loading request...</p>;
+  if (!GOOGLE_API_KEY) {
+    return (
+      <div className="provider-map-page">
+        <button onClick={() => navigate(-1)} className="back-btn">
+          ← Back
+        </button>
 
-  const center =
-    request.providerLocation || { lat: request.lat, lng: request.lng };
+        <h1>{titles[(forcedService || "").toLowerCase()] || "Navigation"}</h1>
 
-  const titles = {
-    garage: "Garage Navigation",
-    towing: "Towing Navigation",
-    fuel: "Fuel Delivery Navigation",
-    ambulance: "Ambulance Navigation",
-  };
+        <div className="route-summary">
+          <p><strong>Google Maps API key is missing.</strong></p>
+          <p>Add <code>VITE_GOOGLE_MAPS_API_KEY</code> to your frontend <code>.env</code> file, then restart Vite.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="provider-map-page">
+        <button onClick={() => navigate(-1)} className="back-btn">
+          ← Back
+        </button>
+
+        <h1>Navigation</h1>
+
+        <div className="route-summary">
+          <p><strong>Failed to load Google Maps.</strong></p>
+          <p>Please check your API key and Google Cloud settings.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isLoaded) {
+    return (
+      <div className="provider-map-page">
+        <button onClick={() => navigate(-1)} className="back-btn">
+          ← Back
+        </button>
+        <p>Loading map...</p>
+      </div>
+    );
+  }
+
+  if (loadingRequest) {
+    return (
+      <div className="provider-map-page">
+        <button onClick={() => navigate(-1)} className="back-btn">
+          ← Back
+        </button>
+        <p>Loading request...</p>
+      </div>
+    );
+  }
+
+  if (requestError) {
+    return (
+      <div className="provider-map-page">
+        <button onClick={() => navigate(-1)} className="back-btn">
+          ← Back
+        </button>
+
+        <h1>Navigation</h1>
+
+        <div className="route-summary">
+          <p><strong>Error:</strong> {requestError}</p>
+          <button onClick={loadRequest} className="back-btn">Retry</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!request) {
+    return (
+      <div className="provider-map-page">
+        <button onClick={() => navigate(-1)} className="back-btn">
+          ← Back
+        </button>
+        <p>No request found.</p>
+      </div>
+    );
+  }
+
+  const providerPosition = normalizeLatLng(request.providerLocation);
+  const userPosition =
+    normalizeLatLng(request.userLocation) ||
+    normalizeLatLng({
+      lat: request.lat,
+      lng: request.lng,
+    });
+
+  const center = providerPosition || userPosition || { lat: 0, lng: 0 };
+
+  const serviceKey = (
+    request.service ||
+    request.providerType ||
+    request.serviceType ||
+    forcedService ||
+    ""
+  )
+    .toString()
+    .trim()
+    .toLowerCase();
 
   return (
     <div className="provider-map-page">
@@ -120,27 +258,34 @@ export default function ProviderMap() {
         ← Back
       </button>
 
-      <h1>{titles[request.serviceType] || "Navigation"}</h1>
+      <h1>{titles[serviceKey] || "Navigation"}</h1>
 
       <div className="map-wrapper">
         <GoogleMap
           center={center}
           zoom={13}
           mapContainerStyle={{ width: "100%", height: "500px" }}
-          onLoad={(map) => (mapRef.current = map)}
+          onLoad={(map) => {
+            mapRef.current = map;
+          }}
         >
-          {request.providerLocation && (
-            <Marker position={request.providerLocation} label="P" />
-          )}
-
-          <Marker position={{ lat: request.lat, lng: request.lng }} label="C" />
-
+          {providerPosition && <Marker position={providerPosition} label="P" />}
+          {userPosition && <Marker position={userPosition} label="C" />}
           {directions && <DirectionsRenderer directions={directions} />}
         </GoogleMap>
       </div>
 
       <div className="route-summary">
-        <p><strong>User:</strong> {request.userName}</p>
+        <p><strong>User:</strong> {request.userName || "Unknown"}</p>
+        <p><strong>Service:</strong> {request.service || request.providerType || request.serviceType || "Unknown"}</p>
+
+        {userPosition && (
+          <p><strong>User Coordinates:</strong> {userPosition.lat}, {userPosition.lng}</p>
+        )}
+
+        {providerPosition && (
+          <p><strong>Provider Coordinates:</strong> {providerPosition.lat}, {providerPosition.lng}</p>
+        )}
 
         {directions?.routes?.[0]?.legs?.[0] && (
           <>

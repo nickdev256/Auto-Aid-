@@ -78,7 +78,6 @@ fun AppNavigation(navController: NavHostController) {
         navController = navController,
         startDestination = Routes.SplashScreen.route
     ) {
-
         /* ---------- Splash & Onboard ---------- */
         composable(Routes.SplashScreen.route) {
             SplashScreen(navController)
@@ -528,7 +527,10 @@ fun AppNavigation(navController: NavHostController) {
         composable(
             route = Routes.ProviderMapScreen.route,
             arguments = listOf(
-                navArgument("requestId") { type = NavType.StringType },
+                navArgument("requestId") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
                 navArgument("pickupLat") {
                     type = NavType.StringType
                     defaultValue = "0.0"
@@ -539,7 +541,7 @@ fun AppNavigation(navController: NavHostController) {
                 }
             )
         ) { entry ->
-            val requestId = entry.arguments?.getString("requestId") ?: ""
+            val requestId = entry.arguments?.getString("requestId").orEmpty()
             val pickupLat = entry.arguments?.getString("pickupLat")?.toDoubleOrNull() ?: 0.0
             val pickupLng = entry.arguments?.getString("pickupLng")?.toDoubleOrNull() ?: 0.0
 

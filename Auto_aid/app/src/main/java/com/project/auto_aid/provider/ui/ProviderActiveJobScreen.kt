@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -71,6 +72,7 @@ fun ProviderActiveJobScreen(
 
     var pickupLat by remember { mutableDoubleStateOf(0.0) }
     var pickupLng by remember { mutableDoubleStateOf(0.0) }
+    var pickupLabel by remember { mutableStateOf("") }
 
     var currentStatus by remember { mutableStateOf("assigned") }
     var userPhone by remember { mutableStateOf<String?>(null) }
@@ -124,6 +126,8 @@ fun ProviderActiveJobScreen(
 
                 pickupLat = r.userLocation?.lat ?: 0.0
                 pickupLng = r.userLocation?.lng ?: 0.0
+                pickupLabel = r.note?.takeIf { it.isNotBlank() } ?: "Location not labeled"
+
                 currentStatus = r.status ?: "assigned"
                 userPhone = r.userPhone
                 userName = r.userName
@@ -139,6 +143,7 @@ fun ProviderActiveJobScreen(
                     systemFee = q?.systemFee ?: 0.0
                     totalAmount = q?.totalAmount ?: 0.0
                     priceAlreadySet = q?.priceSetByProvider ?: false
+
                     if (priceAlreadySet && providerAmount > 0) {
                         providerAmountInput = providerAmount.roundToInt().toString()
                     }
@@ -238,7 +243,7 @@ fun ProviderActiveJobScreen(
     }
 
     val serviceName = serviceDisplayName(request?.service ?: request?.providerType)
-    val paymentStatusLabel = paymentStatusLabel(
+    val paymentStatusText = paymentStatusLabel(
         paymentStatus = paymentStatus,
         providerCompleted = providerCompleted,
         userCompleted = userCompleted
@@ -311,366 +316,280 @@ fun ProviderActiveJobScreen(
                     elevation = CardDefaults.cardElevation(4.dp)
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {
-                        Text("Pickup Location", style = MaterialTheme.typography.titleMedium)
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text("Lat: $pickupLat")
-                        Text("Lng: $pickupLng")
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    ),
-                    elevation = CardDefaults.cardElevation(4.dp)
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
                         Text(
-                            text = "Payment & Completion",
+                            text = "Pickup Location",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        LabelValue("Total Amount", formatUgx(totalAmount))
-                        LabelValue("Payment Status", paymentStatusLabel)
-                        LabelValue("Provider Completed", if (providerCompleted) "Yes" else "No")
-                        LabelValue("User Completed", if (userCompleted) "Yes" else "No")
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = pickupLabel,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = "Coords: $pickupLat, $pickupLng",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Button(
+                            onClick = {
+                                navController.navigate(
+                                    Routes.ProviderMapScreen.createRoute(
+                                        requestId = requestId,
+                                        pickupLat = pickupLat,
+                                        pickupLng = pickupLng
+                                    )
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Navigate on Map")
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                if (paymentStatus == "held_in_escrow" && !providerCompleted) {
-                    StatusMessageCard(
-                        title = "Paid in Escrow",
-                        message = "Customer payment is secured. Mark the job completed when your work is done."
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
-
-                if (paymentStatus == "held_in_escrow" && providerCompleted && !userCompleted) {
-                    StatusMessageCard(
-                        title = "Waiting for customer confirmation",
-                        message = "You marked the job as completed. Payment will be released after customer confirmation."
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
-
-                if (paymentStatus == "released" && providerCompleted && userCompleted) {
-                    StatusMessageCard(
-                        title = "Completed - Payment Released",
-                        message = "This job is complete and payment has been released."
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
-            }
-
-            Button(
-                onClick = {
-                    navController.navigate(
-                        Routes.ProviderMapScreen.createRoute(
-                            requestId = requestId,
-                            pickupLat = pickupLat,
-                            pickupLng = pickupLng
-                        )
-                    )
-                },
-                enabled = !loading && error == null,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Open Map")
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick = {
-                        vm.updateStatus(requestId, "arrived")
-                        currentStatus = "arrived"
-                    },
-                    modifier = Modifier.weight(1f),
-                    enabled = !loading
-                ) {
-                    Text("Arrived")
-                }
-
-                OutlinedButton(
-                    onClick = {
-                        vm.updateStatus(requestId, "in_progress")
-                        currentStatus = "in_progress"
-                    },
-                    modifier = Modifier.weight(1f),
-                    enabled = !loading && priceAlreadySet
-                ) {
-                    Text("Start Job")
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(4.dp)
-            ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    Text(
-                        text = "Set Service Price",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = "Enter the provider amount after reaching the site. The system fee is added automatically.",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    OutlinedTextField(
-                        value = providerAmountInput,
-                        onValueChange = { providerAmountInput = it },
-                        label = { Text("Provider Amount (UGX)") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !quoteLoading && !providerCompleted && paymentStatus != "held_in_escrow"
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
+                if (currentStatus == "assigned" || currentStatus == "pending") {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
                         )
                     ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text("Quote Preview", style = MaterialTheme.typography.titleSmall)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("Provider Charge: ${formatUgx(providerAmount)}")
-                            Text("System Fee: ${formatUgx(systemFee)}")
-                            Text("Total User Pays: ${formatUgx(totalAmount)}")
-                        }
-                    }
-
-                    quoteError?.let {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(it, color = MaterialTheme.colorScheme.error)
-                    }
-
-                    quoteMessage?.let {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(it, color = MaterialTheme.colorScheme.primary)
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    val allowQuoteChange = paymentStatus == "unpaid" && !providerCompleted
-
-                    Button(
-                        onClick = { sendQuote() },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !quoteLoading && allowQuoteChange
-                    ) {
-                        if (quoteLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onPrimary
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text(
+                                text = if (priceAlreadySet) "Price Sent" else "Set Your Service Price",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
                             )
-                        } else {
-                            Text(if (priceAlreadySet) "Update Quote" else "Send Quote")
+                            Text(
+                                text = "Enter the amount you will charge. We add a small system fee for the platform.",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            OutlinedTextField(
+                                value = providerAmountInput,
+                                onValueChange = {
+                                    if (!priceAlreadySet) {
+                                        providerAmountInput = it
+                                    }
+                                },
+                                label = { Text("Your Amount (UGX)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                enabled = !priceAlreadySet && !quoteLoading,
+                                prefix = { Text("UGX ") }
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("System Fee (10%):")
+                                Text(formatUgx(systemFee))
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "User Pays Total:",
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = formatUgx(totalAmount),
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            if (!priceAlreadySet) {
+                                Button(
+                                    onClick = { sendQuote() },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !quoteLoading && providerAmountInput.isNotBlank()
+                                ) {
+                                    if (quoteLoading) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(20.dp),
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                            strokeWidth = 2.dp
+                                        )
+                                    } else {
+                                        Text("Send Quote to User")
+                                    }
+                                }
+                            } else {
+                                AssistChip(
+                                    onClick = {},
+                                    label = { Text("Awaiting User Payment") }
+                                )
+                            }
+
+                            quoteMessage?.let {
+                                Text(
+                                    text = it,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(top = 8.dp)
+                                )
+                            }
+
+                            quoteError?.let {
+                                Text(
+                                    text = it,
+                                    color = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.padding(top = 8.dp)
+                                )
+                            }
                         }
                     }
                 }
-            }
 
-            completionError?.let {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(it, color = MaterialTheme.colorScheme.error)
-            }
+                if (priceAlreadySet || totalAmount > 0) {
+                    Spacer(modifier = Modifier.height(16.dp))
 
-            completionMessage?.let {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(it, color = MaterialTheme.colorScheme.primary)
-            }
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text(
+                                text = "Job Status & Payment",
+                                fontWeight = FontWeight.Bold
+                            )
 
-            if (showMarkCompletedButton) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Button(
-                    onClick = { markJobCompleted() },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !completionLoading
-                ) {
-                    if (completionLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                    } else {
-                        Text("Mark Job Completed")
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            LabelValue("Payment status", paymentStatusText)
+                            LabelValue("Provider Completed", if (providerCompleted) "Yes" else "No")
+                            LabelValue("User Confirmed", if (userCompleted) "Yes" else "No")
+
+                            if (showMarkCompletedButton) {
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                Button(
+                                    onClick = { markJobCompleted() },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !completionLoading
+                                ) {
+                                    if (completionLoading) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(20.dp),
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                            strokeWidth = 2.dp
+                                        )
+                                    } else {
+                                        Text("Mark Job Finished")
+                                    }
+                                }
+
+                                Text(
+                                    text = "Click this after you have finished the work. Funds will be released when user confirms.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
+
+                            completionMessage?.let {
+                                Text(
+                                    text = it,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(top = 8.dp)
+                                )
+                            }
+
+                            completionError?.let {
+                                Text(
+                                    text = it,
+                                    color = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.padding(top = 8.dp)
+                                )
+                            }
+                        }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                OutlinedButton(
+                    onClick = { navController.popBackStack() },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Back to Dashboard")
+                }
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            ProviderChatPanel(
-                requestId = requestId,
-                userPhone = userPhone,
-                modifier = Modifier.fillMaxWidth()
-            )
         }
     }
 }
 
 @Composable
-private fun LabelValue(label: String, value: String) {
-    Text(
-        text = label,
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-    Spacer(modifier = Modifier.height(4.dp))
-    Text(
-        text = value,
-        style = MaterialTheme.typography.titleSmall
-    )
-    Spacer(modifier = Modifier.height(10.dp))
-}
-
-@Composable
-private fun StatusMessageCard(
-    title: String,
-    message: String
+fun LabelValue(
+    label: String,
+    value: String
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
+    Row(modifier = Modifier.padding(vertical = 2.dp)) {
+        Text(
+            text = "$label: ",
+            fontWeight = FontWeight.Medium,
+            style = MaterialTheme.typography.bodyMedium
         )
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium
+        )
     }
 }
 
-private fun normalizeServiceKey(value: String?): String {
-    return when (value?.trim()?.lowercase()) {
-        "fuel", "fuel delivery" -> "fuel"
-        "garage", "garage repair" -> "garage"
-        "towing", "tow", "towing service", "towing track" -> "towing"
-        "ambulance", "ambulance service" -> "ambulance"
-        else -> ""
-    }
+fun formatUgx(amount: Double): String {
+    val formatter = NumberFormat.getCurrencyInstance(Locale("en", "UG"))
+    return formatter.format(amount).replace("UGX", "Shs")
 }
 
-private fun serviceDisplayName(service: String?): String {
-    return when (normalizeServiceKey(service)) {
+fun serviceDisplayName(s: String?): String {
+    return when (s?.lowercase()?.trim()) {
+        "garage" -> "Mechanical / Garage"
         "fuel" -> "Fuel Delivery"
-        "garage" -> "Garage"
         "towing" -> "Towing Service"
-        "ambulance" -> "Ambulance Service"
-        else -> "AutoAid Service"
+        "ambulance" -> "Ambulance / Emergency"
+        else -> s ?: "-"
     }
 }
 
-private fun formatStatus(status: String?): String {
-    return when (status?.trim()?.lowercase()) {
-        "pending", "request_sent" -> "Pending"
-        "assigned", "driver_assigned", "mechanic_assigned", "vendor_assigned" -> "Assigned"
-        "driver_on_the_way",
-        "mechanic_on_the_way",
-        "vendor_on_the_way",
-        "ambulance_on_the_way" -> "On Going"
-        "arrived" -> "Arrived"
-        "in_progress",
-        "delivering",
-        "patient_picked",
-        "vehicle_towed",
-        "repaired" -> "On Going"
-        "delivered", "at_hospital", "completed" -> "Completed"
-        "cancelled" -> "Cancelled"
-        "awaiting_payment" -> "Awaiting Payment"
-        "quoted" -> "Quoted"
-        else -> status?.replaceFirstChar {
-            if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
-        } ?: "Unknown"
-    }
+fun formatStatus(s: String?): String {
+    return s?.replace("_", " ")
+        ?.replaceFirstChar { it.uppercase() }
+        ?: "-"
 }
 
-private fun paymentStatusLabel(
-    paymentStatus: String?,
+fun paymentStatusLabel(
+    paymentStatus: String,
     providerCompleted: Boolean,
     userCompleted: Boolean
 ): String {
-    val status = paymentStatus?.trim()?.lowercase() ?: "unpaid"
-
-    return when {
-        status == "released" && providerCompleted && userCompleted ->
-            "Completed - Payment Released"
-
-        status == "held_in_escrow" && !providerCompleted ->
-            "Waiting for Provider Completion"
-
-        status == "held_in_escrow" && providerCompleted && !userCompleted ->
-            "Waiting for User Confirmation"
-
-        status == "held_in_escrow" ->
-            "Payment Held in Escrow"
-
-        else ->
-            "Unpaid"
+    return when (paymentStatus) {
+        "unpaid" -> "Waiting for User to pay"
+        "held_in_escrow" -> {
+            when {
+                providerCompleted && userCompleted -> "Completed & Released"
+                providerCompleted -> "Finished (Awaiting user confirmation)"
+                else -> "Paid (Money in Escrow)"
+            }
+        }
+        "released" -> "Paid & Completed"
+        "refunded" -> "Refunded to User"
+        else -> paymentStatus.replaceFirstChar { it.uppercase() }
     }
 }
 
-private fun isRequestActive(status: String?): Boolean {
-    return when (status?.trim()?.lowercase()) {
-        "assigned",
-        "arrived",
-        "in_progress",
-        "quoted",
-        "awaiting_payment",
-        "paid",
-        "active",
-        "ongoing",
-        "driver_on_the_way",
-        "mechanic_on_the_way",
-        "vendor_on_the_way",
-        "ambulance_on_the_way",
-        "delivering",
-        "patient_picked",
-        "vehicle_towed",
-        "repaired" -> true
-
-        else -> false
-    }
-}
-
-private fun formatUgx(amount: Double): String {
-    val formatter = NumberFormat.getNumberInstance(Locale.US).apply {
-        maximumFractionDigits = 0
-        minimumFractionDigits = 0
-    }
-    return "UGX ${formatter.format(amount)}"
+fun isRequestActive(status: String): Boolean {
+    val s = status.lowercase().trim()
+    return s != "completed" && s != "cancelled" && s != "declined"
 }

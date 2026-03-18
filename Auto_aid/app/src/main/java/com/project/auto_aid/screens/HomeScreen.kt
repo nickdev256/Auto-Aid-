@@ -78,6 +78,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.project.auto_aid.R
 import com.project.auto_aid.components.GpsLocationSearchField
+import com.project.auto_aid.components.LocationSelectionKeys
 import com.project.auto_aid.data.local.TokenStore
 import com.project.auto_aid.data.network.RetrofitClient
 import com.project.auto_aid.data.network.dto.RequestDto
@@ -275,11 +276,19 @@ fun HomeScreen(navController: NavHostController) {
     val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
 
     val pickedLocationLabelState =
-        savedStateHandle?.getStateFlow("picked_location_label", "")?.collectAsState()
+        savedStateHandle
+            ?.getStateFlow(LocationSelectionKeys.PICKED_LOCATION_LABEL, "")
+            ?.collectAsState()
+
     val pickedLocationLatState =
-        savedStateHandle?.getStateFlow("picked_location_lat", 0.0)?.collectAsState()
+        savedStateHandle
+            ?.getStateFlow(LocationSelectionKeys.PICKED_LOCATION_LAT, 0.0)
+            ?.collectAsState()
+
     val pickedLocationLngState =
-        savedStateHandle?.getStateFlow("picked_location_lng", 0.0)?.collectAsState()
+        savedStateHandle
+            ?.getStateFlow(LocationSelectionKeys.PICKED_LOCATION_LNG, 0.0)
+            ?.collectAsState()
 
     val pickedLabel = pickedLocationLabelState?.value.orEmpty()
     val pickedLat = pickedLocationLatState?.value ?: 0.0
@@ -630,6 +639,8 @@ fun SearchAndProfileBar(
     ) {
         GpsLocationSearchField(
             value = locationText,
+            lat = pickedLat,
+            lng = pickedLng,
             onValueChange = { locationText = it },
             onOpenMapPicker = { lat, lng ->
                 navController.navigate(
@@ -691,13 +702,13 @@ fun QuickAccessItemView(
             .padding(horizontal = 4.dp)
             .clickable {
                 navController.currentBackStackEntry?.savedStateHandle?.set(
-                    "picked_location_label", pickedLabel
+                    LocationSelectionKeys.PICKED_LOCATION_LABEL, pickedLabel
                 )
                 navController.currentBackStackEntry?.savedStateHandle?.set(
-                    "picked_location_lat", pickedLat
+                    LocationSelectionKeys.PICKED_LOCATION_LAT, pickedLat
                 )
                 navController.currentBackStackEntry?.savedStateHandle?.set(
-                    "picked_location_lng", pickedLng
+                    LocationSelectionKeys.PICKED_LOCATION_LNG, pickedLng
                 )
 
                 when (item.title) {

@@ -40,6 +40,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import com.project.auto_aid.components.LocationSelectionKeys
 import com.project.auto_aid.data.local.TokenStore
 import com.project.auto_aid.navigation.Routes
 import kotlinx.coroutines.launch
@@ -52,15 +53,22 @@ fun TowingScreen(navController: NavHostController) {
 
     var error by remember { mutableStateOf<String?>(null) }
 
-    val savedStateHandle = navController.previousBackStackEntry?.savedStateHandle
-        ?: navController.currentBackStackEntry?.savedStateHandle
+    val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
 
     val pickedLocationLabelState =
-        savedStateHandle?.getStateFlow("picked_location_label", "")?.collectAsState()
+        savedStateHandle
+            ?.getStateFlow(LocationSelectionKeys.PICKED_LOCATION_LABEL, "")
+            ?.collectAsState()
+
     val pickedLocationLatState =
-        savedStateHandle?.getStateFlow("picked_location_lat", 0.0)?.collectAsState()
+        savedStateHandle
+            ?.getStateFlow(LocationSelectionKeys.PICKED_LOCATION_LAT, 0.0)
+            ?.collectAsState()
+
     val pickedLocationLngState =
-        savedStateHandle?.getStateFlow("picked_location_lng", 0.0)?.collectAsState()
+        savedStateHandle
+            ?.getStateFlow(LocationSelectionKeys.PICKED_LOCATION_LNG, 0.0)
+            ?.collectAsState()
 
     val pickedLabel = pickedLocationLabelState?.value.orEmpty()
     val pickedLat = pickedLocationLatState?.value ?: 0.0
@@ -90,13 +98,31 @@ fun TowingScreen(navController: NavHostController) {
 
         if (pickedLabel.isNotBlank()) {
             AssistChip(
-                onClick = {},
-                label = { Text("Pickup: $pickedLabel") }
+                onClick = {
+                    navController.navigate(
+                        Routes.LocationPicker.createRoute(
+                            lat = pickedLat,
+                            lng = pickedLng
+                        )
+                    )
+                },
+                label = { Text("Pickup: $pickedLabel") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = null
+                    )
+                }
             )
         } else {
             AssistChip(
                 onClick = {
-                    navController.navigate(Routes.LocationPicker.createRoute())
+                    navController.navigate(
+                        Routes.LocationPicker.createRoute(
+                            lat = pickedLat,
+                            lng = pickedLng
+                        )
+                    )
                 },
                 label = { Text("Choose service location") },
                 leadingIcon = {
@@ -137,15 +163,15 @@ fun TowingScreen(navController: NavHostController) {
             }
 
             navController.currentBackStackEntry?.savedStateHandle?.set(
-                "picked_location_label",
+                LocationSelectionKeys.PICKED_LOCATION_LABEL,
                 pickedLabel
             )
             navController.currentBackStackEntry?.savedStateHandle?.set(
-                "picked_location_lat",
+                LocationSelectionKeys.PICKED_LOCATION_LAT,
                 pickedLat
             )
             navController.currentBackStackEntry?.savedStateHandle?.set(
-                "picked_location_lng",
+                LocationSelectionKeys.PICKED_LOCATION_LNG,
                 pickedLng
             )
 
@@ -183,6 +209,7 @@ fun TowingScreen(navController: NavHostController) {
                     error = "No active towing request yet. Please request towing first."
                     return@launch
                 }
+
                 error = null
                 navController.navigate(Routes.TowingActiveScreen.createRoute(rid))
             }
