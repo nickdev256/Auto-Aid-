@@ -20,9 +20,11 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -31,6 +33,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -43,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -58,6 +62,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
@@ -73,10 +78,10 @@ fun LoginScreen(navController: NavController) {
 
     val isPreview = LocalInspectionMode.current
     val context = LocalContext.current
-    val tokenStore = remember(context) { TokenStore(context) }
+    val tokenStore = if (isPreview) null else remember(context) { TokenStore(context) }
 
-    val vm: AuthViewModel = viewModel()
-    val authState by vm.state.collectAsState()
+    val vm: AuthViewModel? = if (isPreview) null else viewModel()
+    val authState = if (isPreview) null else vm!!.state.collectAsState().value
 
     var role by remember {
         mutableStateOf<String?>(if (isPreview) "User" else null)
@@ -87,8 +92,8 @@ fun LoginScreen(navController: NavController) {
     var showPassword by remember { mutableStateOf(false) }
     var navigated by remember { mutableStateOf(false) }
 
-    val loading = authState.loading
-    val errorMsg = authState.error
+    val loading = authState?.loading ?: false
+    val errorMsg = authState?.error ?: ""
 
     if (role == null) {
         RoleSelectionScreen { selectedRole ->
@@ -124,15 +129,15 @@ fun LoginScreen(navController: NavController) {
         }
     }
 
-    LaunchedEffect(authState.data) {
-        val data = authState.data ?: return@LaunchedEffect
+    LaunchedEffect(authState?.data) {
+        val data = authState?.data ?: return@LaunchedEffect
         if (navigated) return@LaunchedEffect
 
         val userRole = (data.user.role ?: "").lowercase()
         val selectedRole = (role ?: "").lowercase()
 
         if (userRole == selectedRole) {
-            val token = tokenStore.getToken()
+            val token = tokenStore?.getToken()
 
             if (!token.isNullOrBlank()) {
                 SocketManager.connect(
@@ -162,13 +167,15 @@ fun LoginScreen(navController: NavController) {
                 launchSingleTop = true
             }
         } else {
-            vm.logout()
+            vm?.logout()
             SocketManager.disconnect()
             Toast.makeText(context, "Wrong role selected", Toast.LENGTH_SHORT).show()
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize()
+        .verticalScroll(rememberScrollState()),
+    ) {
 
         HeroImageSlider()
 
@@ -176,13 +183,14 @@ fun LoginScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding(),
+//
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
 
             Box(
                 modifier = Modifier
-                    .offset(y = (-45).dp)
+                    .offset(y = (-57).dp)
                     .size(110.dp)
                     .border(
                         width = 7.dp,
@@ -199,17 +207,21 @@ fun LoginScreen(navController: NavController) {
                         .size(130.dp)
                         .clip(CircleShape)
                         .background(Color.White)
+
                 )
             }
 
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 6.dp),
+                    .padding(horizontal = 6.dp)
+                    .offset(y = (-36).dp),
+
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
 
                 Text(
+                    modifier = Modifier.padding(bottom = 5.dp),
                     text = "Welcome back!",
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Bold
@@ -222,10 +234,19 @@ fun LoginScreen(navController: NavController) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth(0.90f)
-                        .padding(1.dp),
+                        .padding(1.dp)
+                        .shadow(12.dp, RoundedCornerShape(20.dp))
+                        .border(
+                            width = 0.1.dp,
+                            color = Color(0xFF0A9AD9),
+                            shape = RoundedCornerShape(20.dp)
+                        ),
+
                     shape = RoundedCornerShape(20.dp),
-                    elevation = CardDefaults.cardElevation(10.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White)
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.White
+                    )
                 ) {
 
                     Column(
@@ -242,7 +263,16 @@ fun LoginScreen(navController: NavController) {
                             value = email,
                             onValueChange = { email = it },
                             label = { Text("Email") },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.Black,
+                                focusedBorderColor = Color(0xFF0A9AD9),
+                                cursorColor = Color(0xFF0A9AD9),
+                                unfocusedBorderColor = Color.Gray,
+                                focusedLabelColor = Color(0xFF0A9AD9),
+                                unfocusedLabelColor = Color.Gray
+                            )
                         )
 
                         Spacer(modifier = Modifier.height(5.dp))
@@ -261,17 +291,23 @@ fun LoginScreen(navController: NavController) {
                                         painter = painterResource(
                                             id = if (showPassword) R.drawable.no_see else R.drawable.see
                                         ),
-                                        contentDescription = if (showPassword) {
-                                            "Hide Password"
-                                        } else {
-                                            "Show Password"
-                                        },
-                                        modifier = Modifier.size(25.dp)
-                                    )
+                                        contentDescription = if (showPassword) "Hide Password" else "Show Password",
+                                        modifier = Modifier.size(25.dp),
+
+                                        )
                                 }
                             },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.Black,
+                                focusedBorderColor = Color(0xFF0A9AD9),
+                                cursorColor = Color(0xFF0A9AD9),
+                                focusedLabelColor = Color(0xFF0A9AD9),
+                                unfocusedBorderColor = Color.Gray,
+                                unfocusedLabelColor = Color.Gray
+                            )
                         )
 
                         Spacer(modifier = Modifier.height(5.dp))
@@ -298,7 +334,7 @@ fun LoginScreen(navController: NavController) {
                         if (loading || isPreview) return@Button
                         navigated = false
                         SocketManager.disconnect()
-                        vm.login(email, password)
+                        vm?.login(email, password)
                     },
                     modifier = Modifier
                         .fillMaxWidth()

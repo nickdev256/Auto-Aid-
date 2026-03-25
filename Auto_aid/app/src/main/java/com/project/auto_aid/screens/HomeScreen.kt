@@ -1,5 +1,7 @@
 package com.project.auto_aid.screens
 
+import android.content.Intent
+import android.widget.Toast
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -18,12 +20,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CarRepair
@@ -46,6 +47,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -63,9 +65,11 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -84,6 +88,9 @@ import com.project.auto_aid.data.network.dto.RequestDto
 import com.project.auto_aid.navigation.Routes
 import java.text.SimpleDateFormat
 import java.util.Locale
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.ColorFilter
 
 object AppColors {
     val background = Color(0xFFF9F9F9)
@@ -91,14 +98,19 @@ object AppColors {
     val secondary = Color(0xFFE5E7EB)
     val textPrimary = Color(0xFF374151)
     val textSecondary = Color(0xFF4B5563)
-    val referralCardBackground = Color(0xFFEDE9FE)
-    val referralCardIcon = Color(0xFF7C3AED)
+    val referralCardBackground = Color(0xFFE3F2FD)
+    val referralCardIcon = Color(0xFFFFC107)
 }
 
-data class QuickAccessItem(
-    val icon: ImageVector,
-    val title: String
+data class ReferralUiData(
+    val title: String = "Refer a Friend",
+    val subtitle: String = "Invite friends to AutoAid and earn rewards when they sign up and use the app.",
+    val code: String = "AUTOAID123",
+    val earnedAmount: String = "UGX 15,000",
+    val bonusText: String = "UGX 5,000 / friend"
 )
+
+data class QuickAccessItem(val iconRes: Int, val title: String)
 
 data class RecentItem(
     val requestId: String,
@@ -106,13 +118,6 @@ data class RecentItem(
     val date: String,
     val status: String,
     val icon: ImageVector
-)
-
-data class ReferralUiData(
-    val title: String = "Refer a friend",
-    val subtitle: String = "Earn rewards instantly",
-    val code: String = "AUTOAID",
-    val earnedAmount: String = "UGX 0"
 )
 
 data class LiveFeaturedServiceItem(
@@ -124,10 +129,10 @@ data class LiveFeaturedServiceItem(
 )
 
 val quickAccessData = listOf(
-    QuickAccessItem(Icons.Filled.CarRepair, "Garage"),
-    QuickAccessItem(Icons.Filled.LocalShipping, "Towing Track"),
-    QuickAccessItem(Icons.Filled.LocalGasStation, "Fuel Delivery"),
-    QuickAccessItem(Icons.Filled.MedicalServices, "Ambulance")
+    QuickAccessItem(R.drawable.garage, "Garage"),
+    QuickAccessItem(R.drawable.tow, "Towing Track"),
+    QuickAccessItem(R.drawable.fu, "Fuel Delivery"),
+    QuickAccessItem(R.drawable.medical, "Ambulance")
 )
 
 object AppImages {
@@ -135,7 +140,6 @@ object AppImages {
     val total = R.drawable.total_1
     val stabex = R.drawable.stabex_2
     val rubis = R.drawable.rubis_1
-    val hass = R.drawable.hass_1
     val gazz = R.drawable.gazz_1
 }
 
@@ -266,9 +270,10 @@ private fun serviceUsageOrderFromRequests(requests: List<RequestDto>): List<Stri
 fun HomeScreen(navController: NavHostController) {
     val isPreview = LocalInspectionMode.current
     val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
 
-    val tokenStore = remember(context) { TokenStore(context) }
-    val api = remember(tokenStore) { RetrofitClient.create(tokenStore) }
+    val tokenStore = if (isPreview) null else remember(context) { TokenStore(context) }
+    val api = if (isPreview || tokenStore == null) null else remember(tokenStore) { RetrofitClient.create(tokenStore) }
 
     var userName by rememberSaveable { mutableStateOf("User") }
     var notificationCount by rememberSaveable { mutableIntStateOf(0) }
@@ -276,7 +281,6 @@ fun HomeScreen(navController: NavHostController) {
     var featuredTitle by rememberSaveable { mutableStateOf("Featured Services") }
 
     val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
-
     val pickedLocationLabelState =
         savedStateHandle?.getStateFlow("picked_location_label", "")?.collectAsState()
     val pickedLocationLatState =
@@ -304,19 +308,18 @@ fun HomeScreen(navController: NavHostController) {
 
     var recentItemsState by remember { mutableStateOf(emptyList<RecentItem>()) }
 
-    var referralState by remember {
-        mutableStateOf(
-            ReferralUiData(
-                title = "Refer a friend",
-                subtitle = "Earn rewards instantly",
-                code = "AUTOAID",
-                earnedAmount = "UGX 0"
-            )
+    val referral = remember {
+        ReferralUiData(
+            title = "Refer a Friend",
+            subtitle = "Invite friends to AutoAid and earn rewards when they sign up and use the app.",
+            code = "AUTOAID123",
+            earnedAmount = "UGX 1,500",
+            bonusText = "UGX 500 / friend"
         )
     }
 
     LaunchedEffect(pickedLat, pickedLng) {
-        if (isPreview) return@LaunchedEffect
+        if (isPreview || api == null) return@LaunchedEffect
 
         isLoadingHome = true
 
@@ -333,7 +336,7 @@ fun HomeScreen(navController: NavHostController) {
         }
 
         runCatching {
-            notificationCount = 3
+            notificationCount = 5
         }.onFailure {
             notificationCount = 0
         }
@@ -347,11 +350,7 @@ fun HomeScreen(navController: NavHostController) {
             }
 
             val sortedRequests = requests.sortedByDescending { it.createdAt ?: "" }
-
-            recentItemsState = sortedRequests.take(10).map { req ->
-                requestToRecentItem(req)
-            }
-
+            recentItemsState = sortedRequests.take(10).map(::requestToRecentItem)
             serviceUsageOrderFromRequests(sortedRequests)
         }.getOrElse {
             recentItemsState = emptyList()
@@ -374,15 +373,10 @@ fun HomeScreen(navController: NavHostController) {
                         providers.take(3).map {
                             LiveFeaturedServiceItem(
                                 name = it.name ?: "${serviceDisplayName(serviceKey)} Provider",
-                                subtitle = if (
-                                    recentItemsState.any { item ->
+                                subtitle = if (recentItemsState.any { item ->
                                         normalizeServiceKey(item.service) == serviceKey
                                     }
-                                ) {
-                                    "Based on your activity"
-                                } else {
-                                    "Online provider"
-                                },
+                                ) "Based on your activity" else "Online provider",
                                 type = it.businessType ?: serviceDisplayName(serviceKey),
                                 rating = it.rating ?: 0.0,
                                 imageRes = featuredImageFor(serviceKey)
@@ -400,26 +394,20 @@ fun HomeScreen(navController: NavHostController) {
             val prioritized = serviceOrder.flatMap { grouped[it].orEmpty() }
 
             featuredTitle =
-                if (recentItemsState.isNotEmpty()) {
-                    "Featured Based on Your Activity"
-                } else {
-                    "Featured Services"
-                }
+                if (recentItemsState.isNotEmpty()) "Featured Based on Your Activity"
+                else "Featured Services"
 
-            featuredServicesState =
-                if (prioritized.isNotEmpty()) {
-                    prioritized
-                } else {
-                    listOf(
-                        LiveFeaturedServiceItem(
-                            name = "No providers online",
-                            subtitle = "Try again later",
-                            type = "AutoAid",
-                            rating = 0.0,
-                            imageRes = AppImages.shell
-                        )
+            featuredServicesState = prioritized.ifEmpty {
+                listOf(
+                    LiveFeaturedServiceItem(
+                        name = "No providers online",
+                        subtitle = "Try again later",
+                        type = "AutoAid",
+                        rating = 0.0,
+                        imageRes = AppImages.shell
                     )
-                }
+                )
+            }
         }.onFailure {
             featuredServicesState = listOf(
                 LiveFeaturedServiceItem(
@@ -430,10 +418,6 @@ fun HomeScreen(navController: NavHostController) {
                     imageRes = AppImages.shell
                 )
             )
-        }
-
-        runCatching {
-            referralState = ReferralUiData()
         }
 
         isLoadingHome = false
@@ -447,49 +431,87 @@ fun HomeScreen(navController: NavHostController) {
             )
         }
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
                 .background(AppColors.background)
-                .verticalScroll(rememberScrollState())
         ) {
-            Spacer(modifier = Modifier.height(6.dp))
+            item { Spacer(modifier = Modifier.height(6.dp)) }
 
-            TopHeader(userName = userName)
+            item { TopHeader(userName = userName) }
 
-            SearchAndProfileBar(
-                navController = navController,
-                pickedLabel = pickedLabel,
-                pickedLat = pickedLat,
-                pickedLng = pickedLng
-            )
-
-            QuickAccessGrid(
-                navController = navController,
-                pickedLabel = pickedLabel,
-                pickedLat = pickedLat,
-                pickedLng = pickedLng
-            )
-
-            ReferralCard(referralState)
-            FeaturesSection(featuredTitle, featuredServicesState)
-
-            RecentsSection(
-                navController = navController,
-                items = recentItemsState
-            )
-
-            if (isLoadingHome) {
-                Spacer(modifier = Modifier.height(8.dp))
-                LinearProgressIndicator(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp)
+            item {
+                SearchAndProfileBar(
+                    navController = navController,
+                    pickedLabel = pickedLabel,
+                    pickedLat = pickedLat,
+                    pickedLng = pickedLng
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            item {
+                QuickAccessGrid(
+                    navController = navController,
+                    pickedLabel = pickedLabel,
+                    pickedLat = pickedLat,
+                    pickedLng = pickedLng
+                )
+            }
+
+            item {
+                ReferralCard(
+                    referral = referral,
+                    onCopyClick = { code ->
+                        clipboardManager.setText(AnnotatedString(code))
+                        Toast.makeText(context, "Referral code copied", Toast.LENGTH_SHORT).show()
+                    },
+                    onReferClick = { data ->
+                        val playStoreLink = "https://play.google.com/store/apps/details?id=com.project.auto_aid"
+                        val websiteLink = "https://autoaid-web.vercel.app"
+
+                        val shareMessage = StringBuilder().apply {
+                            append("Get roadside help, towing, fuel delivery, garage repair, and ambulance support easily.\n\n")
+                            append("Referral Code: ${data.code}\n\n")
+                            append("Play Store Link:\n")
+                            append(playStoreLink)
+                            append("\n\n")
+                            append("Website Link:\n")
+                            append(websiteLink)
+                        }.toString()
+
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_SUBJECT, ("Join AutoAid\n"))
+                            putExtra(Intent.EXTRA_TEXT, shareMessage)
+                        }
+
+                        context.startActivity(Intent.createChooser(shareIntent, "Share AutoAid with a friend"))
+                    }
+                )
+            }
+
+            item { FeaturesSection(featuredTitle, featuredServicesState) }
+
+            item {
+                RecentsSection(
+                    navController = navController,
+                    items = recentItemsState
+                )
+            }
+
+            if (isLoadingHome) {
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp)
+                    )
+                }
+            }
+
+            item { Spacer(modifier = Modifier.height(16.dp)) }
         }
     }
 }
@@ -555,8 +577,22 @@ fun AppBottomNavigationBar(
         NavigationBarItem(
             selected = currentRoute == Routes.HomeScreen.route,
             onClick = { navigateSingleTop(Routes.HomeScreen.route) },
-            icon = { Icon(Icons.Default.Home, contentDescription = "Home", tint = Color.White) },
-            label = { Text("Home", color = Color.White) },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Home,
+                    contentDescription = "Home",
+                    modifier = Modifier.size(35.dp),
+                    tint = Color.White
+                )
+            },
+            label = {
+                Text(
+                    "Home",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            },
             colors = NavigationBarItemDefaults.colors(indicatorColor = Color.Transparent)
         )
 
@@ -565,13 +601,14 @@ fun AppBottomNavigationBar(
             onClick = { navigateSingleTop(Routes.NotificationScreen.route) },
             icon = {
                 Box(
-                    modifier = Modifier.size(26.dp),
+                    modifier = Modifier.size(35.dp),
                     contentAlignment = Alignment.TopEnd
                 ) {
                     Icon(
                         imageVector = Icons.Default.Notifications,
                         contentDescription = "Notifications",
-                        tint = Color.White
+                        tint = Color.White,
+                        modifier = Modifier.size(35.dp)
                     )
 
                     if (notificationCount > 0) {
@@ -592,15 +629,36 @@ fun AppBottomNavigationBar(
                     }
                 }
             },
-            label = { Text("Alerts", color = Color.White) },
+            label = {
+                Text(
+                    "Alerts",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            },
             colors = NavigationBarItemDefaults.colors(indicatorColor = Color.Transparent)
         )
 
         NavigationBarItem(
             selected = currentRoute == Routes.SettingsScreen.route,
             onClick = { navigateSingleTop(Routes.SettingsScreen.route) },
-            icon = { Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.White) },
-            label = { Text("Settings", color = Color.White) },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    modifier = Modifier.size(35.dp),
+                    contentDescription = "Settings",
+                    tint = Color.White
+                )
+            },
+            label = {
+                Text(
+                    "Settings",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            },
             colors = NavigationBarItemDefaults.colors(indicatorColor = Color.Transparent)
         )
     }
@@ -629,10 +687,7 @@ fun SearchAndProfileBar(
             onValueChange = { locationText = it },
             onOpenMapPicker = { lat, lng ->
                 navController.navigate(
-                    Routes.LocationPicker.createRoute(
-                        lat = lat,
-                        lng = lng
-                    )
+                    Routes.LocationPicker.createRoute(lat = lat, lng = lng)
                 )
             }
         )
@@ -640,7 +695,7 @@ fun SearchAndProfileBar(
         if (pickedLabel.isNotBlank()) {
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "Picked: $pickedLabel  ($pickedLat, $pickedLng)",
+                text = "Picked: $pickedLabel ($pickedLat, $pickedLng)",
                 style = MaterialTheme.typography.bodySmall
             )
         }
@@ -657,7 +712,7 @@ fun QuickAccessGrid(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         quickAccessData.forEach { item ->
@@ -686,18 +741,9 @@ fun QuickAccessItemView(
         modifier = modifier
             .padding(horizontal = 4.dp)
             .clickable {
-                navController.currentBackStackEntry?.savedStateHandle?.set(
-                    "picked_location_label",
-                    pickedLabel
-                )
-                navController.currentBackStackEntry?.savedStateHandle?.set(
-                    "picked_location_lat",
-                    pickedLat
-                )
-                navController.currentBackStackEntry?.savedStateHandle?.set(
-                    "picked_location_lng",
-                    pickedLng
-                )
+                navController.currentBackStackEntry?.savedStateHandle?.set("picked_location_label", pickedLabel)
+                navController.currentBackStackEntry?.savedStateHandle?.set("picked_location_lat", pickedLat)
+                navController.currentBackStackEntry?.savedStateHandle?.set("picked_location_lng", pickedLng)
 
                 when (item.title) {
                     "Garage" -> navController.navigate(Routes.GarageScreen.route)
@@ -717,11 +763,10 @@ fun QuickAccessItemView(
                 .border(1.dp, AppColors.primary, RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = item.icon,
+            Image(
+                painter = painterResource(id = item.iconRes),
                 contentDescription = item.title,
-                modifier = Modifier.size(36.dp),
-                tint = AppColors.textPrimary
+                modifier = Modifier.size(50.dp)
             )
         }
 
@@ -735,57 +780,144 @@ fun QuickAccessItemView(
 }
 
 @Composable
-fun ReferralCard(referral: ReferralUiData) {
+fun ReferralCard(
+    referral: ReferralUiData,
+    onReferClick: (ReferralUiData) -> Unit,
+    onCopyClick: (String) -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(4.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD))
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.Star,
-                contentDescription = null,
-                tint = Color(0xFFFFC107),
-                modifier = Modifier.size(48.dp)
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.star),
+                    contentDescription = "Referral reward",
+                    modifier = Modifier.size(44.dp),
 
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column {
-                Text(referral.title, fontWeight = FontWeight.Bold)
-                Text(referral.subtitle, fontSize = 12.sp)
-
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Code: ${referral.code}",
-                    fontSize = 12.sp,
-                    color = AppColors.textSecondary
-                )
-                Text(
-                    text = "Earned: ${referral.earnedAmount}",
-                    fontSize = 12.sp,
-                    color = AppColors.textSecondary
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Button(
-                    onClick = {},
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = AppColors.primary,
-                        contentColor = Color.White
                     )
-                ) {
-                    Text("Refer")
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = referral.title,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = Color.Black
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = referral.subtitle,
+                        fontSize = 13.sp,
+                        color = AppColors.textSecondary,
+                        lineHeight = 18.sp
+                    )
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "Referral Code",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = AppColors.textSecondary
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        color = Color.White.copy(alpha = 0.85f),
+                        shape = RoundedCornerShape(14.dp)
+                    )
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = referral.code,
+                    modifier = Modifier.weight(1f),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = AppColors.primary
+                )
+
+                TextButton(
+                    onClick = { onCopyClick(referral.code) },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = Color.Black
+                    )
+                ) {
+                    Text("Copy")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                ReferralStatItem(label = "Earned", value = referral.earnedAmount)
+                ReferralStatItem(label = "Bonus", value = referral.bonusText)
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = { onReferClick(referral) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = AppColors.primary,
+                    contentColor = Color.White
+                )
+            ) {
+                Text(
+                    text = "Refer Now",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
+    }
+}
+
+@Composable
+fun ReferralStatItem(
+    label: String,
+    value: String
+) {
+    Column {
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            color = AppColors.textSecondary
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = value,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.Black
+        )
     }
 }
 
@@ -823,7 +955,7 @@ fun ServiceCard(item: LiveFeaturedServiceItem) {
     ) {
         Box {
             Image(
-                painter = painterResource(item.imageRes),
+                painter = painterResource(id = item.imageRes),
                 contentDescription = item.name,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()

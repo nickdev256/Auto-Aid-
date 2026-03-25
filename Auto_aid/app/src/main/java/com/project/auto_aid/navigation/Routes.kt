@@ -123,7 +123,6 @@ sealed class Routes(val route: String) {
 
     object SettingsScreen : Routes("settings")
     object UserInfoScreen : Routes("user_info")
-
     object AboutUsScreen : Routes("about_us")
     object PrivacyPolicyScreen : Routes("privacy_policy")
     object PromotionScreen : Routes("promotion")
@@ -223,6 +222,11 @@ sealed class Routes(val route: String) {
 
     object ProviderDashboard : Routes("provider_dashboard")
     object EditProviderProfile : Routes("edit_provider_profile")
+
+    // ADDED: provider verification flow
+    object ProviderVerificationRequired : Routes("provider_verification_required")
+    object ProviderVerification : Routes("provider_verification")
+
     object ProviderNotifications : Routes("provider_notifications")
     object ProviderMapHome : Routes("provider_map_home")
     object ProviderChatList : Routes("provider_chat_list")
@@ -232,11 +236,13 @@ sealed class Routes(val route: String) {
     object ProviderPayoutRequests : Routes("provider_payout_requests")
 
     object ProviderChatThread : Routes("provider_chat_thread/{requestId}") {
-        fun createRoute(requestId: String) = "provider_chat_thread/${Uri.encode(requestId)}"
+        fun createRoute(requestId: String) =
+            "provider_chat_thread/${Uri.encode(requestId)}"
     }
 
     object ProviderActiveJob : Routes("provider_active_job/{requestId}") {
-        fun createRoute(requestId: String) = "provider_active_job/${Uri.encode(requestId)}"
+        fun createRoute(requestId: String) =
+            "provider_active_job/${Uri.encode(requestId)}"
     }
 
     object ProviderMapScreen :

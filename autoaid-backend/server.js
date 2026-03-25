@@ -1,17 +1,12 @@
 // server.js
-// FULL UPDATED VERSION
-// ANDROID + WEB FRIENDLY + REALTIME CHAT + NOTIFICATIONS + CORS FIX
-// MAINTENANCE MODE (ADMIN-ONLY BYPASS) + VOICE NOTES + CALL SIGNALING
-// PROVIDER ONLINE/OFFLINE + AVAILABILITY + REQUEST BROADCAST
-
 import dotenv from "dotenv";
 import path from "path";
-import { fileURLToPath } from "url";
+import fs from "fs";
+import { fileURLToPath, pathToFileURL } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ✅ Force load .env from same folder as server.js
 dotenv.config({ path: path.join(__dirname, ".env") });
 
 import express from "express";
@@ -26,8 +21,6 @@ import jwt from "jsonwebtoken";
 import cookie from "cookie";
 
 // ROUTES
-import uploadsRoutes from "./routes/uploads.js";
-import voiceUploadRoutes from "./routes/voiceUpload.js";
 import chatRoutes from "./routes/chat.js";
 import authRoutes from "./routes/auth.js";
 import adminRoutes from "./routes/admin.js";
@@ -38,6 +31,8 @@ import ambulanceRoutes from "./routes/ambulance.js";
 import garageRoutes from "./routes/garage.js";
 import paymentsRoutes from "./routes/payments.js";
 import requestsRoutes from "./routes/requests.js";
+import verificationRoutes from "./routes/verification.js";
+import settingsRoutes from "./routes/settingsRoutes.js";
 
 // MODELS
 import User from "./models/User.js";
@@ -48,17 +43,63 @@ import Settings from "./models/Settings.js";
 const app = express();
 const server = http.createServer(app);
 
-console.log("✅ ENV FILE LOADED. MONGO_URI exists =", !!process.env.MONGO_URI);
+console.log("ENV FILE LOADED. MONGO_URI exists =", !!process.env.MONGO_URI);
 
 /* =================================================
-   ✅ HELPERS
+   ENSURE UPLOAD DIRECTORIES EXIST
+================================================= */
+const uploadsRoot = path.join(__dirname, "uploads");
+const providerVerificationUploads = path.join(
+  __dirname,
+  "uploads",
+  "provider-verification"
+);
+
+if (!fs.existsSync(uploadsRoot)) {
+  fs.mkdirSync(uploadsRoot, { recursive: true });
+}
+
+if (!fs.existsSync(providerVerificationUploads)) {
+  fs.mkdirSync(providerVerificationUploads, { recursive: true });
+}
+
+/* =================================================
+   OPTIONAL ROUTE LOADER
+================================================= */
+async function loadOptionalRoute(relativePath, label) {
+  try {
+    const absolutePath = path.join(__dirname, relativePath);
+
+    if (!fs.existsSync(absolutePath)) {
+      console.warn(`Optional route missing: ${relativePath} (${label})`);
+      return null;
+    }
+
+    const mod = await import(pathToFileURL(absolutePath).href);
+    const router = mod?.default || null;
+
+    if (!router) {
+      console.warn(`Optional route has no default export: ${relativePath}`);
+      return null;
+    }
+
+    console.log(`Optional route loaded: ${relativePath}`);
+    return router;
+  } catch (err) {
+    console.error(`Failed to load optional route ${relativePath}:`, err.message);
+    return null;
+  }
+}
+
+/* =================================================
+   HELPERS
 ================================================= */
 function isDbReady() {
   return mongoose.connection.readyState === 1;
 }
 
 /* =================================================
-   ✅ CORS HELPERS
+   CORS HELPERS
 ================================================= */
 const FRONTEND_ALLOWED = [
   "http://localhost:5173",
@@ -86,7 +127,7 @@ function corsOrigin(origin, callback) {
   if (isAllowedOrigin(origin)) {
     return callback(null, true);
   }
-  console.warn("❌ CORS blocked origin:", origin);
+  console.warn("CORS blocked origin:", origin);
   return callback(new Error(`CORS blocked for origin: ${origin}`));
 }
 
@@ -106,7 +147,7 @@ const corsOptions = {
 };
 
 /* =================================================
-   ✅ VERY IMPORTANT: CORS FIRST
+   VERY IMPORTANT: CORS FIRST
 ================================================= */
 app.use((req, res, next) => {
   const origin = req.headers.origin;
@@ -128,7 +169,7 @@ app.use((req, res, next) => {
 
   if (req.method === "OPTIONS") {
     console.log(
-      "✅ PREFLIGHT:",
+      "PREFLIGHT:",
       req.method,
       req.originalUrl,
       "Origin:",
@@ -143,7 +184,7 @@ app.use((req, res, next) => {
 app.use(cors(corsOptions));
 
 /* =================================================
-   ✅ SECURITY
+   SECURITY
 ================================================= */
 app.use(
   helmet({
@@ -154,7 +195,7 @@ app.use(
 app.use(cookieParser());
 
 /* =================================================
-   ✅ RATE LIMITS
+   RATE LIMITS
 ================================================= */
 const skipLocalInDev = (req) => {
   const ip = req.ip || req.socket?.remoteAddress || "";
@@ -192,7 +233,7 @@ const adminLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
-    console.warn("⚠️ Rate limit hit:", req.method, req.originalUrl, "IP:", req.ip);
+    console.warn("Rate limit hit:", req.method, req.originalUrl, "IP:", req.ip);
     return res.status(429).json({
       message: "Too many admin requests, please try again later.",
     });
@@ -202,17 +243,17 @@ const adminLimiter = rateLimit({
 app.use(generalLimiter);
 
 /* =================================================
-   ✅ BODY PARSING
+   BODY PARSING
 ================================================= */
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "20mb" }));
+app.use(express.urlencoded({ extended: true, limit: "20mb" }));
 
 /* =================================================
-   ✅ REQUEST LOGGER
+   REQUEST LOGGER
 ================================================= */
 app.use((req, res, next) => {
   console.log(
-    "📱 HIT:",
+    "HIT:",
     req.method,
     req.originalUrl,
     "| origin:",
@@ -224,8 +265,20 @@ app.use((req, res, next) => {
 });
 
 /* =================================================
-   ✅ GLOBAL MAINTENANCE MODE
-   ONLY ADMIN CAN ACCESS DURING MAINTENANCE
+   STATIC FILES
+   IMPORTANT FOR ADMIN TO VIEW UPLOADED DOCUMENTS
+================================================= */
+app.use(
+  "/uploads",
+  express.static(uploadsRoot, {
+    fallthrough: true,
+    index: false,
+    maxAge: "1d",
+  })
+);
+
+/* =================================================
+   GLOBAL MAINTENANCE MODE
 ================================================= */
 app.use(async (req, res, next) => {
   try {
@@ -236,14 +289,10 @@ app.use(async (req, res, next) => {
       requestPath === "/api/ping" ||
       requestPath.startsWith("/uploads");
 
-    if (alwaysAllow) {
-      return next();
-    }
+    if (alwaysAllow) return next();
 
-    // ✅ If DB is not ready, skip maintenance DB lookup
-    // so the whole server doesn't keep throwing noisy errors
     if (!isDbReady()) {
-      console.warn("⚠️ DB not ready, skipping maintenance check");
+      console.warn("DB not ready, skipping maintenance check");
       return next();
     }
 
@@ -254,17 +303,10 @@ app.use(async (req, res, next) => {
       settings?.maintenanceMessage ||
       "AutoAid is currently under maintenance. Only admin can access the system now.";
 
-    if (!maintenanceMode) {
-      return next();
-    }
+    if (!maintenanceMode) return next();
 
-    if (requestPath.startsWith("/api/admin")) {
-      return next();
-    }
-
-    if (requestPath === "/api/auth/login") {
-      return next();
-    }
+    if (requestPath.startsWith("/api/admin")) return next();
+    if (requestPath === "/api/auth/login") return next();
 
     const authHeader = req.headers.authorization || "";
     const bearer = authHeader.startsWith("Bearer ")
@@ -278,6 +320,7 @@ app.use(async (req, res, next) => {
         maintenanceMode: true,
         message: maintenanceMessage,
         systemName: settings?.systemName || "AutoAid",
+        maintenanceTarget: settings?.maintenanceTarget || "both",
       });
     }
 
@@ -291,11 +334,9 @@ app.use(async (req, res, next) => {
 
       const isAdmin = String(user?.role || "").toLowerCase() === "admin";
 
-      if (isAdmin) {
-        return next();
-      }
+      if (isAdmin) return next();
     } catch (tokenErr) {
-      console.warn("⚠️ Maintenance token check failed:", tokenErr.message);
+      console.warn("Maintenance token check failed:", tokenErr.message);
     }
 
     return res.status(503).json({
@@ -303,15 +344,16 @@ app.use(async (req, res, next) => {
       maintenanceMode: true,
       message: maintenanceMessage,
       systemName: settings?.systemName || "AutoAid",
+      maintenanceTarget: settings?.maintenanceTarget || "both",
     });
   } catch (err) {
-    console.error("❌ Maintenance middleware error:", err.message);
+    console.error("Maintenance middleware error:", err.message);
     return next();
   }
 });
 
 /* =================================================
-   ✅ HEALTH CHECK
+   HEALTH CHECK
 ================================================= */
 app.get("/api/ping", (req, res) => {
   res.json({
@@ -322,12 +364,12 @@ app.get("/api/ping", (req, res) => {
   });
 });
 
-app.get("/", (req, res) => {
-  res.send("🚀 AutoAID backend running successfully!");
+app.get("/", (_req, res) => {
+  res.send("AutoAID backend running successfully!");
 });
 
 /* =================================================
-   ✅ SOCKET.IO
+   SOCKET.IO
 ================================================= */
 const io = new Server(server, {
   cors: {
@@ -343,7 +385,7 @@ const io = new Server(server, {
 app.set("io", io);
 
 /* =================================================
-   ✅ SOCKET AUTH
+   SOCKET AUTH
 ================================================= */
 io.use(async (socket, next) => {
   try {
@@ -399,13 +441,13 @@ io.use(async (socket, next) => {
     socket.user = user;
     next();
   } catch (e) {
-    console.error("❌ Socket auth error:", e.message);
+    console.error("Socket auth error:", e.message);
     next(new Error("Authentication failed"));
   }
 });
 
 /* =================================================
-   ✅ SOCKET HELPERS
+   SOCKET HELPERS
 ================================================= */
 function roomForChat(requestId) {
   return `chat_${requestId}`;
@@ -477,13 +519,8 @@ function emitPersonalNotification(ioInstance, reqDoc, payload) {
   const userId = String(reqDoc.userId || "");
   const providerId = String(reqDoc.assignedProviderId || "");
 
-  if (userId) {
-    ioInstance.to(`user:${userId}`).emit("notify", payload);
-  }
-
-  if (providerId) {
-    ioInstance.to(`provider:${providerId}`).emit("notify", payload);
-  }
+  if (userId) ioInstance.to(`user:${userId}`).emit("notify", payload);
+  if (providerId) ioInstance.to(`provider:${providerId}`).emit("notify", payload);
 }
 
 function emitRequestLifecycle(ioInstance, requestDoc, eventName = "request_updated") {
@@ -606,10 +643,10 @@ async function broadcastRequestToEligibleProviders(ioInstance, requestDoc) {
 }
 
 /* =================================================
-   ✅ SOCKET CHAT + NOTIFICATIONS + PROVIDER PRESENCE
+   SOCKET CHAT + NOTIFICATIONS + PROVIDER PRESENCE
 ================================================= */
 io.on("connection", async (socket) => {
-  console.log("⚡ Secure socket connected:", socket.id, "role:", socket.user?.role);
+  console.log("Secure socket connected:", socket.id, "role:", socket.user?.role);
 
   const myId = String(socket.user?._id || "");
   const myRole = String(socket.user?.role || "").toLowerCase();
@@ -620,7 +657,7 @@ io.on("connection", async (socket) => {
       socket.join(`user:${myId}`);
       socket.join(`provider:${myId}`);
       console.log(
-        "✅ Joined personal rooms:",
+        "Joined personal rooms:",
         `user:${myId}`,
         `provider:${myId}`,
         "role:",
@@ -636,7 +673,7 @@ io.on("connection", async (socket) => {
 
         if (providerType) {
           socket.join(`type:${providerType}`);
-          console.log(`✅ Provider ${myId} joined service room type:${providerType}`);
+          console.log(`Provider ${myId} joined service room type:${providerType}`);
         }
 
         socket.emit("provider_presence", {
@@ -648,12 +685,9 @@ io.on("connection", async (socket) => {
       }
     }
   } catch (presenceErr) {
-    console.error("❌ Provider presence init error:", presenceErr.message);
+    console.error("Provider presence init error:", presenceErr.message);
   }
 
-  /* -----------------------------
-     PROVIDER PRESENCE / AVAILABILITY
-  ----------------------------- */
   socket.on("provider_register_service_room", async ({ businessType }) => {
     try {
       if (!isDbReady()) {
@@ -716,9 +750,11 @@ io.on("connection", async (socket) => {
       if (typeof lat === "number" && Number.isFinite(lat)) update.lat = lat;
       if (typeof lng === "number" && Number.isFinite(lng)) update.lng = lng;
 
-      const updated = await User.findByIdAndUpdate(myId, { $set: update }, { new: true }).select(
-        "-password"
-      );
+      const updated = await User.findByIdAndUpdate(
+        myId,
+        { $set: update },
+        { new: true }
+      ).select("-password");
 
       socket.emit("provider_presence", {
         isOnline: !!updated?.isOnline,
@@ -792,9 +828,6 @@ io.on("connection", async (socket) => {
     }
   });
 
-  /* -----------------------------
-     REQUEST BROADCAST
-  ----------------------------- */
   socket.on("broadcast_request_to_providers", async ({ requestId }) => {
     try {
       if (!isDbReady()) {
@@ -836,9 +869,6 @@ io.on("connection", async (socket) => {
     }
   });
 
-  /* -----------------------------
-     CHAT
-  ----------------------------- */
   socket.on("joinChat", async ({ requestId }) => {
     try {
       if (!isDbReady()) {
@@ -1026,9 +1056,6 @@ io.on("connection", async (socket) => {
     }
   });
 
-  /* -----------------------------
-     CALLS
-  ----------------------------- */
   socket.on("call_request", async ({ requestId, from }) => {
     try {
       if (!isDbReady()) {
@@ -1284,9 +1311,6 @@ io.on("connection", async (socket) => {
     }
   });
 
-  /* -----------------------------
-     READS
-  ----------------------------- */
   socket.on("markRead", async ({ requestId }) => {
     try {
       if (!isDbReady()) {
@@ -1332,9 +1356,6 @@ io.on("connection", async (socket) => {
     }
   });
 
-  /* -----------------------------
-     NOTIFICATIONS
-  ----------------------------- */
   socket.on("get_notifications", async () => {
     try {
       if (!isDbReady()) {
@@ -1421,16 +1442,13 @@ io.on("connection", async (socket) => {
 
       socket.emit("notifications", { notifications });
     } catch (e) {
-      console.error("❌ notifications_error:", e);
+      console.error("notifications_error:", e);
       socket.emit("notifications_error", {
         message: e.message || "Failed to load notifications",
       });
     }
   });
 
-  /* -----------------------------
-     REQUEST EVENT BRIDGE
-  ----------------------------- */
   socket.on("request_status_refresh", async ({ requestId }) => {
     try {
       if (!isDbReady()) return;
@@ -1445,11 +1463,8 @@ io.on("connection", async (socket) => {
     }
   });
 
-  /* -----------------------------
-     DISCONNECT
-  ----------------------------- */
   socket.on("disconnect", async () => {
-    console.log("❌ Socket disconnected:", socket.id);
+    console.log("Socket disconnected:", socket.id);
 
     try {
       if (!isDbReady()) return;
@@ -1464,7 +1479,7 @@ io.on("connection", async (socket) => {
 });
 
 /* =================================================
-   ✅ DATABASE
+   DATABASE
 ================================================= */
 const PORT = process.env.PORT || 5001;
 const MONGO_URI = process.env.MONGO_URI;
@@ -1477,28 +1492,71 @@ async function ensureDefaultSettings() {
       await Settings.create({
         systemName: "AutoAid",
         supportEmail: "",
+        supportPhone: "",
+        whatsappNumber: "",
+        emergencyHotline: "",
         notificationsEnabled: true,
         maintenanceMode: false,
         maintenanceMessage:
           "AutoAid is currently under maintenance. Only admin can access the system now.",
+        maintenanceTarget: "both",
+        allowUserRegistration: true,
+        allowProviderRegistration: true,
+        autoApproveProviders: false,
       });
-      console.log("✅ Default settings created");
+      console.log("Default settings created");
+    } else {
+      let changed = false;
+
+      if (typeof settings.supportPhone === "undefined") {
+        settings.supportPhone = "";
+        changed = true;
+      }
+      if (typeof settings.whatsappNumber === "undefined") {
+        settings.whatsappNumber = "";
+        changed = true;
+      }
+      if (typeof settings.emergencyHotline === "undefined") {
+        settings.emergencyHotline = "";
+        changed = true;
+      }
+      if (typeof settings.maintenanceTarget === "undefined") {
+        settings.maintenanceTarget = "both";
+        changed = true;
+      }
+      if (typeof settings.allowUserRegistration === "undefined") {
+        settings.allowUserRegistration = true;
+        changed = true;
+      }
+      if (typeof settings.allowProviderRegistration === "undefined") {
+        settings.allowProviderRegistration = true;
+        changed = true;
+      }
+      if (typeof settings.autoApproveProviders === "undefined") {
+        settings.autoApproveProviders = false;
+        changed = true;
+      }
+
+      if (changed) {
+        await settings.save();
+        console.log("Settings schema backfilled with new defaults");
+      }
     }
   } catch (err) {
-    console.error("❌ Default settings creation failed:", err.message);
+    console.error("Default settings creation failed:", err.message);
   }
 }
 
 async function connectDb() {
   try {
     if (!MONGO_URI) {
-      console.error("❌ MONGO_URI missing in .env");
+      console.error("MONGO_URI missing in .env");
       process.exit(1);
     }
 
-    console.log("⏳ Connecting to MongoDB Atlas...");
+    console.log("Connecting to MongoDB Atlas...");
     console.log(
-      "🔎 Mongo host:",
+      "Mongo host:",
       MONGO_URI.includes("@") ? MONGO_URI.split("@")[1]?.split("/")[0] : "unknown"
     );
 
@@ -1507,36 +1565,36 @@ async function connectDb() {
       socketTimeoutMS: 45000,
     });
 
-    console.log("✅ MongoDB connected");
-    console.log("✅ Ready state:", mongoose.connection.readyState);
+    console.log("MongoDB connected");
+    console.log("Ready state:", mongoose.connection.readyState);
 
     mongoose.connection.on("error", (err) => {
-      console.error("❌ MongoDB runtime error:", err.message);
+      console.error("MongoDB runtime error:", err.message);
     });
 
     mongoose.connection.on("disconnected", () => {
-      console.warn("⚠️ MongoDB disconnected");
+      console.warn("MongoDB disconnected");
     });
 
     await ensureDefaultSettings();
   } catch (err) {
-    console.error("❌ DB connection failed:", err.message || err);
+    console.error("DB connection failed:", err.message || err);
 
     const msg = String(err.message || "").toLowerCase();
 
     if (msg.includes("whitelist") || msg.includes("could not connect to any servers")) {
       console.error(
-        "👉 Fix: Add your current IP in MongoDB Atlas Network Access, or temporarily allow 0.0.0.0/0."
+        "Fix: Add your current IP in MongoDB Atlas Network Access, or temporarily allow 0.0.0.0/0."
       );
     }
 
     if (msg.includes("authentication failed") || msg.includes("bad auth")) {
-      console.error("👉 Fix: Check Atlas database username/password in MONGO_URI.");
+      console.error("Fix: Check Atlas database username/password in MONGO_URI.");
     }
 
     if (msg.includes("querysrv econnrefused") || msg.includes("enotfound")) {
       console.error(
-        "👉 Fix: DNS/network issue. Try Google DNS, Cloudflare DNS, or non-SRV URI."
+        "Fix: DNS/network issue. Try Google DNS, Cloudflare DNS, or non-SRV URI."
       );
     }
 
@@ -1545,7 +1603,7 @@ async function connectDb() {
 }
 
 /* =================================================
-   ✅ SUBSCRIPTION CHECK
+   SUBSCRIPTION CHECK
 ================================================= */
 async function checkAndExpireSubscriptions() {
   try {
@@ -1573,59 +1631,85 @@ async function checkAndExpireSubscriptions() {
 setInterval(checkAndExpireSubscriptions, 60 * 1000);
 
 /* =================================================
-   ✅ ROUTES
-================================================= */
-app.use("/api/auth", authLimiter, authRoutes);
-app.use("/api/admin", adminLimiter, adminRoutes);
-app.use("/api/payments", paymentsRoutes);
-app.use("/api/providers", providersRoutes);
-app.use("/api/fuel", fuelRoutes);
-app.use("/api/towing", towingRoutes);
-app.use("/api/ambulance", ambulanceRoutes);
-app.use("/api/garage", garageRoutes);
-app.use("/api/uploads", uploadsRoutes);
-app.use("/api/upload", voiceUploadRoutes);
-app.use("/api/requests", requestsRoutes);
-app.use("/api/chat", chatRoutes);
-
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
-/* =================================================
-   ✅ 404 HANDLER
-================================================= */
-app.use((req, res) => {
-  res.status(404).json({
-    message: `Route not found: ${req.method} ${req.originalUrl}`,
-  });
-});
-
-/* =================================================
-   ✅ ERROR HANDLER
-================================================= */
-app.use((err, req, res, next) => {
-  console.error("❌ Express error:", err);
-
-  const origin = req.headers.origin;
-  if (isAllowedOrigin(origin)) {
-    res.header("Access-Control-Allow-Origin", origin || "*");
-    res.header("Vary", "Origin");
-    res.header("Access-Control-Allow-Credentials", "true");
-  }
-
-  if (String(err.message || "").includes("CORS")) {
-    return res.status(403).json({ message: err.message });
-  }
-
-  return res.status(err.status || 500).json({
-    message: err.message || "Server error",
-  });
-});
-
-/* =================================================
-   ✅ BOOT
+   BOOT
 ================================================= */
 (async function boot() {
   await connectDb();
+
+  const uploadsRoutes = await loadOptionalRoute("./routes/uploads.js", "uploads");
+  const voiceUploadRoutes = await loadOptionalRoute("./routes/voiceUpload.js", "voice upload");
+
+  /* =================================================
+     ROUTES
+  ================================================= */
+  app.use("/api/auth", authLimiter, authRoutes);
+  app.use("/api/admin", adminLimiter, adminRoutes);
+  app.use("/api/admin", adminLimiter, settingsRoutes);
+  app.use("/api/payments", paymentsRoutes);
+  app.use("/api/providers", providersRoutes);
+  app.use("/api/fuel", fuelRoutes);
+  app.use("/api/towing", towingRoutes);
+  app.use("/api/ambulance", ambulanceRoutes);
+  app.use("/api/garage", garageRoutes);
+  app.use("/api/requests", requestsRoutes);
+  app.use("/api/chat", chatRoutes);
+
+  // verification routes
+  app.use("/api/verification", verificationRoutes);
+  app.use("/api/provider-verification", verificationRoutes);
+
+  if (uploadsRoutes) {
+    app.use("/api/uploads", uploadsRoutes);
+  } else {
+    app.use("/api/uploads", (_req, res) => {
+      res.status(501).json({
+        ok: false,
+        message: "Uploads route not configured yet. Create routes/uploads.js",
+      });
+    });
+  }
+
+  if (voiceUploadRoutes) {
+    app.use("/api/upload", voiceUploadRoutes);
+  } else {
+    app.use("/api/upload", (_req, res) => {
+      res.status(501).json({
+        ok: false,
+        message: "Voice upload route not configured yet. Create routes/voiceUpload.js",
+      });
+    });
+  }
+
+  /* =================================================
+     404 HANDLER
+  ================================================= */
+  app.use((req, res) => {
+    res.status(404).json({
+      message: `Route not found: ${req.method} ${req.originalUrl}`,
+    });
+  });
+
+  /* =================================================
+     ERROR HANDLER
+  ================================================= */
+  app.use((err, req, res, _next) => {
+    console.error("Express error:", err);
+
+    const origin = req.headers.origin;
+    if (isAllowedOrigin(origin)) {
+      res.header("Access-Control-Allow-Origin", origin || "*");
+      res.header("Vary", "Origin");
+      res.header("Access-Control-Allow-Credentials", "true");
+    }
+
+    if (String(err.message || "").includes("CORS")) {
+      return res.status(403).json({ message: err.message });
+    }
+
+    return res.status(err.status || 500).json({
+      message: err.message || "Server error",
+    });
+  });
 
   try {
     const adminEmail = "admin@autoaid.com";
@@ -1633,7 +1717,7 @@ app.use((err, req, res, next) => {
 
     if (!exists) {
       if (!process.env.ADMIN_PASSWORD) {
-        console.warn("⚠️ ADMIN_PASSWORD missing in .env (admin not created)");
+        console.warn("ADMIN_PASSWORD missing in .env (admin not created)");
       } else {
         await new User({
           name: "System Admin",
@@ -1641,6 +1725,7 @@ app.use((err, req, res, next) => {
           password: process.env.ADMIN_PASSWORD,
           role: "admin",
           status: "approved",
+          verificationStatus: "verified",
           subscription: {
             plan: "monthly",
             active: false,
@@ -1651,7 +1736,7 @@ app.use((err, req, res, next) => {
           },
         }).save();
 
-        console.log("✅ Admin created:", adminEmail);
+        console.log("Admin created:", adminEmail);
       }
     }
   } catch (err) {
@@ -1659,7 +1744,8 @@ app.use((err, req, res, next) => {
   }
 
   server.listen(PORT, "0.0.0.0", () => {
-    console.log(`🚀 Server listening on http://0.0.0.0:${PORT}`);
-    console.log(`✅ Test ping: http://127.0.0.1:${PORT}/api/ping`);
+    console.log(`Server listening on http://0.0.0.0:${PORT}`);
+    console.log(`Test ping: http://127.0.0.1:${PORT}/api/ping`);
+    console.log(`Uploads served from: http://127.0.0.1:${PORT}/uploads`);
   });
 })();

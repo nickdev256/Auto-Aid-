@@ -30,7 +30,7 @@ import com.project.auto_aid.screens.RequestDetailsScreen
 
 /* ---------- Settings ---------- */
 import com.project.auto_aid.settings.AboutUsScreen
-import com.project.auto_aid.settings.IdentityVerificationScreen
+import com.project.auto_aid.settings.IdentityVerificationRoute
 import com.project.auto_aid.settings.PayoutInformationScreen
 import com.project.auto_aid.settings.PrivacyPolicyScreen
 import com.project.auto_aid.settings.PromotionScreen
@@ -71,6 +71,7 @@ import com.project.auto_aid.provider.ui.ProviderPayoutRequestsScreen
 import com.project.auto_aid.provider.ui.ProviderProfileScreen
 import com.project.auto_aid.provider.ui.ProviderRequestDetailsScreen
 import com.project.auto_aid.provider.ui.ProviderWalletScreen
+import com.project.auto_aid.provider.ui.ProviderVerificationRequiredScreen
 
 @Composable
 fun AppNavigation(navController: NavHostController) {
@@ -112,10 +113,7 @@ fun AppNavigation(navController: NavHostController) {
             )
         ) { entry ->
             val email = entry.arguments?.getString("email") ?: ""
-            VerifyCodeScreen(
-                navController = navController,
-                email = email
-            )
+            VerifyCodeScreen(navController, email)
         }
 
         composable(Routes.ResetPasswordScreen.route) {
@@ -129,12 +127,12 @@ fun AppNavigation(navController: NavHostController) {
                 navArgument("message") {
                     type = NavType.StringType
                     nullable = true
-                    defaultValue = "AutoAid is currently under maintenance. Please try again later."
+                    defaultValue = "AutoAid is currently under maintenance."
                 }
             )
         ) { entry ->
             val message = entry.arguments?.getString("message")
-                ?: "AutoAid is currently under maintenance. Please try again later."
+                ?: "AutoAid is currently under maintenance."
 
             MaintenanceScreen(
                 navController = navController,
@@ -254,7 +252,7 @@ fun AppNavigation(navController: NavHostController) {
         }
 
         composable(Routes.UserInfoScreen.route) {
-            IdentityVerificationScreen(navController)
+            IdentityVerificationRoute(navController)
         }
 
         /* ---------- Garage ---------- */
@@ -471,6 +469,14 @@ fun AppNavigation(navController: NavHostController) {
             EditProviderProfileScreen(navController)
         }
 
+        composable(Routes.ProviderVerificationRequired.route) {
+            ProviderVerificationRequiredScreen(navController)
+        }
+
+        composable(Routes.ProviderVerification.route) {
+            EditProviderProfileScreen(navController)
+        }
+
         composable(Routes.ProviderNotifications.route) {
             ProviderNotificationsScreen(navController)
         }
@@ -497,19 +503,6 @@ fun AppNavigation(navController: NavHostController) {
 
         composable(Routes.ProviderPayoutRequests.route) {
             ProviderPayoutRequestsScreen(navController)
-        }
-
-        composable(
-            route = Routes.ProviderChatThread.route,
-            arguments = listOf(
-                navArgument("requestId") { type = NavType.StringType }
-            )
-        ) { entry ->
-            val requestId = entry.arguments?.getString("requestId") ?: ""
-            ProviderChatThreadScreen(
-                navController = navController,
-                requestId = requestId
-            )
         }
 
         composable(

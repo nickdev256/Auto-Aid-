@@ -3,35 +3,52 @@ import User from "../models/User.js";
 import "dotenv/config";
 
 const JWT_SECRET = process.env.JWT_SECRET;
+
 if (!JWT_SECRET) {
-  throw new Error("❌ JWT_SECRET is missing in environment (.env)");
+  throw new Error("JWT_SECRET is missing in environment (.env)");
+}
+
+function extractToken(req) {
+  const authHeader = req.headers.authorization || "";
+  const bearerToken = authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : null;
+
+  const cookieToken = req.cookies?.token || null;
+
+  return bearerToken || cookieToken || null;
+}
+
+function normalizeRole(role) {
+  return String(role || "").trim().toLowerCase();
 }
 
 export const protect = async (req, res, next) => {
   try {
-    // ✅ IMPORTANT: allow CORS preflight requests through
     if (req.method === "OPTIONS") return next();
 
-    // ✅ Android sends Bearer token
-    const authHeader = req.headers.authorization || "";
-    const bearerToken = authHeader.startsWith("Bearer ")
-      ? authHeader.slice(7)
-      : null;
-
-    // ✅ Web uses cookie token
-    const cookieToken = req.cookies?.token;
-
-    const token = bearerToken || cookieToken;
+    const token = extractToken(req);
 
     if (!token) {
-      return res.status(401).json({ message: "Not authenticated (missing token)" });
+      return res.status(401).json({
+        message: "Not authenticated (missing token)",
+      });
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
 
+    if (!decoded?.id) {
+      return res.status(401).json({
+        message: "Invalid token payload",
+      });
+    }
+
     const user = await User.findById(decoded.id).select("-password");
+
     if (!user) {
-      return res.status(401).json({ message: "User not found" });
+      return res.status(401).json({
+        message: "User not found",
+      });
     }
 
     req.user = user;
@@ -40,27 +57,41 @@ export const protect = async (req, res, next) => {
     console.error("Auth error:", err.message);
 
     if (err.name === "TokenExpiredError") {
-      return res.status(401).json({ message: "Token expired" });
-    }
-    if (err.name === "JsonWebTokenError") {
-      return res.status(401).json({ message: `Invalid token: ${err.message}` });
+      return res.status(401).json({
+        message: "Token expired",
+      });
     }
 
-    return res.status(401).json({ message: "Authentication failed" });
+    if (err.name === "JsonWebTokenError") {
+      return res.status(401).json({
+        message: "Invalid token",
+      });
+    }
+
+    return res.status(401).json({
+      message: "Authentication failed",
+    });
   }
 };
 
 export const authorize = (...roles) => {
+  const normalizedRoles = roles.map((r) => normalizeRole(r));
+
   return (req, res, next) => {
-    // ✅ allow CORS preflight requests through
     if (req.method === "OPTIONS") return next();
 
     if (!req.user || !req.user.role) {
-      return res.status(403).json({ message: "Access denied" });
+      return res.status(403).json({
+        message: "Access denied",
+      });
     }
 
-    if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ message: "Access denied" });
+    const userRole = normalizeRole(req.user.role);
+
+    if (!normalizedRoles.includes(userRole)) {
+      return res.status(403).json({
+        message: "Access denied",
+      });
     }
 
     next();

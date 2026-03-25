@@ -110,7 +110,7 @@ function formatProvider(providerDoc, userLat = null, userLng = null) {
     isAvailable: !!raw.isAvailable,
     isOnline: !!raw.isOnline,
     isApprovedProvider: !!raw.isApprovedProvider,
-    profileImageUrl: raw.profileImageUrl || "",
+    profileImageUrl: raw.profileImageUrl || raw.profileImage || "",
     logoUrl: raw.logoUrl || "",
     subscription: raw.subscription || {},
     payoutInfo: raw.payoutInfo || {},
@@ -166,10 +166,7 @@ async function computeProviderWalletSummary(providerIdInput) {
   const paidCompletedRequests = await Request.find({
     $and: [
       {
-        $or: [
-          { assignedProviderId: providerId },
-          { assignedTo: providerId },
-        ],
+        $or: [{ assignedProviderId: providerId }, { assignedTo: providerId }],
       },
       { status: "completed" },
       { paymentStatus: "paid" },
@@ -260,7 +257,7 @@ router.get("/public/:id", async (req, res) => {
     }
 
     const provider = await User.findById(id).select(
-      "name businessName businessType providerType servicesOffered address phone logoUrl subscription payoutInfo rating lat lng isAvailable isOnline isApprovedProvider profileImageUrl status"
+      "name businessName businessType providerType servicesOffered address phone logoUrl subscription payoutInfo rating lat lng isAvailable isOnline isApprovedProvider profileImageUrl profileImage status"
     );
 
     if (!provider) {
@@ -335,7 +332,7 @@ router.get("/available", async (req, res) => {
     }
 
     const providers = await User.find(query).select(
-      "name phone businessName businessType providerType servicesOffered address rating profileImageUrl logoUrl payoutInfo subscription lat lng isAvailable isOnline isApprovedProvider status"
+      "name phone businessName businessType providerType servicesOffered address rating profileImageUrl profileImage logoUrl payoutInfo subscription lat lng isAvailable isOnline isApprovedProvider status"
     );
 
     let list = providers.map((p) => formatProvider(p, lat, lng));
@@ -466,6 +463,33 @@ router.patch("/me", async (req, res) => {
     delete updates._id;
     delete updates.id;
 
+    // ✅ Prevent empty required name from overwriting the existing one
+    if (updates.name === undefined || String(updates.name).trim() === "") {
+      delete updates.name;
+    } else {
+      updates.name = String(updates.name).trim();
+    }
+
+    if (updates.phone !== undefined) {
+      updates.phone = String(updates.phone).trim();
+    }
+
+    if (updates.businessName !== undefined) {
+      updates.businessName = String(updates.businessName).trim();
+    }
+
+    if (updates.address !== undefined) {
+      updates.address = String(updates.address).trim();
+    }
+
+    if (updates.businessType !== undefined) {
+      updates.businessType = normalizeBusinessType(updates.businessType) || updates.businessType;
+    }
+
+    if (updates.providerType !== undefined) {
+      updates.providerType = normalizeBusinessType(updates.providerType) || updates.providerType;
+    }
+
     const providerDoc = await User.findByIdAndUpdate(req.user._id, updates, {
       new: true,
       runValidators: true,
@@ -478,7 +502,7 @@ router.patch("/me", async (req, res) => {
     return res.json(getProviderRaw(providerDoc));
   } catch (err) {
     console.error("Provider update me error:", err);
-    return res.status(500).json({ message: "Server error" });
+    return res.status(500).json({ message: err.message || "Server error" });
   }
 });
 
@@ -696,6 +720,20 @@ router.put("/provider/:id/settings", async (req, res) => {
     delete updates._id;
     delete updates.id;
 
+    if (updates.name === undefined || String(updates.name).trim() === "") {
+      delete updates.name;
+    } else {
+      updates.name = String(updates.name).trim();
+    }
+
+    if (updates.phone !== undefined) {
+      updates.phone = String(updates.phone).trim();
+    }
+
+    if (updates.businessName !== undefined) {
+      updates.businessName = String(updates.businessName).trim();
+    }
+
     const providerDoc = await User.findByIdAndUpdate(id, updates, {
       new: true,
       runValidators: true,
@@ -708,7 +746,7 @@ router.put("/provider/:id/settings", async (req, res) => {
     return res.json(getProviderRaw(providerDoc));
   } catch (err) {
     console.error("Provider settings update error:", err);
-    return res.status(500).json({ message: "Server error" });
+    return res.status(500).json({ message: err.message || "Server error" });
   }
 });
 

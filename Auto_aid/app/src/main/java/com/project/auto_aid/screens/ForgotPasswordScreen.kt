@@ -2,6 +2,7 @@ package com.project.auto_aid.screens
 
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -9,10 +10,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import com.project.auto_aid.data.local.TokenStore
 import com.project.auto_aid.data.network.RetrofitClient
 import com.project.auto_aid.data.network.dto.ForgotPasswordRequest
@@ -60,8 +64,17 @@ fun ForgotPasswordScreen(navController: NavController) {
             label = { Text("Email") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(16.dp), // Only one shape
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                focusedBorderColor = Color(0xFF0A9AD9),
+                cursorColor = Color(0xFF0A9AD9),
+                unfocusedBorderColor = Color.Gray,
+                focusedLabelColor = Color(0xFF0A9AD9),
+                unfocusedLabelColor = Color.Gray
+            )
         )
+
 
         error?.let { msg ->
             Spacer(Modifier.height(10.dp))
@@ -75,62 +88,99 @@ fun ForgotPasswordScreen(navController: NavController) {
 
         Spacer(Modifier.height(18.dp))
 
-        Button(
-            onClick = {
-                if (email.isBlank()) {
-                    showToast(context, "Enter your email")
-                    return@Button
-                }
-
-                loading = true
-                error = null
-                success = null
-
-                scope.launch {
-                    val res = runCatching {
-                        api.forgotPassword(ForgotPasswordRequest(email.trim().lowercase()))
-                    }.getOrElse { e ->
-                        loading = false
-                        error = e.message ?: "Network error"
-                        return@launch
-                    }
-
-                    loading = false
-
-                    if (res.isSuccessful) {
-                        val msg = res.body()?.message ?: "Request sent ✅"
-                        success = msg
-                        showToast(context, msg)
-                    } else {
-                        val err = res.errorBody()?.string()
-                        error = err ?: "Failed (${res.code()})"
-                    }
-                }
-            },
-            enabled = !loading,
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-            shape = RoundedCornerShape(14.dp)
+        // Row for buttons
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 18.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            if (loading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(22.dp),
-                    strokeWidth = 2.dp
+            // Send Reset Link button on the left
+            Button(
+                onClick = {
+                    if (email.isBlank()) {
+                        showToast(context, "Enter your email")
+                        return@Button
+                    }
+
+                    loading = true
+                    error = null
+                    success = null
+
+                    scope.launch {
+                        val res = runCatching {
+                            api.forgotPassword(ForgotPasswordRequest(email.trim().lowercase()))
+                        }.getOrElse { e ->
+                            loading = false
+                            error = e.message ?: "Network error"
+                            return@launch
+                        }
+
+                        loading = false
+
+                        if (res.isSuccessful) {
+                            val msg = res.body()?.message ?: "Request sent ✅"
+                            success = msg
+                            showToast(context, msg)
+                        } else {
+                            val err = res.errorBody()?.string()
+                            error = err ?: "Failed (${res.code()})"
+                        }
+                    }
+                },
+                enabled = !loading,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(52.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF0A9AD9), // Background color
+                    contentColor = Color.White           // Text color
                 )
-            } else {
-                Text("Send Reset Link", fontWeight = FontWeight.Bold)
+            ) {
+                if (loading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        strokeWidth = 2.dp,
+                        color = Color.White
+                    )
+                } else {
+                    Text("Send Reset Link", fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp)) // Space between buttons
+
+
+
+            OutlinedButton(
+                onClick = { navController.navigate(Routes.LoginScreen.route) },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(52.dp),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = Color(0xFF0A9AD9) // Text color
+                ),
+                border = BorderStroke(
+                    width = 1.5.dp,
+                    color = Color(0xFF0A9AD9) // Border color
+                ),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text("Back to Login")
             }
         }
-
-        Spacer(Modifier.height(10.dp))
-
-        OutlinedButton(
-            onClick = { navController.navigate(Routes.LoginScreen.route) },
-            modifier = Modifier.fillMaxWidth()
-        ) { Text("Back to Login") }
     }
 }
 
-/* ✅ renamed helper to avoid overload ambiguity */
+/* ✅ Helper function outside the Composable */
 fun showToast(context: Context, msg: String) {
     Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+}
+
+@Preview(showBackground = true)
+@Composable
+fun ForgotPasswordScreenPreview() {
+    val navController = rememberNavController()
+    ForgotPasswordScreen(navController = navController)
 }
