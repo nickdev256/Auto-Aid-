@@ -1,5 +1,19 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  FiAlertTriangle,
+  FiArrowLeft,
+  FiBell,
+  FiCheckCircle,
+  FiMail,
+  FiPhone,
+  FiRefreshCw,
+  FiSave,
+  FiSettings,
+  FiShield,
+  FiTool,
+  FiUsers,
+} from "react-icons/fi";
 import "./Settings.css";
 
 const API_BASE =
@@ -35,7 +49,7 @@ export default function Settings() {
     notificationsEnabled: true,
     maintenanceMode: false,
     maintenanceMessage: DEFAULT_MAINTENANCE_MESSAGE,
-    maintenanceTarget: "both", // web | android | both
+    maintenanceTarget: "both",
     allowUserRegistration: true,
     allowProviderRegistration: true,
     autoApproveProviders: false,
@@ -260,92 +274,138 @@ export default function Settings() {
 
   if (loading) {
     return (
-      <div className="settings-page">
-        <main className="settings-container">
-          <div className="loading-box">Loading settings...</div>
+      <div className="as-page">
+        <main className="as-container">
+          <div className="as-loading-box">Loading settings...</div>
         </main>
       </div>
     );
   }
 
   return (
-    <div className="settings-page">
-      <main className="settings-container">
-        <section className="settings-hero card-ui">
-          <div>
-            <div className="hero-badge">Admin / Settings</div>
+    <div className="as-page">
+      <main className="as-container">
+        <section className="as-hero">
+          <div className="as-hero-left">
+            <span className="as-kicker">Admin / System Control</span>
             <h1>System Settings</h1>
             <p>
-              Manage platform identity, maintenance mode, registration controls,
-              communication preferences, and admin email campaigns.
+              Manage platform identity, maintenance mode, registration access,
+              communication settings, and admin-wide announcements from one place.
             </p>
+
+            <div className="as-hero-mini">
+              <div className="as-mini-box">
+                <span>System Status</span>
+                <strong>{systemStatus}</strong>
+              </div>
+              <div className="as-mini-box">
+                <span>Unsaved Changes</span>
+                <strong>{hasChanges ? "Yes" : "No"}</strong>
+              </div>
+              <div className="as-mini-box">
+                <span>Last Saved</span>
+                <strong>{lastSavedAt ? "Available" : "Not yet"}</strong>
+              </div>
+            </div>
           </div>
 
-          <div className="hero-actions">
+          <div className="as-hero-right">
             <button
-              className="btn btn-light"
+              className="as-btn as-btn-light"
               type="button"
               onClick={() => navigate("/admin")}
             >
-              Back to Dashboard
+              <FiArrowLeft />
+              <span>Back to Dashboard</span>
             </button>
 
             <button
-              className="btn btn-light"
+              className="as-btn as-btn-light"
               type="button"
               onClick={fetchSettings}
             >
-              Refresh
+              <FiRefreshCw />
+              <span>Refresh</span>
             </button>
 
             <button
-              className="btn btn-primary"
+              className="as-btn as-btn-primary"
               type="button"
               onClick={saveSettings}
               disabled={saving || !hasChanges}
             >
-              {saving ? "Saving..." : hasChanges ? "Save Changes" : "Saved"}
+              <FiSave />
+              <span>
+                {saving ? "Saving..." : hasChanges ? "Save Changes" : "Saved"}
+              </span>
             </button>
           </div>
         </section>
 
-        <section className="settings-stats">
-          <div className="stat-box">
-            <span>System Status</span>
-            <strong>{systemStatus}</strong>
+        <section className="as-stats-grid">
+          <div className="as-stat-card live">
+            <div className="as-stat-icon">
+              <FiShield />
+            </div>
+            <div>
+              <span>System Status</span>
+              <strong>{systemStatus}</strong>
+            </div>
           </div>
-          <div className="stat-box">
-            <span>Notifications</span>
-            <strong>{settings.notificationsEnabled ? "Enabled" : "Disabled"}</strong>
+
+          <div className="as-stat-card notifications">
+            <div className="as-stat-icon">
+              <FiBell />
+            </div>
+            <div>
+              <span>Notifications</span>
+              <strong>{settings.notificationsEnabled ? "Enabled" : "Disabled"}</strong>
+            </div>
           </div>
-          <div className="stat-box">
-            <span>Unsaved Changes</span>
-            <strong>{hasChanges ? "Yes" : "No"}</strong>
+
+          <div className="as-stat-card edits">
+            <div className="as-stat-icon">
+              <FiSettings />
+            </div>
+            <div>
+              <span>Unsaved Changes</span>
+              <strong>{hasChanges ? "Yes" : "No"}</strong>
+            </div>
           </div>
-          <div className="stat-box">
-            <span>Maintenance Target</span>
-            <strong>
-              {settings.maintenanceTarget === "both"
-                ? "Web + Android"
-                : settings.maintenanceTarget === "web"
-                ? "Web Only"
-                : "Android Only"}
-            </strong>
+
+          <div className="as-stat-card target">
+            <div className="as-stat-icon">
+              <FiTool />
+            </div>
+            <div>
+              <span>Maintenance Target</span>
+              <strong>
+                {settings.maintenanceTarget === "both"
+                  ? "Web + Android"
+                  : settings.maintenanceTarget === "web"
+                  ? "Web Only"
+                  : "Android Only"}
+              </strong>
+            </div>
           </div>
         </section>
 
-        {error && <div className="alert-box error">{error}</div>}
-        {success && <div className="alert-box success">{success}</div>}
+        {error && <div className="as-alert error">{error}</div>}
+        {success && <div className="as-alert success">{success}</div>}
 
-        <section className="settings-grid">
-          <div className="card-ui section-card">
-            <div className="section-head">
-              <h3>System Information</h3>
-              <p>Core platform identity and support contacts.</p>
+        <section className="as-grid-two">
+          <div className="as-card">
+            <div className="as-section-head">
+              <div>
+                <span className="as-section-label">System Identity</span>
+                <h3>System Information</h3>
+                <p>Core platform identity and support contacts.</p>
+              </div>
             </div>
 
-            <div className="form-grid">
-              <div className="field">
+            <div className="as-form-grid">
+              <div className="as-field">
                 <label>System Name</label>
                 <input
                   type="text"
@@ -355,7 +415,7 @@ export default function Settings() {
                 />
               </div>
 
-              <div className="field">
+              <div className="as-field">
                 <label>Support Email</label>
                 <input
                   type="email"
@@ -365,7 +425,7 @@ export default function Settings() {
                 />
               </div>
 
-              <div className="field">
+              <div className="as-field">
                 <label>Support Phone</label>
                 <input
                   type="text"
@@ -375,7 +435,7 @@ export default function Settings() {
                 />
               </div>
 
-              <div className="field">
+              <div className="as-field">
                 <label>WhatsApp Number</label>
                 <input
                   type="text"
@@ -385,7 +445,7 @@ export default function Settings() {
                 />
               </div>
 
-              <div className="field full">
+              <div className="as-field full">
                 <label>Emergency Hotline</label>
                 <input
                   type="text"
@@ -399,19 +459,22 @@ export default function Settings() {
             </div>
           </div>
 
-          <div className="card-ui section-card">
-            <div className="section-head">
-              <h3>Platform Controls</h3>
-              <p>Switch features on or off for the whole system.</p>
+          <div className="as-card">
+            <div className="as-section-head">
+              <div>
+                <span className="as-section-label">Platform Rules</span>
+                <h3>Platform Controls</h3>
+                <p>Switch important platform features on or off.</p>
+              </div>
             </div>
 
-            <div className="toggle-list">
-              <div className="toggle-row">
-                <div>
+            <div className="as-toggle-list">
+              <div className="as-toggle-row">
+                <div className="as-toggle-copy">
                   <strong>Enable Notifications</strong>
                   <span>Allow platform-wide admin notifications.</span>
                 </div>
-                <label className="switch">
+                <label className="as-switch">
                   <input
                     type="checkbox"
                     checked={settings.notificationsEnabled}
@@ -419,16 +482,16 @@ export default function Settings() {
                       updateSetting("notificationsEnabled", e.target.checked)
                     }
                   />
-                  <span className="slider" />
+                  <span className="as-slider" />
                 </label>
               </div>
 
-              <div className="toggle-row">
-                <div>
+              <div className="as-toggle-row">
+                <div className="as-toggle-copy">
                   <strong>Allow User Registration</strong>
                   <span>Let new users create accounts.</span>
                 </div>
-                <label className="switch">
+                <label className="as-switch">
                   <input
                     type="checkbox"
                     checked={settings.allowUserRegistration}
@@ -436,16 +499,16 @@ export default function Settings() {
                       updateSetting("allowUserRegistration", e.target.checked)
                     }
                   />
-                  <span className="slider" />
+                  <span className="as-slider" />
                 </label>
               </div>
 
-              <div className="toggle-row">
-                <div>
+              <div className="as-toggle-row">
+                <div className="as-toggle-copy">
                   <strong>Allow Provider Registration</strong>
                   <span>Let new service providers sign up.</span>
                 </div>
-                <label className="switch">
+                <label className="as-switch">
                   <input
                     type="checkbox"
                     checked={settings.allowProviderRegistration}
@@ -453,18 +516,16 @@ export default function Settings() {
                       updateSetting("allowProviderRegistration", e.target.checked)
                     }
                   />
-                  <span className="slider" />
+                  <span className="as-slider" />
                 </label>
               </div>
 
-              <div className="toggle-row">
-                <div>
+              <div className="as-toggle-row">
+                <div className="as-toggle-copy">
                   <strong>Auto Approve Providers</strong>
-                  <span>
-                    Automatically approve provider accounts after registration.
-                  </span>
+                  <span>Automatically approve provider accounts after registration.</span>
                 </div>
-                <label className="switch">
+                <label className="as-switch">
                   <input
                     type="checkbox"
                     checked={settings.autoApproveProviders}
@@ -472,29 +533,30 @@ export default function Settings() {
                       updateSetting("autoApproveProviders", e.target.checked)
                     }
                   />
-                  <span className="slider" />
+                  <span className="as-slider" />
                 </label>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="settings-grid">
-          <div className="card-ui section-card">
-            <div className="section-head">
-              <h3>Maintenance Mode</h3>
-              <p>Control system availability for users and providers.</p>
+        <section className="as-grid-two">
+          <div className="as-card">
+            <div className="as-section-head">
+              <div>
+                <span className="as-section-label">Maintenance</span>
+                <h3>Maintenance Mode</h3>
+                <p>Control platform access for web and Android users.</p>
+              </div>
             </div>
 
-            <div className="toggle-row maintenance-main-row">
-              <div>
+            <div className="as-toggle-row feature-main">
+              <div className="as-toggle-copy">
                 <strong>Enable Maintenance Mode</strong>
-                <span>
-                  Turn this on to temporarily limit access to the platform.
-                </span>
+                <span>Temporarily limit access to the platform.</span>
               </div>
 
-              <label className="switch">
+              <label className="as-switch">
                 <input
                   type="checkbox"
                   checked={settings.maintenanceMode}
@@ -502,18 +564,23 @@ export default function Settings() {
                     updateSetting("maintenanceMode", e.target.checked)
                   }
                 />
-                <span className="slider" />
+                <span className="as-slider" />
               </label>
             </div>
 
-            <div className="maintenance-warning">
-              <strong>Important:</strong> Admin access and login can remain
-              available depending on your backend logic. Web and Android users
-              may see the maintenance message below.
+            <div className="as-warning-box">
+              <FiAlertTriangle />
+              <div>
+                <strong>Important</strong>
+                <p>
+                  Admin access and login may remain available depending on your
+                  backend logic. Users can still receive the maintenance message below.
+                </p>
+              </div>
             </div>
 
-            <div className="form-grid">
-              <div className="field">
+            <div className="as-form-grid">
+              <div className="as-field">
                 <label>Maintenance Target</label>
                 <select
                   value={settings.maintenanceTarget}
@@ -527,8 +594,8 @@ export default function Settings() {
                 </select>
               </div>
 
-              <div className="field full">
-                <div className="label-row">
+              <div className="as-field full">
+                <div className="as-label-row">
                   <label>Maintenance Message</label>
                   <span>
                     {String(settings.maintenanceMessage || "").length}/250
@@ -546,9 +613,9 @@ export default function Settings() {
               </div>
             </div>
 
-            <div className="inline-actions">
+            <div className="as-inline-actions">
               <button
-                className="btn btn-light"
+                className="as-btn as-btn-light"
                 type="button"
                 onClick={restoreDefaultMaintenanceMessage}
               >
@@ -557,21 +624,24 @@ export default function Settings() {
             </div>
           </div>
 
-          <div className="card-ui section-card">
-            <div className="section-head">
-              <h3>Message Preview</h3>
-              <p>What users will see during maintenance.</p>
+          <div className="as-card">
+            <div className="as-section-head">
+              <div>
+                <span className="as-section-label">Preview</span>
+                <h3>Message Preview</h3>
+                <p>What users will see during maintenance mode.</p>
+              </div>
             </div>
 
-            <div className="preview-box">
-              <div className="preview-badge">
+            <div className="as-preview-box">
+              <div className="as-preview-badge">
                 {settings.maintenanceMode ? "MAINTENANCE LIVE" : "PREVIEW"}
               </div>
               <h4>{settings.systemName || "AutoAid"}</h4>
               <p>
                 {settings.maintenanceMessage || DEFAULT_MAINTENANCE_MESSAGE}
               </p>
-              <span className="preview-target">
+              <span className="as-preview-target">
                 Target:{" "}
                 {settings.maintenanceTarget === "both"
                   ? "Web + Android"
@@ -581,7 +651,7 @@ export default function Settings() {
               </span>
             </div>
 
-            <div className="status-note">
+            <div className="as-status-note">
               Last saved:{" "}
               <strong>
                 {lastSavedAt ? lastSavedAt.toLocaleString() : "Not yet saved"}
@@ -590,20 +660,23 @@ export default function Settings() {
           </div>
         </section>
 
-        <section className="card-ui section-card">
-          <div className="section-head">
-            <h3>Email Marketing & Communication</h3>
-            <p>
-              Send announcements, offers, updates, and important communication
-              from admin to users.
-            </p>
+        <section className="as-card">
+          <div className="as-section-head">
+            <div>
+              <span className="as-section-label">Communication</span>
+              <h3>Email Marketing & Communication</h3>
+              <p>
+                Send announcements, updates, reminders, and important communication
+                from admin to platform users.
+              </p>
+            </div>
           </div>
 
-          {emailError && <div className="alert-box error">{emailError}</div>}
-          {emailSuccess && <div className="alert-box success">{emailSuccess}</div>}
+          {emailError && <div className="as-alert error">{emailError}</div>}
+          {emailSuccess && <div className="as-alert success">{emailSuccess}</div>}
 
-          <div className="form-grid">
-            <div className="field">
+          <div className="as-form-grid">
+            <div className="as-field">
               <label>Audience</label>
               <select
                 value={emailForm.audience}
@@ -621,7 +694,7 @@ export default function Settings() {
               </select>
             </div>
 
-            <div className="field">
+            <div className="as-field">
               <label>Email Subject</label>
               <input
                 type="text"
@@ -636,7 +709,7 @@ export default function Settings() {
               />
             </div>
 
-            <div className="field full">
+            <div className="as-field full">
               <label>Email Heading</label>
               <input
                 type="text"
@@ -651,8 +724,8 @@ export default function Settings() {
               />
             </div>
 
-            <div className="field full">
-              <div className="label-row">
+            <div className="as-field full">
+              <div className="as-label-row">
                 <label>Message Body</label>
                 <span>{String(emailForm.message || "").length}/1000</span>
               </div>
@@ -671,13 +744,13 @@ export default function Settings() {
             </div>
           </div>
 
-          <div className="toggle-list compact">
-            <div className="toggle-row">
-              <div>
+          <div className="as-toggle-list compact">
+            <div className="as-toggle-row">
+              <div className="as-toggle-copy">
                 <strong>Send Email</strong>
                 <span>Deliver this message by email.</span>
               </div>
-              <label className="switch">
+              <label className="as-switch">
                 <input
                   type="checkbox"
                   checked={emailForm.sendEmail}
@@ -688,16 +761,16 @@ export default function Settings() {
                     }))
                   }
                 />
-                <span className="slider" />
+                <span className="as-slider" />
               </label>
             </div>
 
-            <div className="toggle-row">
-              <div>
+            <div className="as-toggle-row">
+              <div className="as-toggle-copy">
                 <strong>Send In-App Notification</strong>
                 <span>Also push the message as an internal platform notification.</span>
               </div>
-              <label className="switch">
+              <label className="as-switch">
                 <input
                   type="checkbox"
                   checked={emailForm.sendNotification}
@@ -708,25 +781,26 @@ export default function Settings() {
                     }))
                   }
                 />
-                <span className="slider" />
+                <span className="as-slider" />
               </label>
             </div>
           </div>
 
-          <div className="email-preview">
-            <div className="email-preview-head">
+          <div className="as-email-preview">
+            <div className="as-email-preview-head">
+              <FiMail />
               <span>Email Preview</span>
             </div>
-            <div className="email-preview-body">
+            <div className="as-email-preview-body">
               <h4>{emailForm.heading || "Your heading will appear here"}</h4>
               <h5>{emailForm.subject || "Your email subject will appear here"}</h5>
               <p>{emailForm.message || "Your message preview will appear here."}</p>
             </div>
           </div>
 
-          <div className="inline-actions">
+          <div className="as-inline-actions">
             <button
-              className="btn btn-light"
+              className="as-btn as-btn-light"
               type="button"
               onClick={() => setEmailForm(DEFAULT_EMAIL_TEMPLATE)}
             >
@@ -734,32 +808,36 @@ export default function Settings() {
             </button>
 
             <button
-              className="btn btn-primary"
+              className="as-btn as-btn-primary"
               type="button"
               onClick={sendMarketingEmail}
               disabled={sendingEmail}
             >
-              {sendingEmail ? "Sending..." : "Send Communication"}
+              <FiMail />
+              <span>{sendingEmail ? "Sending..." : "Send Communication"}</span>
             </button>
           </div>
         </section>
 
-        <section className="card-ui section-card danger-card">
-          <div className="section-head">
-            <h3>Danger Zone</h3>
-            <p>Use these carefully. These actions affect the whole platform.</p>
+        <section className="as-card danger-card">
+          <div className="as-section-head">
+            <div>
+              <span className="as-section-label">Danger Zone</span>
+              <h3>Emergency Controls</h3>
+              <p>Use these carefully. These actions affect the whole platform.</p>
+            </div>
           </div>
 
-          <div className="danger-box">
+          <div className="as-danger-box">
             <strong>Emergency Maintenance</strong>
             <p>
               If the platform is unstable, enable maintenance mode immediately,
               save changes, and set a clear user-facing message.
             </p>
 
-            <div className="inline-actions">
+            <div className="as-inline-actions">
               <button
-                className="btn btn-danger"
+                className="as-btn as-btn-danger"
                 type="button"
                 onClick={() => {
                   updateSetting("maintenanceMode", true);
@@ -775,7 +853,7 @@ export default function Settings() {
               </button>
 
               <button
-                className="btn btn-light"
+                className="as-btn as-btn-light"
                 type="button"
                 onClick={resetChanges}
               >

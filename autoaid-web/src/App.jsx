@@ -1,11 +1,3 @@
-// ✅ FILE NAME: src/App.jsx
-// ✅ FULL UPDATED VERSION (Nothing left out)
-// ✅ Kept your structure the same
-// ✅ Added: AdminUsers route + import
-// ✅ Added: AdminPayoutManagement route + import
-// ✅ Added: "/admin/payouts" to hiddenUIRoutes
-// ✅ NO AdminLayout used
-
 import React from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 
@@ -82,6 +74,7 @@ import AdminChat from "./pages/Admin/AdminChat.jsx";
 import AdminUsers from "./pages/Admin/AdminUsers.jsx";
 import AdminRevenueDashboard from "./pages/Admin/AdminRevenueDashboard.jsx";
 
+// MAINTENANCE
 import Maintenance from "./pages/Maintenance";
 
 import "./App.css";
@@ -89,39 +82,40 @@ import "./App.css";
 export default function App() {
   const location = useLocation();
 
-  const hiddenUIRoutes = [
-    "/login",
-    "/signup",
-    "/otp",
-    "/dashboard",
-    "/fuel",
-    "/garage",
-    "/towing",
-    "/ambulance",
-    "/provider",
-    "/admin",
-    "/chat",
-    "/admin/users",
-    "/admin/payouts",
-  ];
+  const isAdminRoute = location.pathname.startsWith("/admin");
+  const isProviderRoute = location.pathname.startsWith("/provider");
+  const isAuthRoute =
+    location.pathname.startsWith("/login") ||
+    location.pathname.startsWith("/signup") ||
+    location.pathname.startsWith("/otp");
 
-  const hideUI = hiddenUIRoutes.some((path) =>
-    location.pathname.startsWith(path)
-  );
+  const isUserAppRoute =
+    location.pathname.startsWith("/dashboard") ||
+    location.pathname.startsWith("/fuel") ||
+    location.pathname.startsWith("/garage") ||
+    location.pathname.startsWith("/towing") ||
+    location.pathname.startsWith("/ambulance") ||
+    location.pathname.startsWith("/chat");
+
+  const hideUI = isAuthRoute || isAdminRoute || isProviderRoute || isUserAppRoute;
+  const isFullWidth = isAdminRoute;
 
   return (
     <div className="app-root">
       {!hideUI && <Navbar />}
 
-      <main className="main-content">
+      <main
+        className={`main-content ${
+          isFullWidth ? "full-layout" : "standard-layout"
+        }`}
+      >
         <Routes>
-          {/* PUBLIC */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/otp" element={<OTPVerify />} />
+          <Route path="/maintenance" element={<Maintenance />} />
 
-          {/* DASHBOARD */}
           <Route
             path="/dashboard"
             element={
@@ -131,7 +125,6 @@ export default function App() {
             }
           />
 
-          {/* TOWING */}
           <Route path="/towing" element={<TowingService />} />
           <Route path="/towing/request" element={<TowingRequestForm />} />
           <Route path="/towing/history" element={<TowingHistory />} />
@@ -140,41 +133,40 @@ export default function App() {
           <Route path="/towing/active" element={<TowingActive />} />
           <Route path="/towing/track/:id" element={<TowingTrack />} />
 
-          {/* AMBULANCE */}
           <Route path="/ambulance" element={<AmbulanceService />} />
           <Route path="/ambulance/request" element={<AmbulanceRequestForm />} />
           <Route path="/ambulance/history" element={<AmbulanceHistory />} />
           <Route path="/ambulance/status/:id" element={<AmbulanceStatus />} />
           <Route path="/ambulance/map/:id" element={<AmbulanceMap />} />
 
-          {/* FUEL */}
           <Route path="/fuel" element={<FuelService />} />
           <Route path="/fuel/request" element={<FuelRequestForm />} />
           <Route path="/fuel/history" element={<FuelHistory />} />
           <Route path="/fuel/status/:id" element={<FuelStatus />} />
           <Route path="/fuel/active" element={<FuelActive />} />
 
-          {/* GARAGE */}
           <Route path="/garage" element={<GarageService />} />
           <Route path="/garage/request" element={<GarageRequest />} />
           <Route path="/garage/active" element={<ActiveRequest />} />
           <Route path="/garage/track/:id" element={<TrackRequest />} />
           <Route path="/nearby-garages" element={<NearbyGarages />} />
 
-          {/* USER CHAT */}
           <Route
             path="/garage/chat/:requestId"
             element={<UniversalUserChat />}
           />
 
-          {/* PROVIDER */}
           <Route path="/provider/signup" element={<ProviderSignup />} />
-          <Route
-            path="/provider/subscription"
-            element={<ProviderSubscription />}
-          />
+          <Route path="/provider/subscription" element={<ProviderSubscription />} />
           <Route path="/provider/settings" element={<BusinessSettings />} />
-          <Route path="/maintenance" element={<Maintenance />} />
+          <Route path="/provider/pending" element={<ProviderPending />} />
+          <Route path="/provider/rejected" element={<ProviderRejected />} />
+          <Route path="/provider/details/:id" element={<ProviderRequestDetails />} />
+          <Route path="/provider/map/:id" element={<ProviderMap />} />
+          <Route
+            path="/provider/chat/:requestId"
+            element={<UniversalProviderChatWrapper />}
+          />
 
           <Route
             path="/provider/dashboard"
@@ -217,21 +209,6 @@ export default function App() {
             }
           />
 
-          <Route
-            path="/provider/details/:id"
-            element={<ProviderRequestDetails />}
-          />
-          <Route path="/provider/map/:id" element={<ProviderMap />} />
-          <Route path="/provider/pending" element={<ProviderPending />} />
-          <Route path="/provider/rejected" element={<ProviderRejected />} />
-
-          {/* PROVIDER CHAT */}
-          <Route
-            path="/provider/chat/:requestId"
-            element={<UniversalProviderChatWrapper />}
-          />
-
-          {/* ADMIN */}
           <Route
             path="/admin"
             element={
@@ -305,15 +282,14 @@ export default function App() {
             }
           />
           <Route
-            path="/admin/Revenue"
+            path="/admin/revenue"
             element={
               <ProtectedRoute role="admin">
-                <AdminRevenueDashboard  />
+                <AdminRevenueDashboard />
               </ProtectedRoute>
             }
           />
 
-          {/* 404 */}
           <Route path="*" element={<div>404 - Page Not Found</div>} />
         </Routes>
       </main>

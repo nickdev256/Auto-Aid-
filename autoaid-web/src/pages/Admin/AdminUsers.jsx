@@ -1,6 +1,20 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
+  FiArrowLeft,
+  FiCheckCircle,
+  FiClock,
+  FiEye,
+  FiRefreshCw,
+  FiSearch,
+  FiShield,
+  FiSmartphone,
+  FiUsers,
+  FiXCircle,
+  FiGlobe,
+  FiFileText,
+} from "react-icons/fi";
+import {
   getAdminUsers,
   approveVerification,
   rejectVerification,
@@ -216,179 +230,247 @@ export default function AdminUsers() {
   };
 
   return (
-    <div className="admin-users-page">
-      <main className="admin-users-container">
-        <section className="users-hero card-ui">
-          <div>
-            <div className="hero-badge">Admin / Users</div>
+    <div className="au-page">
+      <main className="au-container">
+        <section className="au-hero">
+          <div className="au-hero-left">
+            <span className="au-kicker">Admin / Users Control</span>
             <h1>Users Management</h1>
             <p>
               Manage users, review verification documents, and monitor where
-              registrations come from.
+              registrations and logins come from.
               {lastUpdated ? (
-                <span className="muted-inline">
+                <span className="au-muted-inline">
                   {" "}• Updated {lastUpdated.toLocaleTimeString()}
                 </span>
               ) : null}
             </p>
+
+            <div className="au-hero-mini">
+              <div className="au-mini-box">
+                <span>Total Users</span>
+                <strong>{stats.total}</strong>
+              </div>
+              <div className="au-mini-box">
+                <span>Pending Review</span>
+                <strong>{stats.pending}</strong>
+              </div>
+              <div className="au-mini-box">
+                <span>Verified</span>
+                <strong>{stats.verified}</strong>
+              </div>
+            </div>
           </div>
 
-          <div className="hero-actions">
-            <button className="btn btn-light" onClick={load} type="button">
-              Refresh
+          <div className="au-hero-right">
+            <button className="au-btn au-btn-light" onClick={load} type="button">
+              <FiRefreshCw />
+              <span>Refresh</span>
             </button>
+
             <button
-              className="btn btn-primary"
+              className="au-btn au-btn-primary"
               onClick={() => navigate("/admin")}
               type="button"
             >
-              Back to Dashboard
+              <FiArrowLeft />
+              <span>Back to Dashboard</span>
             </button>
           </div>
         </section>
 
-        <section className="users-stats">
-          <div className="stat-box">
-            <span>Total Users</span>
-            <strong>{stats.total}</strong>
+        <section className="au-stats-grid">
+          <div className="au-stat-card total">
+            <div className="au-stat-icon">
+              <FiUsers />
+            </div>
+            <div>
+              <span>Total Users</span>
+              <strong>{stats.total}</strong>
+            </div>
           </div>
-          <div className="stat-box">
-            <span>Website</span>
-            <strong>{stats.website}</strong>
+
+          <div className="au-stat-card web">
+            <div className="au-stat-icon">
+              <FiGlobe />
+            </div>
+            <div>
+              <span>Website</span>
+              <strong>{stats.website}</strong>
+            </div>
           </div>
-          <div className="stat-box">
-            <span>Android App</span>
-            <strong>{stats.android}</strong>
+
+          <div className="au-stat-card app">
+            <div className="au-stat-icon">
+              <FiSmartphone />
+            </div>
+            <div>
+              <span>Android App</span>
+              <strong>{stats.android}</strong>
+            </div>
           </div>
-          <div className="stat-box">
-            <span>Verified</span>
-            <strong>{stats.verified}</strong>
+
+          <div className="au-stat-card verified">
+            <div className="au-stat-icon">
+              <FiCheckCircle />
+            </div>
+            <div>
+              <span>Verified</span>
+              <strong>{stats.verified}</strong>
+            </div>
           </div>
-          <div className="stat-box">
-            <span>Pending Review</span>
-            <strong>{stats.pending}</strong>
+
+          <div className="au-stat-card pending">
+            <div className="au-stat-icon">
+              <FiClock />
+            </div>
+            <div>
+              <span>Pending Review</span>
+              <strong>{stats.pending}</strong>
+            </div>
           </div>
-          <div className="stat-box">
-            <span>Rejected</span>
-            <strong>{stats.rejected}</strong>
+
+          <div className="au-stat-card rejected">
+            <div className="au-stat-icon">
+              <FiXCircle />
+            </div>
+            <div>
+              <span>Rejected</span>
+              <strong>{stats.rejected}</strong>
+            </div>
           </div>
         </section>
 
-        <section className="card-ui users-toolbar">
-          <div className="toolbar-group">
-            <h3>Registration Source</h3>
-            <div className="toolbar-buttons">
-              <button
-                className={from === "all" ? "btn btn-primary" : "btn btn-light"}
-                onClick={() => setFrom("all")}
-                type="button"
-              >
-                All
-              </button>
-              <button
-                className={from === "web" ? "btn btn-primary" : "btn btn-light"}
-                onClick={() => setFrom("web")}
-                type="button"
-              >
-                Website
-              </button>
-              <button
-                className={from === "android" ? "btn btn-primary" : "btn btn-light"}
-                onClick={() => setFrom("android")}
-                type="button"
-              >
-                Android App
-              </button>
+        <section className="au-filter-card">
+          <div className="au-filter-top">
+            <div>
+              <span className="au-section-label">Filter Users</span>
+              <h3>Source, Verification and Search</h3>
             </div>
-          </div>
 
-          <div className="toolbar-group">
-            <h3>Verification Filter</h3>
-            <div className="toolbar-buttons">
-              <button
-                className={verificationFilter === "all" ? "btn btn-primary" : "btn btn-light"}
-                onClick={() => setVerificationFilter("all")}
-                type="button"
-              >
-                All Verification
-              </button>
-              <button
-                className={verificationFilter === "pending" ? "btn btn-primary" : "btn btn-light"}
-                onClick={() => setVerificationFilter("pending")}
-                type="button"
-              >
-                Pending
-              </button>
-              <button
-                className={verificationFilter === "verified" ? "btn btn-primary" : "btn btn-light"}
-                onClick={() => setVerificationFilter("verified")}
-                type="button"
-              >
-                Verified
-              </button>
-              <button
-                className={verificationFilter === "rejected" ? "btn btn-primary" : "btn btn-light"}
-                onClick={() => setVerificationFilter("rejected")}
-                type="button"
-              >
-                Rejected
-              </button>
-              <button
-                className={verificationFilter === "not_verified" ? "btn btn-primary" : "btn btn-light"}
-                onClick={() => setVerificationFilter("not_verified")}
-                type="button"
-              >
-                Not Verified
-              </button>
-            </div>
-          </div>
-
-          <div className="toolbar-group">
-            <h3>Search Users</h3>
-            <div className="search-row">
+            <div className="au-search-wrap">
+              <FiSearch />
               <input
-                className="search-input"
+                className="au-search-input"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Search by name, email, phone, role, verification..."
               />
-              <button className="btn btn-light" onClick={() => setQ("")} type="button">
-                Clear
+            </div>
+          </div>
+
+          <div className="au-filter-groups">
+            <div className="au-filter-group">
+              <h4>Registration Source</h4>
+              <div className="au-chip-row">
+                <button
+                  className={from === "all" ? "au-chip active" : "au-chip"}
+                  onClick={() => setFrom("all")}
+                  type="button"
+                >
+                  All
+                </button>
+                <button
+                  className={from === "web" ? "au-chip active" : "au-chip"}
+                  onClick={() => setFrom("web")}
+                  type="button"
+                >
+                  Website
+                </button>
+                <button
+                  className={from === "android" ? "au-chip active" : "au-chip"}
+                  onClick={() => setFrom("android")}
+                  type="button"
+                >
+                  Android App
+                </button>
+              </div>
+            </div>
+
+            <div className="au-filter-group">
+              <h4>Verification Filter</h4>
+              <div className="au-chip-row">
+                <button
+                  className={verificationFilter === "all" ? "au-chip active" : "au-chip"}
+                  onClick={() => setVerificationFilter("all")}
+                  type="button"
+                >
+                  All
+                </button>
+                <button
+                  className={verificationFilter === "pending" ? "au-chip active" : "au-chip"}
+                  onClick={() => setVerificationFilter("pending")}
+                  type="button"
+                >
+                  Pending
+                </button>
+                <button
+                  className={verificationFilter === "verified" ? "au-chip active" : "au-chip"}
+                  onClick={() => setVerificationFilter("verified")}
+                  type="button"
+                >
+                  Verified
+                </button>
+                <button
+                  className={verificationFilter === "rejected" ? "au-chip active" : "au-chip"}
+                  onClick={() => setVerificationFilter("rejected")}
+                  type="button"
+                >
+                  Rejected
+                </button>
+                <button
+                  className={verificationFilter === "not_verified" ? "au-chip active" : "au-chip"}
+                  onClick={() => setVerificationFilter("not_verified")}
+                  type="button"
+                >
+                  Not Verified
+                </button>
+              </div>
+            </div>
+
+            <div className="au-filter-actions">
+              <button className="au-btn au-btn-light" onClick={() => setQ("")} type="button">
+                Clear Search
               </button>
             </div>
           </div>
         </section>
 
-        <section className="card-ui users-list-card">
-          <div className="list-header">
-            <h3>
-              Showing {filtered.length} user{filtered.length === 1 ? "" : "s"}
-            </h3>
+        <section className="au-list-card">
+          <div className="au-list-head">
+            <div>
+              <span className="au-section-label">User Records</span>
+              <h3>
+                Showing {filtered.length} user{filtered.length === 1 ? "" : "s"}
+              </h3>
+            </div>
           </div>
 
           {loading ? (
-            <div className="empty-box">Loading users...</div>
+            <div className="au-empty-box">Loading users...</div>
           ) : filtered.length === 0 ? (
-            <div className="empty-box">No users found</div>
+            <div className="au-empty-box">No users found</div>
           ) : (
-            <ul className="users-list">
+            <div className="au-users-list">
               {filtered.map((u) => (
-                <li key={u._id || u.id} className="user-row">
-                  <div className="user-left">
-                    <div className="user-avatar">
+                <div key={u._id || u.id} className="au-user-row">
+                  <div className="au-user-main">
+                    <div className="au-user-avatar">
                       {(u?.name || "U").charAt(0).toUpperCase()}
                     </div>
 
-                    <div className="user-details">
-                      <strong>{u.name || "Unnamed user"}</strong>
-                      <span>{u.email || "No email"}</span>
-                      <span>{u.phone || "No phone"}</span>
+                    <div className="au-user-info">
+                      <h4>{u.name || "Unnamed user"}</h4>
+                      <p>{u.email || "No email"}</p>
+                      <div className="au-user-meta">
+                        <span>{u.phone || "No phone"}</span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="user-right">
+                  <div className="au-user-tags">
                     <span
-                      className={`pill ${
+                      className={`au-pill ${
                         String(u.registeredFrom).toLowerCase() === "android"
                           ? "app"
                           : "web"
@@ -398,7 +480,7 @@ export default function AdminUsers() {
                     </span>
 
                     <span
-                      className={`pill ${
+                      className={`au-pill ${
                         String(u.lastLoginFrom).toLowerCase() === "android"
                           ? "app"
                           : "web"
@@ -408,34 +490,41 @@ export default function AdminUsers() {
                     </span>
 
                     <span
-                      className={`pill verification ${verificationClass(
+                      className={`au-pill verification ${verificationClass(
                         u.verificationStatus
                       )}`}
                     >
                       {prettyVerification(u.verificationStatus)}
                     </span>
+                  </div>
 
+                  <div className="au-user-actions">
                     <button
-                      className="btn btn-primary"
+                      className="au-btn au-btn-primary"
                       onClick={() => setSelected(u)}
                       type="button"
                     >
-                      View
+                      <FiEye />
+                      <span>View</span>
                     </button>
                   </div>
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </section>
 
         {selected && (
-          <div className="modal-overlay" onClick={() => setSelected(null)}>
-            <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-head">
-                <h3>User Details</h3>
+          <div className="au-modal-overlay" onClick={() => setSelected(null)}>
+            <div className="au-modal-card" onClick={(e) => e.stopPropagation()}>
+              <div className="au-modal-head">
+                <div>
+                  <span className="au-section-label">User Details</span>
+                  <h3>{selected.name || "User Details"}</h3>
+                </div>
+
                 <button
-                  className="btn btn-light"
+                  className="au-btn au-btn-light"
                   onClick={() => setSelected(null)}
                   type="button"
                 >
@@ -443,46 +532,46 @@ export default function AdminUsers() {
                 </button>
               </div>
 
-              <div className="modal-body">
-                <div className="detail-box">
+              <div className="au-modal-body">
+                <div className="au-detail-box">
                   <span>Name</span>
                   <strong>{selected.name || "—"}</strong>
                 </div>
-                <div className="detail-box">
+                <div className="au-detail-box">
                   <span>Email</span>
                   <strong>{selected.email || "—"}</strong>
                 </div>
-                <div className="detail-box">
+                <div className="au-detail-box">
                   <span>Phone</span>
                   <strong>{selected.phone || "—"}</strong>
                 </div>
-                <div className="detail-box">
+                <div className="au-detail-box">
                   <span>Role</span>
                   <strong>{selected.role || "—"}</strong>
                 </div>
-                <div className="detail-box">
+                <div className="au-detail-box">
                   <span>Status</span>
                   <strong>{selected.status || "—"}</strong>
                 </div>
-                <div className="detail-box">
+                <div className="au-detail-box">
                   <span>Verification Status</span>
-                  <strong className={verificationClass(selected.verificationStatus)}>
+                  <strong className={`au-text-${verificationClass(selected.verificationStatus)}`}>
                     {prettyVerification(selected.verificationStatus)}
                   </strong>
                 </div>
-                <div className="detail-box">
+                <div className="au-detail-box">
                   <span>Document Type</span>
                   <strong>{selected.verificationDocumentType || "—"}</strong>
                 </div>
-                <div className="detail-box">
+                <div className="au-detail-box">
                   <span>Registered From</span>
                   <strong>{pretty(selected.registeredFrom)}</strong>
                 </div>
-                <div className="detail-box">
+                <div className="au-detail-box">
                   <span>Last Login From</span>
                   <strong>{pretty(selected.lastLoginFrom)}</strong>
                 </div>
-                <div className="detail-box">
+                <div className="au-detail-box">
                   <span>Created</span>
                   <strong>
                     {selected.createdAt
@@ -490,7 +579,7 @@ export default function AdminUsers() {
                       : "—"}
                   </strong>
                 </div>
-                <div className="detail-box">
+                <div className="au-detail-box">
                   <span>Submitted At</span>
                   <strong>
                     {selected.verificationSubmittedAt
@@ -498,7 +587,7 @@ export default function AdminUsers() {
                       : "—"}
                   </strong>
                 </div>
-                <div className="detail-box">
+                <div className="au-detail-box">
                   <span>Reviewed At</span>
                   <strong>
                     {selected.verificationReviewedAt
@@ -506,15 +595,18 @@ export default function AdminUsers() {
                       : "—"}
                   </strong>
                 </div>
-                <div className="detail-box">
+                <div className="au-detail-box">
                   <span>Rejection Reason</span>
                   <strong>{selected.verificationRejectionReason || "—"}</strong>
                 </div>
 
                 {selected.verificationDocumentUrl ? (
-                  <div className="document-box">
-                    <div className="document-head">
-                      <span>Uploaded Document</span>
+                  <div className="au-document-box full">
+                    <div className="au-document-head">
+                      <div className="au-doc-title">
+                        <FiFileText />
+                        <span>Uploaded Document</span>
+                      </div>
                       <a
                         href={buildDocumentUrl(selected.verificationDocumentUrl)}
                         target="_blank"
@@ -527,17 +619,19 @@ export default function AdminUsers() {
                     <img
                       src={buildDocumentUrl(selected.verificationDocumentUrl)}
                       alt="Verification document"
-                      className="document-image"
+                      className="au-document-image"
                     />
                   </div>
                 ) : (
-                  <div className="empty-box modal-empty">No uploaded document</div>
+                  <div className="au-empty-box au-modal-empty full">
+                    No uploaded document
+                  </div>
                 )}
               </div>
 
-              <div className="modal-actions">
+              <div className="au-modal-actions">
                 <button
-                  className="btn btn-success"
+                  className="au-btn au-btn-success"
                   type="button"
                   disabled={
                     actionLoading ||
@@ -549,7 +643,7 @@ export default function AdminUsers() {
                 </button>
 
                 <button
-                  className="btn btn-danger"
+                  className="au-btn au-btn-danger"
                   type="button"
                   disabled={actionLoading}
                   onClick={() => handleReject(selected._id || selected.id)}

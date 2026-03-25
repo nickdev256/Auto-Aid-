@@ -12,6 +12,18 @@ import {
   Cell,
   Legend,
 } from "recharts";
+import {
+  FiArrowLeft,
+  FiBarChart2,
+  FiCheckCircle,
+  FiClock,
+  FiDownload,
+  FiFileText,
+  FiRefreshCw,
+  FiShield,
+  FiTool,
+  FiUsers,
+} from "react-icons/fi";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import "./Reports.css";
@@ -259,94 +271,146 @@ export default function Reports({ adminName = "Admin" }) {
 
   if (loading) {
     return (
-      <div className="reports-page">
-        <main className="reports-container">
-          <div className="loading-box">Loading reports...</div>
+      <div className="ar-page">
+        <main className="ar-container">
+          <div className="ar-loading-box">Loading reports...</div>
         </main>
       </div>
     );
   }
 
   return (
-    <div className="reports-page">
-      <main className="reports-container">
-        <section className="reports-hero card-ui">
-          <div>
-            <div className="hero-badge">Admin / Reports</div>
+    <div className="ar-page">
+      <main className="ar-container">
+        <section className="ar-hero">
+          <div className="ar-hero-left">
+            <span className="ar-kicker">Admin / Reports Center</span>
             <h1>Reports & Analytics</h1>
             <p>
-              Review live admin metrics, provider approval workload, service
-              request performance, and export a polished PDF report.
+              Review live admin metrics, provider approval workload, request
+              performance, and export a polished AutoAid PDF report.
             </p>
+
+            <div className="ar-hero-mini">
+              <div className="ar-mini-box">
+                <span>Total Requests</span>
+                <strong>{reportStats.totalRequests}</strong>
+              </div>
+              <div className="ar-mini-box">
+                <span>Pending Providers</span>
+                <strong>{safePending.length}</strong>
+              </div>
+              <div className="ar-mini-box">
+                <span>Completed Services</span>
+                <strong>{stats.completedServices}</strong>
+              </div>
+            </div>
           </div>
 
-          <div className="hero-actions">
-            <button className="btn btn-light" onClick={() => navigate("/admin")} type="button">
-              Back to Dashboard
+          <div className="ar-hero-right">
+            <button className="ar-btn ar-btn-light" onClick={() => navigate("/admin")} type="button">
+              <FiArrowLeft />
+              <span>Back to Dashboard</span>
             </button>
-            <button className="btn btn-light" onClick={loadAll} type="button">
-              Refresh Data
+
+            <button className="ar-btn ar-btn-light" onClick={loadAll} type="button">
+              <FiRefreshCw />
+              <span>Refresh Data</span>
             </button>
+
             <button
-              className="btn btn-primary"
+              className="ar-btn ar-btn-primary"
               onClick={handleDownloadPDF}
               disabled={!!error || exporting}
               type="button"
             >
-              {exporting ? "Exporting..." : "Download PDF"}
+              <FiDownload />
+              <span>{exporting ? "Exporting..." : "Download PDF"}</span>
             </button>
           </div>
         </section>
 
-        {error && <div className="error-box">{error}</div>}
+        {error && <div className="ar-error-box">{error}</div>}
 
-        <div ref={reportRef} className="report-export-area">
-          <section className="reports-meta card-ui">
-            <div className="meta-left">
+        <div ref={reportRef} className="ar-export-area">
+          <section className="ar-meta-card">
+            <div className="ar-meta-left">
+              <span className="ar-section-label">Report Snapshot</span>
               <h2>AutoAid Admin Report</h2>
-              <p>
-                <strong>Admin:</strong> {adminName}
-              </p>
-              <p>
-                <strong>Date:</strong> {new Date().toLocaleString()}
-              </p>
+              <p><strong>Admin:</strong> {adminName}</p>
+              <p><strong>Date:</strong> {new Date().toLocaleString()}</p>
             </div>
 
-            <div className="meta-right">
-              <span className="report-tag">Live System Snapshot</span>
+            <div className="ar-meta-right">
+              <span className="ar-report-tag">Live System Snapshot</span>
             </div>
           </section>
 
-          <section className="reports-stats">
-            <div className="stat-box">
-              <span>Total Users</span>
-              <strong>{stats.totalUsers}</strong>
+          <section className="ar-stats-grid">
+            <div className="ar-stat-card users">
+              <div className="ar-stat-icon">
+                <FiUsers />
+              </div>
+              <div>
+                <span>Total Users</span>
+                <strong>{stats.totalUsers}</strong>
+              </div>
             </div>
-            <div className="stat-box">
-              <span>Total Providers</span>
-              <strong>{stats.totalProviders}</strong>
+
+            <div className="ar-stat-card providers">
+              <div className="ar-stat-icon">
+                <FiShield />
+              </div>
+              <div>
+                <span>Total Providers</span>
+                <strong>{stats.totalProviders}</strong>
+              </div>
             </div>
-            <div className="stat-box">
-              <span>Completed Services</span>
-              <strong>{stats.completedServices}</strong>
+
+            <div className="ar-stat-card completed">
+              <div className="ar-stat-icon">
+                <FiCheckCircle />
+              </div>
+              <div>
+                <span>Completed Services</span>
+                <strong>{stats.completedServices}</strong>
+              </div>
             </div>
-            <div className="stat-box">
-              <span>Active Requests</span>
-              <strong>{stats.activeRequests}</strong>
+
+            <div className="ar-stat-card active">
+              <div className="ar-stat-icon">
+                <FiClock />
+              </div>
+              <div>
+                <span>Active Requests</span>
+                <strong>{stats.activeRequests}</strong>
+              </div>
             </div>
-            <div className="stat-box">
-              <span>Pending Providers</span>
-              <strong>{safePending.length}</strong>
+
+            <div className="ar-stat-card pending">
+              <div className="ar-stat-icon">
+                <FiTool />
+              </div>
+              <div>
+                <span>Pending Providers</span>
+                <strong>{safePending.length}</strong>
+              </div>
             </div>
-            <div className="stat-box">
-              <span>Total Requests</span>
-              <strong>{reportStats.totalRequests}</strong>
+
+            <div className="ar-stat-card requests">
+              <div className="ar-stat-icon">
+                <FiFileText />
+              </div>
+              <div>
+                <span>Total Requests</span>
+                <strong>{reportStats.totalRequests}</strong>
+              </div>
             </div>
           </section>
 
-          <section className="charts-grid">
-            <div className="card-ui chart-card">
-              <div className="chart-head">
+          <section className="ar-charts-grid">
+            <div className="ar-card ar-chart-card">
+              <div className="ar-chart-head">
                 <h3>System Metrics Comparison</h3>
                 <p>Users, providers, completed services, and active requests</p>
               </div>
@@ -365,8 +429,8 @@ export default function Reports({ adminName = "Admin" }) {
               </ResponsiveContainer>
             </div>
 
-            <div className="card-ui chart-card">
-              <div className="chart-head">
+            <div className="ar-card ar-chart-card">
+              <div className="ar-chart-head">
                 <h3>Service Request Status Distribution</h3>
                 <p>How requests are distributed across statuses</p>
               </div>
@@ -393,40 +457,40 @@ export default function Reports({ adminName = "Admin" }) {
             </div>
           </section>
 
-          <section className="reports-summary-grid">
-            <div className="card-ui summary-card">
+          <section className="ar-summary-grid">
+            <div className="ar-card ar-summary-card">
               <h3>Request Summary</h3>
-              <div className="summary-list">
-                <div className="summary-row">
+              <div className="ar-summary-list">
+                <div className="ar-summary-row">
                   <span>Pending / Assigned</span>
                   <strong>{reportStats.pendingRequests}</strong>
                 </div>
-                <div className="summary-row">
+                <div className="ar-summary-row">
                   <span>In Progress</span>
                   <strong>{reportStats.active}</strong>
                 </div>
-                <div className="summary-row">
+                <div className="ar-summary-row">
                   <span>Completed</span>
                   <strong>{reportStats.completed}</strong>
                 </div>
-                <div className="summary-row">
+                <div className="ar-summary-row">
                   <span>Cancelled</span>
                   <strong>{reportStats.cancelled}</strong>
                 </div>
               </div>
             </div>
 
-            <div className="card-ui summary-card">
+            <div className="ar-card ar-summary-card">
               <h3>Provider Approval Snapshot</h3>
               {safePending.length === 0 ? (
-                <div className="empty-inline">No pending providers</div>
+                <div className="ar-empty-inline">No pending providers</div>
               ) : (
-                <div className="summary-list">
-                  <div className="summary-row">
+                <div className="ar-summary-list">
+                  <div className="ar-summary-row">
                     <span>Pending Providers</span>
                     <strong>{safePending.length}</strong>
                   </div>
-                  <div className="summary-row">
+                  <div className="ar-summary-row">
                     <span>Immediate Review Need</span>
                     <strong>{safePending.length > 0 ? "High" : "Low"}</strong>
                   </div>
@@ -435,17 +499,17 @@ export default function Reports({ adminName = "Admin" }) {
             </div>
           </section>
 
-          <section className="card-ui table-card">
-            <div className="table-head">
+          <section className="ar-card ar-table-card">
+            <div className="ar-table-head">
               <h3>Pending Providers</h3>
               <p>Providers waiting for approval</p>
             </div>
 
             {safePending.length === 0 ? (
-              <div className="empty-box">No pending providers</div>
+              <div className="ar-empty-box">No pending providers</div>
             ) : (
-              <div className="table-wrap">
-                <table className="styled-table">
+              <div className="ar-table-wrap">
+                <table className="ar-styled-table">
                   <thead>
                     <tr>
                       <th>Name</th>
@@ -461,7 +525,7 @@ export default function Reports({ adminName = "Admin" }) {
                         <td>{p.email || "—"}</td>
                         <td>{p.businessType || "—"}</td>
                         <td>
-                          <span className={`pill ${statusClass(p.status)}`}>
+                          <span className={`ar-pill ${statusClass(p.status)}`}>
                             {prettyStatus(p.status)}
                           </span>
                         </td>
@@ -473,17 +537,17 @@ export default function Reports({ adminName = "Admin" }) {
             )}
           </section>
 
-          <section className="card-ui table-card">
-            <div className="table-head">
+          <section className="ar-card ar-table-card">
+            <div className="ar-table-head">
               <h3>Service Requests Overview</h3>
               <p>Latest request entries and status overview</p>
             </div>
 
             {safeRequests.length === 0 ? (
-              <div className="empty-box">No service requests yet</div>
+              <div className="ar-empty-box">No service requests yet</div>
             ) : (
-              <div className="table-wrap">
-                <table className="styled-table">
+              <div className="ar-table-wrap">
+                <table className="ar-styled-table">
                   <thead>
                     <tr>
                       <th>User</th>
@@ -497,7 +561,7 @@ export default function Reports({ adminName = "Admin" }) {
                         <td>{r.userName || "—"}</td>
                         <td>{r.serviceType || r.service || "—"}</td>
                         <td>
-                          <span className={`pill ${statusClass(r.status)}`}>
+                          <span className={`ar-pill ${statusClass(r.status)}`}>
                             {prettyStatus(r.status)}
                           </span>
                         </td>

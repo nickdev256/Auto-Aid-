@@ -1,5 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import {
+  FiActivity,
+  FiArrowLeft,
+  FiCheckCircle,
+  FiClock,
+  FiCreditCard,
+  FiDollarSign,
+  FiRefreshCw,
+  FiSearch,
+  FiShield,
+} from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
 import "./AdminRevenueDashboard.css";
 
 const API_BASE =
@@ -37,13 +49,19 @@ function formatDate(value) {
 
 function getPaymentStatusClass(status) {
   const s = String(status || "").toLowerCase();
-  if (s === "released") return "admin-revenue-status-released";
-  if (s === "held_in_escrow") return "admin-revenue-status-escrow";
-  if (s === "refunded") return "admin-revenue-status-refunded";
-  return "admin-revenue-status-unpaid";
+  if (s === "released") return "ard-status-released";
+  if (s === "held_in_escrow") return "ard-status-escrow";
+  if (s === "refunded") return "ard-status-refunded";
+  return "ard-status-unpaid";
+}
+
+function prettyPaymentStatus(status) {
+  return String(status || "unpaid").replaceAll("_", " ");
 }
 
 export default function AdminRevenueDashboard() {
+  const navigate = useNavigate();
+
   const [items, setItems] = useState([]);
   const [summary, setSummary] = useState({
     totalSystemFees: 0,
@@ -132,110 +150,161 @@ export default function AdminRevenueDashboard() {
   }, [items, search, statusFilter]);
 
   return (
-    <div className="admin-revenue-page">
-      <div className="admin-revenue-container">
-        <div className="admin-revenue-header">
-          <div>
-            <h1 className="admin-revenue-title">Admin Revenue Dashboard</h1>
-            <p className="admin-revenue-subtitle">
-              Track system fees, subscription revenue, escrow money, and
-              completed jobs.
+    <div className="ard-page">
+      <main className="ard-container">
+        <section className="ard-hero">
+          <div className="ard-hero-left">
+            <span className="ard-kicker">Admin / Revenue Center</span>
+            <h1>Revenue Dashboard</h1>
+            <p>
+              Track system fees, subscription income, escrow balances, completed
+              jobs, and revenue split performance across AutoAid.
             </p>
+
+            <div className="ard-hero-mini">
+              <div className="ard-mini-box">
+                <span>Total Revenue</span>
+                <strong>{formatMoney(summary.totalRevenue)}</strong>
+              </div>
+              <div className="ard-mini-box">
+                <span>Escrow Total</span>
+                <strong>{formatMoney(summary.escrowTotal)}</strong>
+              </div>
+              <div className="ard-mini-box">
+                <span>Completed Jobs</span>
+                <strong>{summary.completedCount}</strong>
+              </div>
+            </div>
           </div>
 
-          <button
-            onClick={() => loadRevenue(true)}
-            disabled={refreshing || loading}
-            className="admin-revenue-refresh-btn"
-          >
-            {refreshing ? "Refreshing..." : "Refresh"}
-          </button>
-        </div>
+          <div className="ard-hero-right">
+            <button
+              onClick={() => navigate("/admin")}
+              className="ard-btn ard-btn-light"
+              type="button"
+            >
+              <FiArrowLeft />
+              <span>Back to Dashboard</span>
+            </button>
+
+            <button
+              onClick={() => loadRevenue(true)}
+              disabled={refreshing || loading}
+              className="ard-btn ard-btn-primary"
+              type="button"
+            >
+              <FiRefreshCw />
+              <span>{refreshing ? "Refreshing..." : "Refresh"}</span>
+            </button>
+          </div>
+        </section>
 
         {error ? (
-          <div className="admin-revenue-card admin-revenue-alert admin-revenue-alert-error">
-            {error}
-          </div>
+          <div className="ard-alert ard-alert-error">{error}</div>
         ) : null}
 
-        <div className="admin-revenue-summary-grid">
-          <div className="admin-revenue-card">
-            <div className="admin-revenue-summary-label">System Fees</div>
-            <div className="admin-revenue-summary-value revenue">
-              {formatMoney(summary.totalSystemFees)}
+        <section className="ard-stats-grid">
+          <div className="ard-stat-card fees">
+            <div className="ard-stat-icon">
+              <FiDollarSign />
+            </div>
+            <div>
+              <span>System Fees</span>
+              <strong>{formatMoney(summary.totalSystemFees)}</strong>
             </div>
           </div>
 
-          <div className="admin-revenue-card">
-            <div className="admin-revenue-summary-label">Subscriptions</div>
-            <div className="admin-revenue-summary-value subscriptions">
-              {formatMoney(summary.totalSubscriptionRevenue)}
+          <div className="ard-stat-card subscriptions">
+            <div className="ard-stat-icon">
+              <FiCreditCard />
+            </div>
+            <div>
+              <span>Subscriptions</span>
+              <strong>{formatMoney(summary.totalSubscriptionRevenue)}</strong>
             </div>
           </div>
 
-          <div className="admin-revenue-card">
-            <div className="admin-revenue-summary-label">Total Revenue</div>
-            <div className="admin-revenue-summary-value">
-              {formatMoney(summary.totalRevenue)}
+          <div className="ard-stat-card total">
+            <div className="ard-stat-icon">
+              <FiShield />
+            </div>
+            <div>
+              <span>Total Revenue</span>
+              <strong>{formatMoney(summary.totalRevenue)}</strong>
             </div>
           </div>
 
-          <div className="admin-revenue-card">
-            <div className="admin-revenue-summary-label">Escrow Total</div>
-            <div className="admin-revenue-summary-value escrow">
-              {formatMoney(summary.escrowTotal)}
+          <div className="ard-stat-card escrow">
+            <div className="ard-stat-icon">
+              <FiClock />
+            </div>
+            <div>
+              <span>Escrow Total</span>
+              <strong>{formatMoney(summary.escrowTotal)}</strong>
             </div>
           </div>
 
-          <div className="admin-revenue-card">
-            <div className="admin-revenue-summary-label">Completed Jobs</div>
-            <div className="admin-revenue-summary-value">
-              {summary.completedCount}
+          <div className="ard-stat-card complete">
+            <div className="ard-stat-icon">
+              <FiCheckCircle />
+            </div>
+            <div>
+              <span>Completed Jobs</span>
+              <strong>{summary.completedCount}</strong>
             </div>
           </div>
 
-          <div className="admin-revenue-card">
-            <div className="admin-revenue-summary-label">
-              Awaiting Confirmation
+          <div className="ard-stat-card pending">
+            <div className="ard-stat-icon">
+              <FiActivity />
             </div>
-            <div className="admin-revenue-summary-value pending">
-              {summary.awaitingConfirmationCount}
+            <div>
+              <span>Awaiting Confirmation</span>
+              <strong>{summary.awaitingConfirmationCount}</strong>
             </div>
           </div>
-        </div>
+        </section>
 
-        <div className="admin-revenue-card admin-revenue-filters">
-          <input
-            type="text"
-            placeholder="Search by provider, user, service, or request ID"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="admin-revenue-search"
-          />
+        <section className="ard-filter-card">
+          <div className="ard-filter-top">
+            <div>
+              <span className="ard-section-label">Revenue Filters</span>
+              <h3>Search and Segment</h3>
+            </div>
+          </div>
 
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="admin-revenue-select"
-          >
-            <option value="all">All payment statuses</option>
-            <option value="unpaid">Unpaid</option>
-            <option value="held_in_escrow">Held in Escrow</option>
-            <option value="released">Released</option>
-            <option value="refunded">Refunded</option>
-          </select>
-        </div>
+          <div className="ard-filter-grid">
+            <div className="ard-search-wrap">
+              <FiSearch />
+              <input
+                type="text"
+                placeholder="Search by provider, user, service, or request ID"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="ard-search-input"
+              />
+            </div>
+
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="ard-select"
+            >
+              <option value="all">All payment statuses</option>
+              <option value="unpaid">Unpaid</option>
+              <option value="held_in_escrow">Held in Escrow</option>
+              <option value="released">Released</option>
+              <option value="refunded">Refunded</option>
+            </select>
+          </div>
+        </section>
 
         {loading ? (
-          <div className="admin-revenue-card admin-revenue-state-box">
-            Loading revenue dashboard...
-          </div>
+          <div className="ard-state-box">Loading revenue dashboard...</div>
         ) : filteredItems.length === 0 ? (
-          <div className="admin-revenue-card admin-revenue-state-box">
-            No revenue records found.
-          </div>
+          <div className="ard-state-box">No revenue records found.</div>
         ) : (
-          <div className="admin-revenue-list">
+          <section className="ard-list">
             {filteredItems.map((item) => {
               const id = item?._id || item?.id;
               const paymentStatus = String(
@@ -243,64 +312,62 @@ export default function AdminRevenueDashboard() {
               ).toLowerCase();
 
               return (
-                <div key={id} className="admin-revenue-card">
-                  <div className="admin-revenue-item-top">
-                    <div>
-                      <div className="admin-revenue-amount">
+                <div key={id} className="ard-revenue-card">
+                  <div className="ard-revenue-top">
+                    <div className="ard-revenue-top-left">
+                      <div className="ard-amount">
                         {formatMoney(item?.totalAmount)}
                       </div>
 
                       <div
-                        className={`admin-revenue-status-chip ${getPaymentStatusClass(
+                        className={`ard-status-chip ${getPaymentStatusClass(
                           paymentStatus
                         )}`}
                       >
-                        {paymentStatus.replaceAll("_", " ")}
+                        {prettyPaymentStatus(paymentStatus)}
                       </div>
                     </div>
 
-                    <div className="admin-revenue-meta">
+                    <div className="ard-meta">
                       <div>Created: {formatDate(item?.createdAt)}</div>
                       <div>Paid: {formatDate(item?.paidAt)}</div>
                       <div>ID: {id}</div>
                     </div>
                   </div>
 
-                  <div className="admin-revenue-details-grid">
-                    <div>
-                      <div className="admin-revenue-section-title">Request</div>
-                      <div className="admin-revenue-detail-line">
+                  <div className="ard-details-grid">
+                    <div className="ard-detail-panel">
+                      <div className="ard-panel-title">Request</div>
+                      <div className="ard-detail-line">
                         User: {item?.userName || "-"}
                       </div>
-                      <div className="admin-revenue-detail-line">
+                      <div className="ard-detail-line">
                         Provider: {item?.assignedProviderName || "-"}
                       </div>
-                      <div className="admin-revenue-detail-line">
+                      <div className="ard-detail-line">
                         Service: {item?.service || "-"}
                       </div>
-                      <div className="admin-revenue-detail-line">
+                      <div className="ard-detail-line">
                         Status: {item?.status || "-"}
                       </div>
                     </div>
 
-                    <div>
-                      <div className="admin-revenue-section-title">
-                        Revenue Split
-                      </div>
-                      <div className="admin-revenue-detail-line">
+                    <div className="ard-detail-panel">
+                      <div className="ard-panel-title">Revenue Split</div>
+                      <div className="ard-detail-line">
                         Total Paid: {formatMoney(item?.totalAmount)}
                       </div>
-                      <div className="admin-revenue-detail-line">
+                      <div className="ard-detail-line">
                         System Fee: {formatMoney(item?.systemFee)}
                       </div>
-                      <div className="admin-revenue-detail-line">
+                      <div className="ard-detail-line">
                         Provider Share: {formatMoney(item?.providerAmount)}
                       </div>
-                      <div className="admin-revenue-detail-line">
+                      <div className="ard-detail-line">
                         Provider Completed:{" "}
                         {item?.providerCompleted ? "Yes" : "No"}
                       </div>
-                      <div className="admin-revenue-detail-line">
+                      <div className="ard-detail-line">
                         User Completed: {item?.userCompleted ? "Yes" : "No"}
                       </div>
                     </div>
@@ -308,9 +375,9 @@ export default function AdminRevenueDashboard() {
                 </div>
               );
             })}
-          </div>
+          </section>
         )}
-      </div>
+      </main>
     </div>
   );
 }

@@ -1,6 +1,20 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  FiArrowLeft,
+  FiCheckCircle,
+  FiClock,
+  FiCreditCard,
+  FiEye,
+  FiRefreshCw,
+  FiSearch,
+  FiShield,
+  FiUserCheck,
+  FiUsers,
+  FiXCircle,
+  FiFileText,
+} from "react-icons/fi";
+import {
   getProviders,
   getProviderById,
   approveProvider,
@@ -276,7 +290,7 @@ export default function ProviderManagement() {
   const renderVerificationBadge = (status) => {
     const safe = status || "not_verified";
     return (
-      <span className={`pill verification ${safe}`}>
+      <span className={`pm-pill verification ${safe}`}>
         {safe.replace(/_/g, " ").toUpperCase()}
       </span>
     );
@@ -284,222 +298,282 @@ export default function ProviderManagement() {
 
   const renderAccountBadge = (status) => {
     const safe = status || "pending";
-    return <span className={`pill account ${safe}`}>{safe.toUpperCase()}</span>;
+    return <span className={`pm-pill account ${safe}`}>{safe.toUpperCase()}</span>;
   };
 
   return (
-    <div className="provider-page">
-      <main className="provider-container">
-        <section className="provider-hero card-ui">
-          <div>
-            <div className="hero-badge">Admin / Providers</div>
+    <div className="pm-page">
+      <main className="pm-container">
+        <section className="pm-hero">
+          <div className="pm-hero-left">
+            <span className="pm-kicker">Admin / Provider Control</span>
             <h1>Provider Management</h1>
             <p>
-              Manage provider accounts, verification documents, subscriptions,
-              and approval workflows in one clean view.
+              Review provider accounts, approve verification documents, manage
+              subscriptions, and keep the AutoAid provider network organized.
             </p>
+
+            <div className="pm-hero-mini">
+              <div className="pm-mini-box">
+                <span>Pending Verification</span>
+                <strong>{stats.pendingVerification}</strong>
+              </div>
+              <div className="pm-mini-box">
+                <span>Approved Accounts</span>
+                <strong>{stats.approvedAccounts}</strong>
+              </div>
+              <div className="pm-mini-box">
+                <span>Active Subscriptions</span>
+                <strong>{stats.activeSubscriptions}</strong>
+              </div>
+            </div>
           </div>
 
-          <div className="hero-actions">
-            <button className="btn btn-light" onClick={loadProviders} type="button">
-              Refresh
+          <div className="pm-hero-right">
+            <button className="pm-btn pm-btn-light" onClick={loadProviders} type="button">
+              <FiRefreshCw />
+              <span>Refresh</span>
             </button>
+
             <button
-              className="btn btn-primary"
+              className="pm-btn pm-btn-primary"
               onClick={() => navigate("/admin")}
               type="button"
             >
-              Back to Dashboard
+              <FiArrowLeft />
+              <span>Back to Dashboard</span>
             </button>
           </div>
         </section>
 
-        <section className="provider-stats">
-          <div className="stat-box">
-            <span>Total Providers</span>
-            <strong>{stats.total}</strong>
+        <section className="pm-stats-grid">
+          <div className="pm-stat-card total">
+            <div className="pm-stat-icon">
+              <FiUsers />
+            </div>
+            <div>
+              <span>Total Providers</span>
+              <strong>{stats.total}</strong>
+            </div>
           </div>
-          <div className="stat-box">
-            <span>Pending Accounts</span>
-            <strong>{stats.pendingAccounts}</strong>
+
+          <div className="pm-stat-card pending">
+            <div className="pm-stat-icon">
+              <FiClock />
+            </div>
+            <div>
+              <span>Pending Accounts</span>
+              <strong>{stats.pendingAccounts}</strong>
+            </div>
           </div>
-          <div className="stat-box">
-            <span>Approved Accounts</span>
-            <strong>{stats.approvedAccounts}</strong>
+
+          <div className="pm-stat-card approved">
+            <div className="pm-stat-icon">
+              <FiUserCheck />
+            </div>
+            <div>
+              <span>Approved Accounts</span>
+              <strong>{stats.approvedAccounts}</strong>
+            </div>
           </div>
-          <div className="stat-box">
-            <span>Active Subscriptions</span>
-            <strong>{stats.activeSubscriptions}</strong>
+
+          <div className="pm-stat-card subscribed">
+            <div className="pm-stat-icon">
+              <FiCreditCard />
+            </div>
+            <div>
+              <span>Active Subscriptions</span>
+              <strong>{stats.activeSubscriptions}</strong>
+            </div>
           </div>
-          <div className="stat-box">
-            <span>Verification Pending</span>
-            <strong>{stats.pendingVerification}</strong>
+
+          <div className="pm-stat-card verify">
+            <div className="pm-stat-icon">
+              <FiShield />
+            </div>
+            <div>
+              <span>Verification Pending</span>
+              <strong>{stats.pendingVerification}</strong>
+            </div>
           </div>
-          <div className="stat-box">
-            <span>Verified Providers</span>
-            <strong>{stats.verifiedProviders}</strong>
+
+          <div className="pm-stat-card verified">
+            <div className="pm-stat-icon">
+              <FiCheckCircle />
+            </div>
+            <div>
+              <span>Verified Providers</span>
+              <strong>{stats.verifiedProviders}</strong>
+            </div>
           </div>
         </section>
 
-        <section className="card-ui provider-toolbar">
-          <div className="toolbar-group">
-            <h3>Account Status</h3>
-            <div className="toolbar-buttons">
-              <button
-                type="button"
-                className={statusFilter === "" ? "btn btn-primary" : "btn btn-light"}
-                onClick={() => {
-                  setStatusFilter("");
-                  setPage(1);
-                }}
-              >
-                All Status
-              </button>
-              <button
-                type="button"
-                className={statusFilter === "pending" ? "btn btn-primary" : "btn btn-light"}
-                onClick={() => {
-                  setStatusFilter("pending");
-                  setPage(1);
-                }}
-              >
-                Pending
-              </button>
-              <button
-                type="button"
-                className={statusFilter === "approved" ? "btn btn-primary" : "btn btn-light"}
-                onClick={() => {
-                  setStatusFilter("approved");
-                  setPage(1);
-                }}
-              >
-                Approved
-              </button>
-              <button
-                type="button"
-                className={statusFilter === "inactive" ? "btn btn-primary" : "btn btn-light"}
-                onClick={() => {
-                  setStatusFilter("inactive");
-                  setPage(1);
-                }}
-              >
-                Inactive
-              </button>
+        <section className="pm-filters-card">
+          <div className="pm-filters-top">
+            <div>
+              <span className="pm-section-label">Filter Providers</span>
+              <h3>Search and Segment</h3>
             </div>
-          </div>
 
-          <div className="toolbar-group">
-            <h3>Verification</h3>
-            <div className="toolbar-buttons">
-              <button
-                type="button"
-                className={verificationFilter === "" ? "btn btn-primary" : "btn btn-light"}
-                onClick={() => {
-                  setVerificationFilter("");
-                  setPage(1);
-                }}
-              >
-                All Verification
-              </button>
-              <button
-                type="button"
-                className={verificationFilter === "pending" ? "btn btn-primary" : "btn btn-light"}
-                onClick={() => {
-                  setVerificationFilter("pending");
-                  setPage(1);
-                }}
-              >
-                Pending
-              </button>
-              <button
-                type="button"
-                className={verificationFilter === "verified" ? "btn btn-primary" : "btn btn-light"}
-                onClick={() => {
-                  setVerificationFilter("verified");
-                  setPage(1);
-                }}
-              >
-                Verified
-              </button>
-              <button
-                type="button"
-                className={verificationFilter === "rejected" ? "btn btn-primary" : "btn btn-light"}
-                onClick={() => {
-                  setVerificationFilter("rejected");
-                  setPage(1);
-                }}
-              >
-                Rejected
-              </button>
-              <button
-                type="button"
-                className={
-                  verificationFilter === "not_verified"
-                    ? "btn btn-primary"
-                    : "btn btn-light"
-                }
-                onClick={() => {
-                  setVerificationFilter("not_verified");
-                  setPage(1);
-                }}
-              >
-                Not Verified
-              </button>
-            </div>
-          </div>
-
-          <div className="toolbar-group">
-            <h3>Subscription</h3>
-            <div className="toolbar-buttons">
-              <button
-                type="button"
-                className={subscribedFilter === "" ? "btn btn-primary" : "btn btn-light"}
-                onClick={() => {
-                  setSubscribedFilter("");
-                  setPage(1);
-                }}
-              >
-                Any Subscription
-              </button>
-              <button
-                type="button"
-                className={subscribedFilter === "true" ? "btn btn-primary" : "btn btn-light"}
-                onClick={() => {
-                  setSubscribedFilter("true");
-                  setPage(1);
-                }}
-              >
-                Subscribed
-              </button>
-              <button
-                type="button"
-                className={subscribedFilter === "false" ? "btn btn-primary" : "btn btn-light"}
-                onClick={() => {
-                  setSubscribedFilter("false");
-                  setPage(1);
-                }}
-              >
-                Not Subscribed
-              </button>
-            </div>
-          </div>
-
-          <div className="toolbar-group">
-            <h3>Search Providers</h3>
-            <div className="search-row">
+            <div className="pm-search-wrap">
+              <FiSearch />
               <input
                 type="text"
-                className="search-input"
-                placeholder="Search by name, business or email..."
+                className="pm-search-input"
+                placeholder="Search by name, business, phone or email..."
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
                   setPage(1);
                 }}
               />
+            </div>
+          </div>
 
+          <div className="pm-filter-groups">
+            <div className="pm-filter-group">
+              <h4>Account Status</h4>
+              <div className="pm-chip-row">
+                <button
+                  type="button"
+                  className={statusFilter === "" ? "pm-chip active" : "pm-chip"}
+                  onClick={() => {
+                    setStatusFilter("");
+                    setPage(1);
+                  }}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  className={statusFilter === "pending" ? "pm-chip active" : "pm-chip"}
+                  onClick={() => {
+                    setStatusFilter("pending");
+                    setPage(1);
+                  }}
+                >
+                  Pending
+                </button>
+                <button
+                  type="button"
+                  className={statusFilter === "approved" ? "pm-chip active" : "pm-chip"}
+                  onClick={() => {
+                    setStatusFilter("approved");
+                    setPage(1);
+                  }}
+                >
+                  Approved
+                </button>
+                <button
+                  type="button"
+                  className={statusFilter === "inactive" ? "pm-chip active" : "pm-chip"}
+                  onClick={() => {
+                    setStatusFilter("inactive");
+                    setPage(1);
+                  }}
+                >
+                  Inactive
+                </button>
+              </div>
+            </div>
+
+            <div className="pm-filter-group">
+              <h4>Verification</h4>
+              <div className="pm-chip-row">
+                <button
+                  type="button"
+                  className={verificationFilter === "" ? "pm-chip active" : "pm-chip"}
+                  onClick={() => {
+                    setVerificationFilter("");
+                    setPage(1);
+                  }}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  className={verificationFilter === "pending" ? "pm-chip active" : "pm-chip"}
+                  onClick={() => {
+                    setVerificationFilter("pending");
+                    setPage(1);
+                  }}
+                >
+                  Pending
+                </button>
+                <button
+                  type="button"
+                  className={verificationFilter === "verified" ? "pm-chip active" : "pm-chip"}
+                  onClick={() => {
+                    setVerificationFilter("verified");
+                    setPage(1);
+                  }}
+                >
+                  Verified
+                </button>
+                <button
+                  type="button"
+                  className={verificationFilter === "rejected" ? "pm-chip active" : "pm-chip"}
+                  onClick={() => {
+                    setVerificationFilter("rejected");
+                    setPage(1);
+                  }}
+                >
+                  Rejected
+                </button>
+                <button
+                  type="button"
+                  className={
+                    verificationFilter === "not_verified" ? "pm-chip active" : "pm-chip"
+                  }
+                  onClick={() => {
+                    setVerificationFilter("not_verified");
+                    setPage(1);
+                  }}
+                >
+                  Not Verified
+                </button>
+              </div>
+            </div>
+
+            <div className="pm-filter-group">
+              <h4>Subscription</h4>
+              <div className="pm-chip-row">
+                <button
+                  type="button"
+                  className={subscribedFilter === "" ? "pm-chip active" : "pm-chip"}
+                  onClick={() => {
+                    setSubscribedFilter("");
+                    setPage(1);
+                  }}
+                >
+                  Any
+                </button>
+                <button
+                  type="button"
+                  className={subscribedFilter === "true" ? "pm-chip active" : "pm-chip"}
+                  onClick={() => {
+                    setSubscribedFilter("true");
+                    setPage(1);
+                  }}
+                >
+                  Subscribed
+                </button>
+                <button
+                  type="button"
+                  className={subscribedFilter === "false" ? "pm-chip active" : "pm-chip"}
+                  onClick={() => {
+                    setSubscribedFilter("false");
+                    setPage(1);
+                  }}
+                >
+                  Not Subscribed
+                </button>
+              </div>
+            </div>
+
+            <div className="pm-filter-actions">
               <button
-                className="btn btn-light"
+                className="pm-btn pm-btn-light"
                 onClick={() => {
                   setSearch("");
                   setStatusFilter("");
@@ -509,82 +583,91 @@ export default function ProviderManagement() {
                 }}
                 type="button"
               >
-                Clear
+                Clear Filters
               </button>
             </div>
           </div>
         </section>
 
-        <section className="card-ui provider-list-card">
-          <div className="list-header">
-            <h3>Showing {providers.length} providers</h3>
+        <section className="pm-table-card">
+          <div className="pm-table-head">
+            <div>
+              <span className="pm-section-label">Provider Records</span>
+              <h3>Showing {providers.length} providers</h3>
+            </div>
           </div>
 
           {loading ? (
-            <div className="empty-box">Loading providers...</div>
+            <div className="pm-empty-box">Loading providers...</div>
           ) : providers.length === 0 ? (
-            <div className="empty-box">No providers found</div>
+            <div className="pm-empty-box">No providers found</div>
           ) : (
-            <div className="provider-list">
+            <div className="pm-provider-list">
               {providers.map((provider) => {
                 const verificationStatus =
                   provider.providerVerification?.status || "not_verified";
 
                 return (
-                  <div className="provider-row" key={provider.id}>
-                    <div className="provider-left">
-                      <div className="provider-avatar">
+                  <div className="pm-provider-row" key={provider.id}>
+                    <div className="pm-provider-main">
+                      <div className="pm-provider-avatar">
                         {(provider.businessName || provider.name || "?")
                           .charAt(0)
                           .toUpperCase()}
                       </div>
 
-                      <div className="provider-details">
-                        <strong>
+                      <div className="pm-provider-info">
+                        <h4>
                           {provider.businessName || provider.name || "Unnamed Provider"}
-                        </strong>
-                        <span>{provider.email || "No email"}</span>
-                        <span>{provider.phone || "No phone"}</span>
+                        </h4>
+                        <p>{provider.businessType || provider.providerType || "Provider"}</p>
+
+                        <div className="pm-provider-meta">
+                          <span>{provider.email || "No email"}</span>
+                          <span className="pm-dot">•</span>
+                          <span>{provider.phone || "No phone"}</span>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="provider-middle">
-                      <span className={`pill account ${provider.status || "pending"}`}>
+                    <div className="pm-provider-tags">
+                      <span className={`pm-pill account ${provider.status || "pending"}`}>
                         Account: {provider.status || "pending"}
                       </span>
 
-                      <span className={`pill verification ${verificationStatus}`}>
+                      <span className={`pm-pill verification ${verificationStatus}`}>
                         Verification: {verificationStatus.replace(/_/g, " ")}
                       </span>
 
                       <span
-                        className={`pill subscription ${
+                        className={`pm-pill subscription ${
                           provider.subscription?.active ? "active" : "inactive"
                         }`}
                       >
                         {provider.subscription?.active
-                          ? `Subscription: Active${
+                          ? `Subscription${
                               provider.subscription?.plan
-                                ? ` (${provider.subscription.plan})`
-                                : ""
+                                ? `: ${provider.subscription.plan}`
+                                : ": Active"
                             }`
                           : "Subscription: Not Active"}
                       </span>
                     </div>
 
-                    <div className="provider-right">
+                    <div className="pm-provider-actions">
                       <button
-                        className="btn btn-primary"
+                        className="pm-btn pm-btn-primary"
                         onClick={() => openProvider(provider.id)}
                         disabled={actionLoading}
                         type="button"
                       >
-                        View
+                        <FiEye />
+                        <span>View</span>
                       </button>
 
                       {provider.status === "pending" && (
                         <button
-                          className="btn btn-success"
+                          className="pm-btn pm-btn-success"
                           onClick={() => handleApproveAccount(provider.id)}
                           disabled={actionLoading}
                           type="button"
@@ -596,7 +679,7 @@ export default function ProviderManagement() {
                       {verificationStatus === "pending" && (
                         <>
                           <button
-                            className="btn btn-success"
+                            className="pm-btn pm-btn-success"
                             onClick={() => handleApproveVerification(provider.id)}
                             disabled={actionLoading}
                             type="button"
@@ -605,7 +688,7 @@ export default function ProviderManagement() {
                           </button>
 
                           <button
-                            className="btn btn-danger"
+                            className="pm-btn pm-btn-danger"
                             onClick={() => {
                               setSelectedProvider(provider);
                               setShowModal(true);
@@ -623,7 +706,7 @@ export default function ProviderManagement() {
                       {!provider.subscription?.active &&
                         provider.status === "approved" && (
                           <button
-                            className="btn btn-subscribe"
+                            className="pm-btn pm-btn-subscribe"
                             onClick={() => handleActivateSubscription(provider.id)}
                             disabled={actionLoading}
                             type="button"
@@ -639,9 +722,9 @@ export default function ProviderManagement() {
           )}
         </section>
 
-        <div className="pagination">
+        <div className="pm-pagination">
           <button
-            className="btn btn-light"
+            className="pm-btn pm-btn-light"
             disabled={page <= 1}
             onClick={() => setPage(page - 1)}
             type="button"
@@ -654,7 +737,7 @@ export default function ProviderManagement() {
           </span>
 
           <button
-            className="btn btn-light"
+            className="pm-btn pm-btn-light"
             disabled={page >= pages}
             onClick={() => setPage(page + 1)}
             type="button"
@@ -664,10 +747,10 @@ export default function ProviderManagement() {
         </div>
 
         {showModal && selectedProvider && (
-          <div className="modal-overlay" onClick={closeModal}>
-            <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-head">
-                <div>
+          <div className="pm-modal-overlay" onClick={closeModal}>
+            <div className="pm-modal-card" onClick={(e) => e.stopPropagation()}>
+              <div className="pm-modal-head">
+                <div className="pm-modal-title">
                   <h3>
                     {selectedProvider.businessName ||
                       selectedProvider.name ||
@@ -681,39 +764,39 @@ export default function ProviderManagement() {
                 </div>
 
                 {selectedProvider.providerVerification?.status === "verified" && (
-                  <span className="verified-inline">VERIFIED PROVIDER</span>
+                  <span className="pm-verified-inline">VERIFIED PROVIDER</span>
                 )}
               </div>
 
-              <div className="modal-body">
-                <div className="detail-box">
+              <div className="pm-modal-body">
+                <div className="pm-detail-box">
                   <span>Email</span>
                   <strong>{selectedProvider.email || "—"}</strong>
                 </div>
 
-                <div className="detail-box">
+                <div className="pm-detail-box">
                   <span>Phone</span>
                   <strong>{selectedProvider.phone || "—"}</strong>
                 </div>
 
-                <div className="detail-box">
+                <div className="pm-detail-box">
                   <span>Business Name</span>
                   <strong>
                     {selectedProvider.businessName || selectedProvider.name || "—"}
                   </strong>
                 </div>
 
-                <div className="detail-box">
+                <div className="pm-detail-box">
                   <span>Address</span>
                   <strong>{selectedProvider.address || "—"}</strong>
                 </div>
 
-                <div className="detail-box">
+                <div className="pm-detail-box">
                   <span>Account Status</span>
                   <strong>{renderAccountBadge(selectedProvider.status)}</strong>
                 </div>
 
-                <div className="detail-box">
+                <div className="pm-detail-box">
                   <span>Verification Status</span>
                   <strong>
                     {renderVerificationBadge(
@@ -722,7 +805,7 @@ export default function ProviderManagement() {
                   </strong>
                 </div>
 
-                <div className="detail-box">
+                <div className="pm-detail-box">
                   <span>Submitted At</span>
                   <strong>
                     {selectedProvider.providerVerification?.submittedAt
@@ -733,7 +816,7 @@ export default function ProviderManagement() {
                   </strong>
                 </div>
 
-                <div className="detail-box">
+                <div className="pm-detail-box">
                   <span>Reviewed At</span>
                   <strong>
                     {selectedProvider.providerVerification?.reviewedAt
@@ -744,7 +827,7 @@ export default function ProviderManagement() {
                   </strong>
                 </div>
 
-                <div className="detail-box">
+                <div className="pm-detail-box">
                   <span>Subscription Plan</span>
                   <strong>
                     {selectedProvider.subscription?.active
@@ -753,7 +836,7 @@ export default function ProviderManagement() {
                   </strong>
                 </div>
 
-                <div className="detail-box">
+                <div className="pm-detail-box">
                   <span>Expiry Date</span>
                   <strong>
                     {selectedProvider.subscription?.expiryDate
@@ -765,7 +848,7 @@ export default function ProviderManagement() {
                 </div>
 
                 {selectedProvider.providerVerification?.rejectionReason && (
-                  <div className="detail-box full">
+                  <div className="pm-detail-box full">
                     <span>Rejection Reason</span>
                     <strong>
                       {selectedProvider.providerVerification.rejectionReason}
@@ -773,14 +856,17 @@ export default function ProviderManagement() {
                   </div>
                 )}
 
-                <div className="document-box full">
-                  <div className="document-head">
+                <div className="pm-document-box full">
+                  <div className="pm-document-head">
                     <span>Verification Documents</span>
                   </div>
 
-                  <div className="document-list">
-                    <div className="document-item">
-                      <span>Work License</span>
+                  <div className="pm-document-list">
+                    <div className="pm-document-item">
+                      <div className="pm-doc-label">
+                        <FiFileText />
+                        <span>Work License</span>
+                      </div>
                       {selectedProvider.providerVerification?.licenseDocumentUrl ? (
                         <a
                           href={selectedProvider.providerVerification.licenseDocumentUrl}
@@ -794,8 +880,11 @@ export default function ProviderManagement() {
                       )}
                     </div>
 
-                    <div className="document-item">
-                      <span>Business Registration</span>
+                    <div className="pm-document-item">
+                      <div className="pm-doc-label">
+                        <FiFileText />
+                        <span>Business Registration</span>
+                      </div>
                       {selectedProvider.providerVerification?.businessDocumentUrl ? (
                         <a
                           href={selectedProvider.providerVerification.businessDocumentUrl}
@@ -809,8 +898,11 @@ export default function ProviderManagement() {
                       )}
                     </div>
 
-                    <div className="document-item">
-                      <span>Profile Image</span>
+                    <div className="pm-document-item">
+                      <div className="pm-doc-label">
+                        <FiFileText />
+                        <span>Profile Image</span>
+                      </div>
                       {selectedProvider.providerVerification?.profileImageUrl ? (
                         <a
                           href={selectedProvider.providerVerification.profileImageUrl}
@@ -826,27 +918,17 @@ export default function ProviderManagement() {
                   </div>
 
                   {selectedProvider.providerVerification?.profileImageUrl && (
-                    <div
-                      className="document-preview"
-                      style={{ marginTop: "14px" }}
-                    >
+                    <div className="pm-document-preview">
                       <img
                         src={selectedProvider.providerVerification.profileImageUrl}
                         alt="Provider profile"
-                        style={{
-                          width: "120px",
-                          height: "120px",
-                          objectFit: "cover",
-                          borderRadius: "14px",
-                          border: "1px solid #e5e7eb",
-                        }}
                       />
                     </div>
                   )}
                 </div>
 
                 {showRejectBox && (
-                  <div className="reject-box full">
+                  <div className="pm-reject-box full">
                     <label htmlFor="rejectReason">Rejection Reason</label>
                     <textarea
                       id="rejectReason"
@@ -859,10 +941,10 @@ export default function ProviderManagement() {
                 )}
               </div>
 
-              <div className="modal-actions">
+              <div className="pm-modal-actions">
                 {selectedProvider.status === "pending" && (
                   <button
-                    className="btn btn-success"
+                    className="pm-btn pm-btn-success"
                     onClick={() => handleApproveAccount(selectedProvider.id)}
                     disabled={actionLoading}
                     type="button"
@@ -874,7 +956,7 @@ export default function ProviderManagement() {
                 {selectedProvider.providerVerification?.status === "pending" && (
                   <>
                     <button
-                      className="btn btn-success"
+                      className="pm-btn pm-btn-success"
                       onClick={() => handleApproveVerification(selectedProvider.id)}
                       disabled={actionLoading}
                       type="button"
@@ -884,7 +966,7 @@ export default function ProviderManagement() {
 
                     {!showRejectBox ? (
                       <button
-                        className="btn btn-danger"
+                        className="pm-btn pm-btn-danger"
                         onClick={() => setShowRejectBox(true)}
                         disabled={actionLoading}
                         type="button"
@@ -893,7 +975,7 @@ export default function ProviderManagement() {
                       </button>
                     ) : (
                       <button
-                        className="btn btn-danger"
+                        className="pm-btn pm-btn-danger"
                         onClick={() => handleRejectVerification(selectedProvider.id)}
                         disabled={actionLoading}
                         type="button"
@@ -907,7 +989,7 @@ export default function ProviderManagement() {
                 {!selectedProvider.subscription?.active &&
                   selectedProvider.status === "approved" && (
                     <button
-                      className="btn btn-subscribe"
+                      className="pm-btn pm-btn-subscribe"
                       onClick={() => handleActivateSubscription(selectedProvider.id)}
                       disabled={actionLoading}
                       type="button"
@@ -916,7 +998,7 @@ export default function ProviderManagement() {
                     </button>
                   )}
 
-                <button className="btn btn-light" onClick={closeModal} type="button">
+                <button className="pm-btn pm-btn-light" onClick={closeModal} type="button">
                   Close
                 </button>
               </div>

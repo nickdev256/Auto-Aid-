@@ -1,5 +1,21 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import {
+  FiActivity,
+  FiArrowLeft,
+  FiCheckCircle,
+  FiClock,
+  FiMonitor,
+  FiRefreshCw,
+  FiSearch,
+  FiSmartphone,
+  FiTool,
+  FiUser,
+  FiXCircle,
+  FiMapPin,
+  FiFileText,
+  FiEye,
+} from "react-icons/fi";
 import "./Requests.css";
 
 const API_BASE =
@@ -222,162 +238,230 @@ export default function Requests() {
   }, [filteredRequests]);
 
   return (
-    <div className="requests-page">
-      <main className="requests-container">
-        <section className="requests-hero card-ui">
-          <div>
-            <div className="hero-badge">Admin / Requests</div>
+    <div className="rq-page">
+      <main className="rq-container">
+        <section className="rq-hero">
+          <div className="rq-hero-left">
+            <span className="rq-kicker">Admin / Request Monitor</span>
             <h1>Service Requests</h1>
             <p>
-              Review submitted requests, inspect details, filter by source, and
-              update request completion status.
+              Track submitted requests, inspect request details, filter by source,
+              and update completion status from one clean command view.
             </p>
-          </div>
 
-          <div className="hero-actions">
-            <button
-              type="button"
-              className="btn btn-light"
-              onClick={() => navigate("/admin")}
-            >
-              Back to Dashboard
-            </button>
-            <button type="button" className="btn btn-primary" onClick={loadRequests}>
-              Refresh
-            </button>
-          </div>
-        </section>
-
-        <section className="requests-stats">
-          <div className="stat-box">
-            <span>Total Requests</span>
-            <strong>{stats.total}</strong>
-          </div>
-          <div className="stat-box">
-            <span>Website</span>
-            <strong>{stats.website}</strong>
-          </div>
-          <div className="stat-box">
-            <span>Android App</span>
-            <strong>{stats.android}</strong>
-          </div>
-          <div className="stat-box">
-            <span>Pending</span>
-            <strong>{stats.pending}</strong>
-          </div>
-          <div className="stat-box">
-            <span>Active</span>
-            <strong>{stats.active}</strong>
-          </div>
-          <div className="stat-box">
-            <span>Completed</span>
-            <strong>{stats.completed}</strong>
-          </div>
-        </section>
-
-        <section className="card-ui requests-toolbar">
-          <div className="toolbar-group">
-            <h3>Request Source</h3>
-            <div className="toolbar-buttons">
-              <button
-                type="button"
-                className={from === "all" ? "btn btn-primary" : "btn btn-light"}
-                onClick={() => setFrom("all")}
-              >
-                All
-              </button>
-              <button
-                type="button"
-                className={from === "web" ? "btn btn-primary" : "btn btn-light"}
-                onClick={() => setFrom("web")}
-              >
-                Website
-              </button>
-              <button
-                type="button"
-                className={from === "android" ? "btn btn-primary" : "btn btn-light"}
-                onClick={() => setFrom("android")}
-              >
-                Android App
-              </button>
+            <div className="rq-hero-mini">
+              <div className="rq-mini-box">
+                <span>Total Requests</span>
+                <strong>{stats.total}</strong>
+              </div>
+              <div className="rq-mini-box">
+                <span>Pending + Assigned</span>
+                <strong>{stats.pending}</strong>
+              </div>
+              <div className="rq-mini-box">
+                <span>In Progress</span>
+                <strong>{stats.active}</strong>
+              </div>
             </div>
           </div>
 
-          <div className="toolbar-group">
-            <h3>Search Requests</h3>
-            <div className="search-row">
+          <div className="rq-hero-right">
+            <button
+              type="button"
+              className="rq-btn rq-btn-light"
+              onClick={() => navigate("/admin")}
+            >
+              <FiArrowLeft />
+              <span>Back to Dashboard</span>
+            </button>
+
+            <button
+              type="button"
+              className="rq-btn rq-btn-primary"
+              onClick={loadRequests}
+            >
+              <FiRefreshCw />
+              <span>Refresh</span>
+            </button>
+          </div>
+        </section>
+
+        <section className="rq-stats-grid">
+          <div className="rq-stat-card total">
+            <div className="rq-stat-icon">
+              <FiTool />
+            </div>
+            <div>
+              <span>Total Requests</span>
+              <strong>{stats.total}</strong>
+            </div>
+          </div>
+
+          <div className="rq-stat-card website">
+            <div className="rq-stat-icon">
+              <FiMonitor />
+            </div>
+            <div>
+              <span>Website</span>
+              <strong>{stats.website}</strong>
+            </div>
+          </div>
+
+          <div className="rq-stat-card app">
+            <div className="rq-stat-icon">
+              <FiSmartphone />
+            </div>
+            <div>
+              <span>Android App</span>
+              <strong>{stats.android}</strong>
+            </div>
+          </div>
+
+          <div className="rq-stat-card pending">
+            <div className="rq-stat-icon">
+              <FiClock />
+            </div>
+            <div>
+              <span>Pending</span>
+              <strong>{stats.pending}</strong>
+            </div>
+          </div>
+
+          <div className="rq-stat-card active">
+            <div className="rq-stat-icon">
+              <FiActivity />
+            </div>
+            <div>
+              <span>Active</span>
+              <strong>{stats.active}</strong>
+            </div>
+          </div>
+
+          <div className="rq-stat-card completed">
+            <div className="rq-stat-icon">
+              <FiCheckCircle />
+            </div>
+            <div>
+              <span>Completed</span>
+              <strong>{stats.completed}</strong>
+            </div>
+          </div>
+        </section>
+
+        <section className="rq-filter-card">
+          <div className="rq-filter-top">
+            <div>
+              <span className="rq-section-label">Filter Requests</span>
+              <h3>Source and Search</h3>
+            </div>
+
+            <div className="rq-search-wrap">
+              <FiSearch />
               <input
-                className="search-input"
+                className="rq-search-input"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search by user, service, provider type, role or status..."
               />
+            </div>
+          </div>
+
+          <div className="rq-filter-row">
+            <div className="rq-filter-group">
+              <h4>Request Source</h4>
+              <div className="rq-chip-row">
+                <button
+                  type="button"
+                  className={from === "all" ? "rq-chip active" : "rq-chip"}
+                  onClick={() => setFrom("all")}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  className={from === "web" ? "rq-chip active" : "rq-chip"}
+                  onClick={() => setFrom("web")}
+                >
+                  Website
+                </button>
+                <button
+                  type="button"
+                  className={from === "android" ? "rq-chip active" : "rq-chip"}
+                  onClick={() => setFrom("android")}
+                >
+                  Android App
+                </button>
+              </div>
+            </div>
+
+            <div className="rq-filter-actions">
               <button
                 type="button"
-                className="btn btn-light"
+                className="rq-btn rq-btn-light"
                 onClick={() => setSearch("")}
               >
-                Clear
+                Clear Search
               </button>
             </div>
           </div>
         </section>
 
-        {error && <div className="error-box">{error}</div>}
+        {error && <div className="rq-error-box">{error}</div>}
 
         {selected && (
-          <section className="card-ui request-details-card">
-            <div className="details-head">
+          <section className="rq-details-card">
+            <div className="rq-details-head">
               <div>
+                <span className="rq-section-label">Selected Request</span>
                 <h3>Request Details</h3>
                 <p>Detailed information for the selected request.</p>
               </div>
 
               <button
                 type="button"
-                className="btn btn-light"
+                className="rq-btn rq-btn-light"
                 onClick={() => navigate("/admin/requests")}
               >
                 Close
               </button>
             </div>
 
-            <div className="details-grid">
-              <div className="detail-box">
+            <div className="rq-details-grid">
+              <div className="rq-detail-box">
                 <span>User</span>
                 <strong>{selected.userName || "—"}</strong>
               </div>
 
-              <div className="detail-box">
+              <div className="rq-detail-box">
                 <span>Service</span>
                 <strong>{selected.service || "—"}</strong>
               </div>
 
-              <div className="detail-box">
+              <div className="rq-detail-box">
                 <span>Provider Type</span>
                 <strong>{selected.providerType || "—"}</strong>
               </div>
 
-              <div className="detail-box">
+              <div className="rq-detail-box">
                 <span>Status</span>
                 <strong>
-                  <span className={`pill ${statusClass(selected.status)}`}>
+                  <span className={`rq-pill ${statusClass(selected.status)}`}>
                     {prettyStatus(selected.status)}
                   </span>
                 </strong>
               </div>
 
-              <div className="detail-box">
+              <div className="rq-detail-box">
                 <span>From</span>
                 <strong>{prettyFrom(selected)}</strong>
               </div>
 
-              <div className="detail-box">
+              <div className="rq-detail-box">
                 <span>Created By</span>
                 <strong>{prettyRole(selected)}</strong>
               </div>
 
-              <div className="detail-box">
+              <div className="rq-detail-box">
                 <span>Requested On</span>
                 <strong>
                   {selected.createdAt
@@ -386,37 +470,35 @@ export default function Requests() {
                 </strong>
               </div>
 
-              <div className="detail-box">
+              <div className="rq-detail-box">
                 <span>Request ID</span>
                 <strong>{selected._id || "—"}</strong>
               </div>
 
               {selected.description && (
-                <div className="detail-box full">
+                <div className="rq-detail-box full">
                   <span>Description</span>
                   <strong>{selected.description}</strong>
                 </div>
               )}
 
               {selected.location && (
-                <div className="detail-box full">
+                <div className="rq-detail-box full">
                   <span>Location</span>
                   <strong>
                     {typeof selected.location === "string"
                       ? selected.location
-                      : `${selected.location.lat || "—"}, ${
-                          selected.location.lng || "—"
-                        }`}
+                      : `${selected.location.lat || "—"}, ${selected.location.lng || "—"}`}
                   </strong>
                 </div>
               )}
             </div>
 
-            <div className="details-actions">
+            <div className="rq-details-actions">
               {String(selected.status).toLowerCase() !== "completed" && (
                 <button
                   type="button"
-                  className="btn btn-success"
+                  className="rq-btn rq-btn-success"
                   onClick={() => markComplete(selected._id)}
                 >
                   Mark Complete
@@ -425,7 +507,7 @@ export default function Requests() {
 
               <button
                 type="button"
-                className="btn btn-light"
+                className="rq-btn rq-btn-light"
                 onClick={loadRequests}
               >
                 Refresh Details
@@ -434,64 +516,87 @@ export default function Requests() {
           </section>
         )}
 
-        <section className="card-ui requests-list-card">
-          <div className="list-header">
-            <h3>
-              Showing {filteredRequests.length} request
-              {filteredRequests.length === 1 ? "" : "s"}
-            </h3>
+        <section className="rq-list-card">
+          <div className="rq-list-head">
+            <div>
+              <span className="rq-section-label">Request Records</span>
+              <h3>
+                Showing {filteredRequests.length} request
+                {filteredRequests.length === 1 ? "" : "s"}
+              </h3>
+            </div>
           </div>
 
           {loading ? (
-            <div className="empty-box">Loading requests...</div>
+            <div className="rq-empty-box">Loading requests...</div>
           ) : filteredRequests.length === 0 ? (
-            <div className="empty-box">No requests found</div>
+            <div className="rq-empty-box">No requests found</div>
           ) : (
-            <div className="request-list">
+            <div className="rq-request-list">
               {filteredRequests.map((req) => (
-                <div className="request-row" key={req._id}>
-                  <div className="request-left">
-                    <div className="request-avatar">🛠️</div>
+                <div className="rq-request-row" key={req._id}>
+                  <div className="rq-request-main">
+                    <div className="rq-request-avatar">🛠️</div>
 
-                    <div className="request-details">
-                      <strong>{req.service || "—"}</strong>
-                      <span>{req.userName || "Unnamed User"}</span>
-                      <span>{req.providerType || "No provider type"}</span>
+                    <div className="rq-request-info">
+                      <h4>{req.service || "—"}</h4>
+                      <p>{req.userName || "Unnamed User"}</p>
+
+                      <div className="rq-request-meta">
+                        <span>{req.providerType || "No provider type"}</span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="request-middle">
-                    <span className={`pill ${statusClass(req.status)}`}>
+                  <div className="rq-request-tags">
+                    <span className={`rq-pill ${statusClass(req.status)}`}>
                       {prettyStatus(req.status)}
                     </span>
 
-                    <span className="pill web-app">{prettyFrom(req)}</span>
+                    <span className="rq-pill source">
+                      {String(req?.requestedFrom || "").toLowerCase() === "android" ? (
+                        <>
+                          <FiSmartphone />
+                          <span>{prettyFrom(req)}</span>
+                        </>
+                      ) : (
+                        <>
+                          <FiMonitor />
+                          <span>{prettyFrom(req)}</span>
+                        </>
+                      )}
+                    </span>
 
-                    <span className="pill role-pill">{prettyRole(req)}</span>
+                    <span className="rq-pill role">
+                      <FiUser />
+                      <span>{prettyRole(req)}</span>
+                    </span>
 
-                    <span className="date-pill">
+                    <span className="rq-date-pill">
                       {req.createdAt
                         ? new Date(req.createdAt).toLocaleString()
                         : "—"}
                     </span>
                   </div>
 
-                  <div className="request-right">
+                  <div className="rq-request-actions">
                     <button
                       type="button"
-                      className="btn btn-primary"
+                      className="rq-btn rq-btn-primary"
                       onClick={() => navigate(`/admin/requests?view=${req._id}`)}
                     >
-                      View
+                      <FiEye />
+                      <span>View</span>
                     </button>
 
                     {String(req.status).toLowerCase() !== "completed" && (
                       <button
                         type="button"
-                        className="btn btn-success"
+                        className="rq-btn rq-btn-success"
                         onClick={() => markComplete(req._id)}
                       >
-                        Mark Complete
+                        <FiCheckCircle />
+                        <span>Mark Complete</span>
                       </button>
                     )}
                   </div>
