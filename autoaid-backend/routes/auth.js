@@ -20,10 +20,9 @@ const cookieOptions = {
 
 const normalizeEmail = (email) => (email || "").trim().toLowerCase();
 
-/* ✅ NEW: detect platform (android or web) using X-Client header */
 const getClient = (req) => {
   const x = (req.headers["x-client"] || "").toString().toLowerCase();
-  return x === "android" ? "android" : "web";
+  return x === "android" || x === "mobile" ? "android" : "web";
 };
 
 const getTokenFromReq = (req) => {
@@ -34,6 +33,24 @@ const getTokenFromReq = (req) => {
 
 const signToken = (user) =>
   jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: "1d" });
+
+function buildUserResponse(userDoc) {
+  const user =
+    typeof userDoc?.getDecrypted === "function"
+      ? userDoc.getDecrypted()
+      : userDoc?.toObject?.() || userDoc;
+
+  return {
+    id: user?._id || user?.id || "",
+    _id: user?._id || user?.id || "",
+    name: user?.name || "",
+    email: user?.email || "",
+    phone: user?.phone || "",
+    role: user?.role || "user",
+    status: user?.status || "active",
+    verificationStatus: user?.verificationStatus || "not_verified",
+  };
+}
 
 /* =====================================================
    STEP 1 → SIGNUP (Generate OTP + Save Form Data)
@@ -52,20 +69,31 @@ router.post("/signup", async (req, res) => {
       businessType = "",
       servicesOffered = [],
       subscriptionPlan = null,
-    } = req.body;
+    } = req.body || {};
 
+    const client = getClient(req);
     const cleanEmail = normalizeEmail(email);
 
-    if (!name) return res.status(400).json({ message: "Name is required" });
-    if (!cleanEmail) return res.status(400).json({ message: "Email is required" });
-    if (!password) return res.status(400).json({ message: "Password is required" });
+    if (!name?.trim()) {
+      return res.status(400).json({ message: "Name is required" });
+    }
+    if (!cleanEmail) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+    if (!password) {
+      return res.status(400).json({ message: "Password is required" });
+    }
 
     if (role === "provider" && !businessType) {
-      return res.status(400).json({ message: "Business type is required for providers" });
+      return res
+        .status(400)
+        .json({ message: "Business type is required for providers" });
     }
 
     const exists = await User.findOne({ email: cleanEmail });
-    if (exists) return res.status(400).json({ message: "Email already exists" });
+    if (exists) {
+      return res.status(400).json({ message: "Email already exists" });
+    }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -76,15 +104,17 @@ router.post("/signup", async (req, res) => {
         otp,
         expiresAt: Date.now() + 5 * 60 * 1000,
         formData: {
-          name,
+          name: name.trim(),
           email: cleanEmail,
-          phone,
-          password, // stored temporarily, User model hashes on save
-          role,
+          phone: phone || "",
+          password,
+          role: role || "user",
           businessName,
           businessType,
           servicesOffered,
           subscriptionPlan,
+          registeredFrom: client,
+          lastLoginFrom: client,
         },
       },
       { upsert: true, new: true }
@@ -113,8 +143,10 @@ router.post("/resend-otp", async (req, res) => {
   try {
     console.log("✅ /resend-otp body:", req.body);
 
-    const cleanEmail = normalizeEmail(req.body.email);
-    if (!cleanEmail) return res.status(400).json({ message: "Email is required" });
+    const cleanEmail = normalizeEmail(req.body?.email);
+    if (!cleanEmail) {
+      return res.status(400).json({ message: "Email is required" });
+    }
 
     const record = await OTP.findOne({ email: cleanEmail });
     if (!record) {
@@ -149,51 +181,58 @@ router.post("/verify-otp", async (req, res) => {
   try {
     console.log("✅ /verify-otp body:", req.body);
 
-    const client = getClient(req); // ✅ android | web
-    const cleanEmail = normalizeEmail(req.body.email);
-    const otp = (req.body.otp || "").trim();
+    const client = getClient(req);
+    const cleanEmail = normalizeEmail(req.body?.email);
+    const otp = (req.body?.otp || "").trim();
 
     if (!cleanEmail || !otp) {
       return res.status(400).json({ message: "Email and OTP are required" });
     }
 
     const record = await OTP.findOne({ email: cleanEmail });
-    if (!record) return res.status(400).json({ message: "OTP not found" });
-    if (record.otp !== otp) return res.status(400).json({ message: "Incorrect OTP" });
-    if (record.expiresAt < Date.now()) return res.status(400).json({ message: "OTP expired" });
+    if (!record) {
+      return res.status(400).json({ message: "OTP not found" });
+    }
+    if (record.otp !== otp) {
+      return res.status(400).json({ message: "Incorrect OTP" });
+    }
+    if (record.expiresAt < Date.now()) {
+      return res.status(400).json({ message: "OTP expired" });
+    }
 
     const data = record.formData;
     if (!data?.password) {
-      return res.status(400).json({ message: "Signup data missing. Please signup again." });
+      return res
+        .status(400)
+        .json({ message: "Signup data missing. Please signup again." });
     }
 
     const already = await User.findOne({ email: cleanEmail });
     if (already) {
       await OTP.deleteOne({ email: cleanEmail });
 
-      // ✅ update lastLoginFrom for existing user
       already.lastLoginFrom = client;
       await already.save();
 
       const token = signToken(already);
       res.cookie("token", token, cookieOptions);
 
-      const safe = already.toObject();
-      delete safe.password;
-
-      return res.json({ message: "Account already verified", token, user: safe });
+      return res.json({
+        message: "Account already verified",
+        token,
+        user: buildUserResponse(already),
+      });
     }
 
     const user = await User.create({
       ...data,
       email: cleanEmail,
+      phone: data.phone || "",
       role: data.role || "user",
       status: data.role === "provider" ? "pending" : "approved",
-
-      // ✅ NEW: platform tracking
-      registeredFrom: client,
+      verificationStatus: "not_verified",
+      registeredFrom: data.registeredFrom || client,
       lastLoginFrom: client,
-
       subscription: {
         plan: data.subscriptionPlan || null,
         active: false,
@@ -209,13 +248,10 @@ router.post("/verify-otp", async (req, res) => {
     const token = signToken(user);
     res.cookie("token", token, cookieOptions);
 
-    const safeUser = user.toObject();
-    delete safeUser.password;
-
     return res.json({
       message: "Account verified successfully",
       token,
-      user: safeUser,
+      user: buildUserResponse(user),
     });
   } catch (err) {
     console.error("❌ Verification error:", err);
@@ -230,31 +266,38 @@ router.post("/login", async (req, res) => {
   try {
     console.log("✅ /login body:", req.body);
 
-    const client = getClient(req); // ✅ android | web
-    const cleanEmail = normalizeEmail(req.body.email);
-    const password = req.body.password;
+    const client = getClient(req);
+    const cleanEmail = normalizeEmail(req.body?.email);
+    const password = req.body?.password;
 
     if (!cleanEmail || !password) {
       return res.status(400).json({ message: "Email and password are required" });
     }
 
     const user = await User.findOne({ email: cleanEmail });
-    if (!user) return res.status(400).json({ message: "Invalid credentials" });
+    if (!user) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
 
     const isMatch = await user.comparePassword(password);
-    if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
 
-    // ✅ update login platform
+    if (user.status === "inactive") {
+      return res.status(403).json({ message: "Account is inactive" });
+    }
+
     user.lastLoginFrom = client;
     await user.save();
 
     const token = signToken(user);
     res.cookie("token", token, cookieOptions);
 
-    const safe = user.toObject();
-    delete safe.password;
-
-    return res.json({ token, user: safe });
+    return res.json({
+      token,
+      user: buildUserResponse(user),
+    });
   } catch (err) {
     console.error("❌ Login error:", err);
     return res.status(500).json({ message: err.message || "Server error" });
@@ -267,14 +310,22 @@ router.post("/login", async (req, res) => {
 router.get("/me", async (req, res) => {
   try {
     const token = getTokenFromReq(req);
-    if (!token) return res.status(401).json({ message: "Not logged in" });
+    if (!token) {
+      return res.status(401).json({ message: "Not logged in" });
+    }
 
     const decoded = jwt.verify(token, JWT_SECRET);
-    const user = await User.findById(decoded.id).select("-password");
-    if (!user) return res.status(401).json({ message: "User not found" });
+    const user = await User.findById(decoded.id);
 
-    return res.json({ user });
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+
+    return res.json({
+      user: buildUserResponse(user),
+    });
   } catch (err) {
+    console.error("❌ /me error:", err);
     return res.status(401).json({ message: "Invalid session" });
   }
 });
@@ -288,6 +339,7 @@ router.post("/logout", (req, res) => {
     sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     secure: process.env.NODE_ENV === "production",
   });
+
   return res.json({ message: "Logged out" });
 });
 

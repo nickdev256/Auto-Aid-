@@ -149,43 +149,33 @@ fun TermsAndConditionsScreen(
 
             /* ================= ACTION BUTTONS ================= */
 
-            Column(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
 
-                val isClicked = false
                 Button(
                     onClick = {
                         navController.navigate(Routes.PrivacyPolicyScreen.route) {
-                            // so user can’t go back to onboard
                             popUpTo(Routes.TermsAndConditionsScreen.route) { inclusive = false }
                         }
                     },
-
                     enabled = accepted,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.weight(1f),
                     shape = MaterialTheme.shapes.medium,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isClicked)
-                            Color(0xFF1565C0)     // Darker blue when clicked
-                        else
-                            Color(0xFF0A9AD9),    // Normal blue
-
+                        containerColor = Color(0xFF0A9AD9),
                         contentColor = Color.White
                     )
                 ) {
                     Text("ACCEPT")
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
                 OutlinedButton(
-                    onClick = {
-                        showDialog = true
-                    },
-                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { showDialog = true },
+                    modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = Color.Red
                     ),

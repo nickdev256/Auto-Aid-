@@ -1,8 +1,9 @@
-// ✅ FILE NAME: src/api.js
+// ✅ FILE NAME: src/services/api.js
 // ✅ FULL UPDATED VERSION
 // ✅ Adds maintenance mode handling for WEB
-//    - if backend returns 503, redirect to /maintenance
 // ✅ Still cookie-based auth: credentials: "include"
+// ✅ INCLUDES ADMIN VERIFICATION ACTIONS
+// ✅ NOW ALSO INCLUDES PROVIDER VERIFICATION ACTIONS
 
 const BASE = (import.meta.env.VITE_API_URL || "http://localhost:5001").replace(/\/$/, "");
 
@@ -57,7 +58,6 @@ async function request(path, options = {}) {
       // ignore storage failure
     }
 
-    // Avoid redirect loop if already on maintenance page
     if (typeof window !== "undefined" && window.location.pathname !== "/maintenance") {
       window.location.href = "/maintenance";
     }
@@ -135,6 +135,7 @@ export const getProviders = ({
   search = "",
   status = "",
   subscribed = "",
+  verificationStatus = "",
 } = {}) => {
   const qs = new URLSearchParams({
     page: String(page),
@@ -142,6 +143,7 @@ export const getProviders = ({
     search: search ?? "",
     status: status ?? "",
     subscribed: subscribed ?? "",
+    verificationStatus: verificationStatus ?? "",
   });
   return request(`/api/admin/providers?${qs.toString()}`);
 };
@@ -169,6 +171,34 @@ export const updateServiceRequest = (id, status) =>
   request(`/api/admin/service-requests/${id}`, {
     method: "PATCH",
     body: JSON.stringify({ status }),
+  });
+
+// -----------------------------
+// Verification (ADMIN) - USER IDENTITY
+// -----------------------------
+export const approveVerification = (id) =>
+  request(`/api/verification/admin/${id}/approve`, {
+    method: "PATCH",
+  });
+
+export const rejectVerification = (id, reason = "") =>
+  request(`/api/verification/admin/${id}/reject`, {
+    method: "PATCH",
+    body: JSON.stringify({ reason }),
+  });
+
+// -----------------------------
+// Provider Verification (ADMIN) ✅ FIXED
+// -----------------------------
+export const approveProviderVerification = (id) =>
+  request(`/api/admin/providers/${id}/verify`, {
+    method: "PATCH",
+  });
+
+export const rejectProviderVerification = (id, reason = "") =>
+  request(`/api/admin/providers/${id}/reject`, {
+    method: "PATCH",
+    body: JSON.stringify({ reason }),
   });
 
 // -----------------------------

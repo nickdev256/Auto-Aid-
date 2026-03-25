@@ -6,6 +6,7 @@ import com.project.auto_aid.data.network.dto.CreatePaymentBody
 import com.project.auto_aid.data.network.dto.CreatePayoutRequestBody
 import com.project.auto_aid.data.network.dto.CreateRequestBody
 import com.project.auto_aid.data.network.dto.ForgotPasswordRequest
+import com.project.auto_aid.data.network.dto.GetMyProviderVerificationResponse
 import com.project.auto_aid.data.network.dto.LocationResponse
 import com.project.auto_aid.data.network.dto.LoginRequest
 import com.project.auto_aid.data.network.dto.MeResponse
@@ -33,6 +34,7 @@ import com.project.auto_aid.data.network.dto.UploadResponse
 import com.project.auto_aid.data.network.dto.VerifyOtpRequest
 import com.project.auto_aid.data.network.dto.VoiceUploadResponse
 import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -46,19 +48,29 @@ import retrofit2.http.Query
 interface ApiService {
 
     @POST("api/auth/login")
-    suspend fun login(@Body body: LoginRequest): Response<AuthResponse>
+    suspend fun login(
+        @Body body: LoginRequest
+    ): Response<AuthResponse>
 
     @POST("api/auth/signup")
-    suspend fun signup(@Body body: SignupRequest): Response<SignupInitResponse>
+    suspend fun signup(
+        @Body body: SignupRequest
+    ): Response<SignupInitResponse>
 
     @POST("api/auth/verify-otp")
-    suspend fun verifyOtp(@Body body: VerifyOtpRequest): Response<AuthResponse>
+    suspend fun verifyOtp(
+        @Body body: VerifyOtpRequest
+    ): Response<AuthResponse>
 
     @POST("api/auth/resend-otp")
-    suspend fun resendOtp(@Body body: ResendOtpRequest): Response<MessageResponse>
+    suspend fun resendOtp(
+        @Body body: ResendOtpRequest
+    ): Response<MessageResponse>
 
     @POST("api/auth/forgot-password")
-    suspend fun forgotPassword(@Body body: ForgotPasswordRequest): Response<MessageResponse>
+    suspend fun forgotPassword(
+        @Body body: ForgotPasswordRequest
+    ): Response<MessageResponse>
 
     @GET("api/auth/me")
     suspend fun getMe(): Response<MeResponse>
@@ -76,8 +88,18 @@ interface ApiService {
         @Body body: UpdateAvailabilityBody
     ): Response<AvailabilityResponse>
 
+    @GET("api/providers/available")
+    suspend fun getAvailableProviders(
+        @Query("providerType") providerType: String,
+        @Query("lat") lat: Double? = null,
+        @Query("lng") lng: Double? = null,
+        @Query("onlineOnly") onlineOnly: Boolean = true
+    ): Response<List<ProviderLiteDto>>
+
     @POST("api/requests")
-    suspend fun createRequest(@Body body: CreateRequestBody): Response<RequestDto>
+    suspend fun createRequest(
+        @Body body: CreateRequestBody
+    ): Response<RequestDto>
 
     @GET("api/requests/my")
     suspend fun getMyRequests(): Response<List<RequestDto>>
@@ -134,14 +156,6 @@ interface ApiService {
         @Path("id") requestId: String
     ): Response<MessageResponse>
 
-    @GET("api/providers/available")
-    suspend fun getAvailableProviders(
-        @Query("providerType") providerType: String,
-        @Query("lat") lat: Double? = null,
-        @Query("lng") lng: Double? = null,
-        @Query("onlineOnly") onlineOnly: Boolean = true
-    ): Response<List<ProviderLiteDto>>
-
     @POST("api/payments")
     suspend fun makePayment(
         @Body body: CreatePaymentBody
@@ -184,9 +198,6 @@ interface ApiService {
         @Path("id") payoutId: String
     ): Response<PayoutRequestDto>
 
-    @GET("api/ping")
-    suspend fun ping(): Response<Map<String, Any>>
-
     @Multipart
     @POST("api/uploads/profile-image")
     suspend fun uploadProfileImage(
@@ -198,4 +209,22 @@ interface ApiService {
     suspend fun uploadVoice(
         @Part audio: MultipartBody.Part
     ): Response<VoiceUploadResponse>
+
+    @Multipart
+    @POST("api/provider-verification/submit")
+    suspend fun submitProviderVerification(
+        @Part workLicenseDocument: MultipartBody.Part? = null,
+        @Part businessRegistrationDocument: MultipartBody.Part? = null,
+        @Part nationalIdFront: MultipartBody.Part? = null,
+        @Part nationalIdBack: MultipartBody.Part? = null,
+        @Part profileImage: MultipartBody.Part? = null,
+        @Part("businessName") businessName: RequestBody? = null,
+        @Part("phone") phone: RequestBody? = null
+    ): Response<MessageResponse>
+
+    @GET("api/provider-verification/me")
+    suspend fun getMyProviderVerification(): Response<GetMyProviderVerificationResponse>
+
+    @GET("api/ping")
+    suspend fun ping(): Response<Map<String, Any>>
 }

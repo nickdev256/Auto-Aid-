@@ -41,7 +41,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.project.auto_aid.components.LocationSelectionKeys
 import com.project.auto_aid.data.local.TokenStore
 import com.project.auto_aid.data.network.RetrofitClient
 import com.project.auto_aid.data.network.dto.CreateRequestBody
@@ -54,7 +53,9 @@ import kotlinx.coroutines.launch
 @Composable
 fun AmbulanceRequestScreen(
     navController: NavHostController,
-    providerId: String? = null
+    providerId: String? = null,
+    userLat: Double = 0.3476,
+    userLng: Double = 32.5825
 ) {
     val context = LocalContext.current
     val tokenStore = remember(context) { TokenStore(context) }
@@ -64,23 +65,15 @@ fun AmbulanceRequestScreen(
         ?: navController.currentBackStackEntry?.savedStateHandle
 
     val pickedLocationLabelState =
-        savedStateHandle
-            ?.getStateFlow(LocationSelectionKeys.PICKED_LOCATION_LABEL, "")
-            ?.collectAsState()
-
+        savedStateHandle?.getStateFlow("picked_location_label", "")?.collectAsState()
     val pickedLocationLatState =
-        savedStateHandle
-            ?.getStateFlow(LocationSelectionKeys.PICKED_LOCATION_LAT, 0.0)
-            ?.collectAsState()
-
+        savedStateHandle?.getStateFlow("picked_location_lat", userLat)?.collectAsState()
     val pickedLocationLngState =
-        savedStateHandle
-            ?.getStateFlow(LocationSelectionKeys.PICKED_LOCATION_LNG, 0.0)
-            ?.collectAsState()
+        savedStateHandle?.getStateFlow("picked_location_lng", userLng)?.collectAsState()
 
     val pickedLabel = pickedLocationLabelState?.value.orEmpty()
-    val finalLat = pickedLocationLatState?.value ?: 0.0
-    val finalLng = pickedLocationLngState?.value ?: 0.0
+    val finalLat = pickedLocationLatState?.value ?: userLat
+    val finalLng = pickedLocationLngState?.value ?: userLng
 
     var emergencyType by remember { mutableStateOf("Medical Emergency") }
     var patientCondition by remember { mutableStateOf("") }
@@ -218,7 +211,7 @@ fun AmbulanceRequestScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "The selected map location will be used to help the nearest ambulance find you quickly.",
+                text = "Current location will be used to help the nearest ambulance find you quickly.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -240,11 +233,6 @@ fun AmbulanceRequestScreen(
                     val token = tokenStore.getToken()
                     if (token.isNullOrBlank()) {
                         error = "Please login first."
-                        return@Button
-                    }
-
-                    if (finalLat == 0.0 && finalLng == 0.0) {
-                        error = "Please choose your service location first."
                         return@Button
                     }
 
@@ -270,19 +258,6 @@ fun AmbulanceRequestScreen(
                                             append(notes.trim())
                                         }
                                     },
-                                    note = if (pickedLabel.isNotBlank()) {
-                                        buildString {
-                                            append("Location: ")
-                                            append(pickedLabel)
-                                            if (notes.isNotBlank()) {
-                                                append(" | ")
-                                                append(notes.trim())
-                                            }
-                                        }
-                                    } else {
-                                        notes.trim()
-                                    },
-                                    urgency = "high",
                                     towType = emergencyType.trim(),
                                     userLocation = LocationBody(
                                         lat = finalLat,

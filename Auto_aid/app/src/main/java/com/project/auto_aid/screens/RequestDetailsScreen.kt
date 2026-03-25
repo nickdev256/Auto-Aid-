@@ -1,6 +1,5 @@
 package com.project.auto_aid.screens
 
-import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,11 +15,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -106,17 +105,6 @@ fun RequestDetailsScreen(
                     ?: throw Exception("Request not found")
 
                 request = requestBody
-
-                Log.d(
-                    "AUTOAID_LOCATION",
-                    "REQUEST_DETAILS id=${requestBody._id ?: requestBody.id} " +
-                            "resolvedId=${requestBody.resolvedId()} " +
-                            "lat=${requestBody.userLocation?.lat} " +
-                            "lng=${requestBody.userLocation?.lng} " +
-                            "note=${requestBody.note} " +
-                            "vehicleInfo=${requestBody.vehicleInfo} " +
-                            "service=${requestBody.service ?: requestBody.providerType}"
-                )
 
                 val quoteRes = api.getRequestQuote(requestId)
                 quote = if (quoteRes.isSuccessful) quoteRes.body() else null
@@ -206,7 +194,7 @@ fun RequestDetailsScreen(
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Icons.Default.ArrowBack,
                             contentDescription = "Back"
                         )
                     }
@@ -292,9 +280,6 @@ fun RequestDetailsScreen(
                     else -> "Waiting for provider"
                 }
 
-                val locationLabel = r.note?.takeIf { it.isNotBlank() }
-                    ?: "No saved label"
-
                 val showPayNow =
                     quoteExists &&
                             paymentStatusRaw == "unpaid" &&
@@ -316,7 +301,7 @@ fun RequestDetailsScreen(
                 ) {
                     InfoSectionCard(
                         title = "Request Summary",
-                        icon = Icons.AutoMirrored.Filled.ReceiptLong
+                        icon = Icons.Default.ReceiptLong
                     ) {
                         LabelValue("Request ID", r.resolvedId())
                         LabelValue("Status", statusText)
@@ -368,7 +353,6 @@ fun RequestDetailsScreen(
                         title = "Service Location",
                         icon = Icons.Default.LocationOn
                     ) {
-                        LabelValue("Location Label", locationLabel)
                         LabelValue("Latitude", "${r.userLocation?.lat ?: 0.0}")
                         LabelValue("Longitude", "${r.userLocation?.lng ?: 0.0}")
                     }

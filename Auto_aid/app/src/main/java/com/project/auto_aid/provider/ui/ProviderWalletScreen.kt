@@ -217,22 +217,22 @@ fun ProviderWalletScreen(
 
                     WalletCard(
                         title = "Available Balance",
-                        value = formatWalletUgx(availableBalance)
+                        value = formatUgx(availableBalance)
                     )
 
                     WalletCard(
                         title = "Total Earned",
-                        value = formatWalletUgx(totalEarned)
+                        value = formatUgx(totalEarned)
                     )
 
                     WalletCard(
                         title = "Pending Payouts",
-                        value = formatWalletUgx(pendingBalance)
+                        value = formatUgx(pendingBalance)
                     )
 
                     WalletCard(
                         title = "Total Paid Out",
-                        value = formatWalletUgx(totalPaidOut)
+                        value = formatUgx(totalPaidOut)
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -283,10 +283,9 @@ private fun WalletCard(
     }
 }
 
-private fun formatWalletUgx(amount: Double): String {
-    val formatter = NumberFormat.getNumberInstance(Locale.US).apply {
-        maximumFractionDigits = 0
-        minimumFractionDigits = 0
-    }
+private fun formatUgx(amount: Double): String {
+    val formatter = NumberFormat.getNumberInstance(Locale.US)
+    formatter.maximumFractionDigits = 0
+    formatter.minimumFractionDigits = 0
     return "UGX ${formatter.format(amount)}"
 }

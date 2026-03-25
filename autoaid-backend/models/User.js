@@ -99,6 +99,68 @@ const UserSchema = new Schema(
       index: true,
     },
 
+    verificationStatus: {
+      type: String,
+      enum: ["not_verified", "pending", "verified", "rejected"],
+      default: "not_verified",
+      index: true,
+    },
+
+    // Normalized backend values only
+    verificationDocumentType: {
+      type: String,
+      enum: ["", "national_id", "passport", "drivers_license"],
+      default: "",
+    },
+
+    verificationDocumentUrl: {
+      type: String,
+      default: "",
+    },
+
+    verificationSubmittedAt: {
+      type: Date,
+      default: null,
+    },
+
+    verificationReviewedAt: {
+      type: Date,
+      default: null,
+    },
+
+    verificationRejectionReason: {
+      type: String,
+      default: "",
+    },
+
+    /* =================================================
+       PROVIDER VERIFICATION FILES
+    ================================================= */
+    workLicenseDocumentUrl: {
+      type: String,
+      default: "",
+    },
+
+    businessRegistrationDocumentUrl: {
+      type: String,
+      default: "",
+    },
+
+    nationalIdFrontUrl: {
+      type: String,
+      default: "",
+    },
+
+    nationalIdBackUrl: {
+      type: String,
+      default: "",
+    },
+
+    profileImage: {
+      type: String,
+      default: "",
+    },
+
     registeredFrom: {
       type: String,
       enum: ["android", "web"],
@@ -111,9 +173,6 @@ const UserSchema = new Schema(
       default: null,
     },
 
-    /* -------------------------
-       PROVIDER BUSINESS INFO
-    ------------------------- */
     businessName: {
       type: String,
       default: "",
@@ -158,9 +217,6 @@ const UserSchema = new Schema(
       max: 5,
     },
 
-    /* -------------------------
-       PROVIDER APPROVAL / ONLINE
-    ------------------------- */
     isApprovedProvider: {
       type: Boolean,
       default: false,
@@ -196,9 +252,6 @@ const UserSchema = new Schema(
       default: null,
     },
 
-    /* -------------------------
-       SUBSCRIPTION / PAYOUT / WALLET
-    ------------------------- */
     subscription: {
       type: SubscriptionSchema,
       default: () => ({
@@ -242,6 +295,23 @@ const UserSchema = new Schema(
 UserSchema.pre("validate", function (next) {
   if (!Array.isArray(this.servicesOffered)) {
     this.servicesOffered = [];
+  }
+
+  // Normalize document type aliases
+  const docMap = {
+    "National ID": "national_id",
+    "national id": "national_id",
+    national_id: "national_id",
+    Passport: "passport",
+    passport: "passport",
+    "Driver's License": "drivers_license",
+    "drivers license": "drivers_license",
+    drivers_license: "drivers_license",
+  };
+
+  if (this.verificationDocumentType) {
+    this.verificationDocumentType =
+      docMap[this.verificationDocumentType] || this.verificationDocumentType;
   }
 
   if (this.role !== "provider") {
@@ -337,11 +407,15 @@ UserSchema.methods.getDecrypted = function () {
   return obj;
 };
 
-/* =================================================
-   INDEXES
-================================================= */
 UserSchema.index({ role: 1, status: 1 });
-UserSchema.index({ role: 1, businessType: 1, isApprovedProvider: 1, isAvailable: 1, isOnline: 1 });
+UserSchema.index({
+  role: 1,
+  businessType: 1,
+  isApprovedProvider: 1,
+  isAvailable: 1,
+  isOnline: 1,
+});
 UserSchema.index({ businessType: 1, lat: 1, lng: 1 });
+UserSchema.index({ verificationStatus: 1 });
 
 export default mongoose.models.User || mongoose.model("User", UserSchema);

@@ -1,6 +1,7 @@
 package com.project.auto_aid.components
 
 import android.Manifest
+import com.project.auto_aid.R
 import android.content.Context
 import android.location.Geocoder
 import android.os.Build
@@ -8,6 +9,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MyLocation
@@ -22,7 +24,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
@@ -54,25 +58,25 @@ fun GpsLocationSearchField(
 
         if (fine || coarse) {
             scope.launch {
-                // If user already picked a location before, open map from that exact point
-                if (lat != 0.0 || lng != 0.0) {
-                    onOpenMapPicker(lat, lng)
-                    return@launch
-                }
+                val loc = getLastLocationLatLng(context) ?: (lat to lng)
 
-                val loc = getLastLocationLatLng(context)
-                if (loc != null) {
-                    onOpenMapPicker(loc.first, loc.second)
-                } else {
+                if (loc.first == 0.0 && loc.second == 0.0) {
                     Toast.makeText(
                         context,
                         "Could not get GPS. Turn on Location.",
                         Toast.LENGTH_SHORT
                     ).show()
+                    return@launch
                 }
+
+                onOpenMapPicker(loc.first, loc.second)
             }
         } else {
-            Toast.makeText(context, "Location permission denied", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                context,
+                "Location permission denied",
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
@@ -98,8 +102,10 @@ fun GpsLocationSearchField(
                 }
             ) {
                 Icon(
-                    imageVector = Icons.Default.MyLocation,
-                    contentDescription = "Pick exact location"
+                    painter = painterResource(id = R.drawable.google_maps),
+                    contentDescription = "Pick exact location",
+                    tint = Color.Unspecified,
+                    modifier = Modifier.size(24.dp)
                 )
             }
         },

@@ -39,7 +39,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.project.auto_aid.components.LocationSelectionKeys
 import com.project.auto_aid.data.local.TokenStore
 import com.project.auto_aid.navigation.Routes
 
@@ -50,22 +49,15 @@ fun GarageScreen(navController: NavHostController) {
 
     var error by remember { mutableStateOf<String?>(null) }
 
-    val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
+    val savedStateHandle = navController.previousBackStackEntry?.savedStateHandle
+        ?: navController.currentBackStackEntry?.savedStateHandle
 
     val pickedLocationLabelState =
-        savedStateHandle
-            ?.getStateFlow(LocationSelectionKeys.PICKED_LOCATION_LABEL, "")
-            ?.collectAsState()
-
+        savedStateHandle?.getStateFlow("picked_location_label", "")?.collectAsState()
     val pickedLocationLatState =
-        savedStateHandle
-            ?.getStateFlow(LocationSelectionKeys.PICKED_LOCATION_LAT, 0.0)
-            ?.collectAsState()
-
+        savedStateHandle?.getStateFlow("picked_location_lat", 0.0)?.collectAsState()
     val pickedLocationLngState =
-        savedStateHandle
-            ?.getStateFlow(LocationSelectionKeys.PICKED_LOCATION_LNG, 0.0)
-            ?.collectAsState()
+        savedStateHandle?.getStateFlow("picked_location_lng", 0.0)?.collectAsState()
 
     val pickedLabel = pickedLocationLabelState?.value.orEmpty()
     val pickedLat = pickedLocationLatState?.value ?: 0.0
@@ -95,31 +87,13 @@ fun GarageScreen(navController: NavHostController) {
 
         if (pickedLabel.isNotBlank()) {
             AssistChip(
-                onClick = {
-                    navController.navigate(
-                        Routes.LocationPicker.createRoute(
-                            lat = pickedLat,
-                            lng = pickedLng
-                        )
-                    )
-                },
-                label = { Text("Pickup: $pickedLabel") },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.LocationOn,
-                        contentDescription = null
-                    )
-                }
+                onClick = {},
+                label = { Text("Pickup: $pickedLabel") }
             )
         } else {
             AssistChip(
                 onClick = {
-                    navController.navigate(
-                        Routes.LocationPicker.createRoute(
-                            lat = pickedLat,
-                            lng = pickedLng
-                        )
-                    )
+                    navController.navigate(Routes.LocationPicker.createRoute())
                 },
                 label = { Text("Choose service location") },
                 leadingIcon = {
@@ -160,15 +134,15 @@ fun GarageScreen(navController: NavHostController) {
             }
 
             navController.currentBackStackEntry?.savedStateHandle?.set(
-                LocationSelectionKeys.PICKED_LOCATION_LABEL,
+                "picked_location_label",
                 pickedLabel
             )
             navController.currentBackStackEntry?.savedStateHandle?.set(
-                LocationSelectionKeys.PICKED_LOCATION_LAT,
+                "picked_location_lat",
                 pickedLat
             )
             navController.currentBackStackEntry?.savedStateHandle?.set(
-                LocationSelectionKeys.PICKED_LOCATION_LNG,
+                "picked_location_lng",
                 pickedLng
             )
 

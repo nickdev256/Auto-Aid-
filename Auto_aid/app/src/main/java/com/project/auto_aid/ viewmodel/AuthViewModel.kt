@@ -11,6 +11,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 
@@ -28,7 +29,7 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = AuthRepository(api, tokenStore)
 
     private val _state = MutableStateFlow(AuthUiState())
-    val state: StateFlow<AuthUiState> = _state
+    val state: StateFlow<AuthUiState> = _state.asStateFlow()
 
     private var cooldownJob: Job? = null
 
@@ -36,18 +37,31 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
         if (_state.value.loading) return
         if (_state.value.cooldownSeconds > 0) return
 
-        if (email.isBlank() || password.isBlank()) {
-            _state.value = _state.value.copy(error = "Enter email and password")
+        val cleanEmail = email.trim()
+        val cleanPassword = password.trim()
+
+        if (cleanEmail.isBlank() || cleanPassword.isBlank()) {
+            _state.value = _state.value.copy(
+                error = "Enter email and password"
+            )
             return
         }
 
-        _state.value = _state.value.copy(loading = true, error = "", data = null)
+        _state.value = _state.value.copy(
+            loading = true,
+            error = "",
+            data = null
+        )
 
         viewModelScope.launch {
             try {
-                val auth = repo.login(email, password)
-                _state.value = _state.value.copy(loading = false, data = auth)
+                val auth = repo.login(cleanEmail, cleanPassword)
 
+                _state.value = _state.value.copy(
+                    loading = false,
+                    error = "",
+                    data = auth
+                )
             } catch (e: HttpException) {
                 val retryAfter = e.response()?.headers()?.get("Retry-After")?.toIntOrNull()
 
@@ -62,14 +76,15 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
                 } else {
                     _state.value = _state.value.copy(
                         loading = false,
-                        error = "Login failed (${e.code()})"
+                        error = "Login failed (${e.code()})",
+                        data = null
                     )
                 }
-
             } catch (e: Exception) {
                 _state.value = _state.value.copy(
                     loading = false,
-                    error = e.message ?: "Login failed"
+                    error = e.message ?: "Login failed",
+                    data = null
                 )
             }
         }
@@ -79,6 +94,8 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
         cooldownJob?.cancel()
         cooldownJob = viewModelScope.launch {
             var left = seconds
+            _state.value = _state.value.copy(cooldownSeconds = left)
+
             while (left > 0) {
                 delay(1000)
                 left -= 1
@@ -91,9 +108,18 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
         _state.value = _state.value.copy(error = "")
     }
 
+    fun clearAuthData() {
+        _state.value = _state.value.copy(data = null)
+    }
+
     fun logout() {
         cooldownJob?.cancel()
         repo.logout()
         _state.value = AuthUiState()
+    }
+
+    override fun onCleared() {
+        cooldownJob?.cancel()
+        super.onCleared()
     }
 }

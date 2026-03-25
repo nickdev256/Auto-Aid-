@@ -29,6 +29,12 @@ const normalizeStatus = (value, fallback = "unpaid") => {
   return s || fallback;
 };
 
+const buildAbsoluteFileUrl = (req, filePath = "") => {
+  if (!filePath) return "";
+  const normalized = String(filePath).replace(/\\/g, "/").replace(/^\/+/, "");
+  return `${req.protocol}://${req.get("host")}/${normalized}`;
+};
+
 /* -----------------------------------------
    GET ALL USERS (admin)
    full list (not paginated)
@@ -36,19 +42,42 @@ const normalizeStatus = (value, fallback = "unpaid") => {
    - /users?from=android
    - /users?from=web
    - /users?role=provider
+   - /users?verification=pending
 ------------------------------------------ */
 router.get("/users", async (req, res) => {
   try {
     const from = String(req.query.from || "").toLowerCase();
     const role = String(req.query.role || "").toLowerCase();
+    const verification = String(req.query.verification || "").toLowerCase();
 
     const filter = {};
 
     if (from) filter.registeredFrom = from;
     if (role) filter.role = role;
+    if (verification) filter.verificationStatus = verification;
 
     const users = await User.find(filter)
-      .select("-password")
+      .select(`
+        name
+        email
+        phone
+        role
+        status
+        registeredFrom
+        lastLoginFrom
+        createdAt
+
+        verificationStatus
+        verificationDocumentType
+        verificationDocumentUrl
+        verificationSubmittedAt
+        verificationReviewedAt
+        verificationRejectionReason
+
+        workLicenseDocumentUrl
+        businessRegistrationDocumentUrl
+        profileImage
+      `)
       .sort({ createdAt: -1 });
 
     res.json(users);
@@ -210,16 +239,21 @@ router.get("/providers", async (req, res) => {
     const search = String(req.query.search || "").trim();
     const status = req.query.status ? String(req.query.status).trim() : "";
     const subscribed = req.query.subscribed;
+    const verificationStatus = req.query.verificationStatus
+      ? String(req.query.verificationStatus).trim()
+      : "";
 
     const filter = { role: "provider" };
 
     if (status) filter.status = status;
+    if (verificationStatus) filter.verificationStatus = verificationStatus;
 
     if (search) {
       filter.$or = [
         { name: { $regex: search, $options: "i" } },
         { email: { $regex: search, $options: "i" } },
         { phone: { $regex: search, $options: "i" } },
+        { businessName: { $regex: search, $options: "i" } },
       ];
     }
 
@@ -239,6 +273,7 @@ router.get("/providers", async (req, res) => {
     const results = providers.map((p) => ({
       id: p._id,
       name: p.name,
+      businessName: p.businessName || p.name || "",
       email: p.email,
       phone: p.phone,
       status: p.status,
@@ -249,6 +284,18 @@ router.get("/providers", async (req, res) => {
       businessType: p.businessType || null,
       address: p.address || null,
       createdAt: p.createdAt,
+      providerVerification: {
+        status: p.verificationStatus || "not_verified",
+        licenseDocumentUrl: buildAbsoluteFileUrl(req, p.workLicenseDocumentUrl),
+        businessDocumentUrl: buildAbsoluteFileUrl(
+          req,
+          p.businessRegistrationDocumentUrl
+        ),
+        profileImageUrl: buildAbsoluteFileUrl(req, p.profileImage),
+        rejectionReason: p.verificationRejectionReason || "",
+        submittedAt: p.verificationSubmittedAt || null,
+        reviewedAt: p.verificationReviewedAt || null,
+      },
     }));
 
     res.json({
@@ -278,6 +325,7 @@ router.get("/providers/:id", async (req, res) => {
     res.json({
       id: p._id,
       name: p.name,
+      businessName: p.businessName || p.name || "",
       email: p.email,
       phone: p.phone,
       status: p.status,
@@ -286,10 +334,82 @@ router.get("/providers/:id", async (req, res) => {
       businessType: p.businessType || null,
       address: p.address || null,
       createdAt: p.createdAt,
+      providerVerification: {
+        status: p.verificationStatus || "not_verified",
+        licenseDocumentUrl: buildAbsoluteFileUrl(req, p.workLicenseDocumentUrl),
+        businessDocumentUrl: buildAbsoluteFileUrl(
+          req,
+          p.businessRegistrationDocumentUrl
+        ),
+        profileImageUrl: buildAbsoluteFileUrl(req, p.profileImage),
+        rejectionReason: p.verificationRejectionReason || "",
+        submittedAt: p.verificationSubmittedAt || null,
+        reviewedAt: p.verificationReviewedAt || null,
+      },
     });
   } catch (err) {
     console.error("Get provider error:", err);
     res.status(500).json({ message: err.message || "Server error" });
+  }
+});
+
+/* -----------------------------------------
+   APPROVE PROVIDER VERIFICATION
+------------------------------------------ */
+router.patch("/providers/:id/verify", async (req, res) => {
+  try {
+    const provider = await User.findById(req.params.id);
+
+    if (!provider) {
+      return res.status(404).json({ message: "Provider not found" });
+    }
+
+    provider.verificationStatus = "verified";
+    provider.verificationReviewedAt = new Date();
+    provider.verificationRejectionReason = null;
+
+    await provider.save();
+
+    res.json({
+      message: "Provider verified successfully",
+      provider,
+    });
+  } catch (err) {
+    console.error("Verify provider error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* -----------------------------------------
+   REJECT PROVIDER VERIFICATION
+------------------------------------------ */
+router.patch("/providers/:id/reject", async (req, res) => {
+  try {
+    const { reason } = req.body;
+
+    if (!reason) {
+      return res.status(400).json({ message: "Rejection reason required" });
+    }
+
+    const provider = await User.findById(req.params.id);
+
+    if (!provider) {
+      return res.status(404).json({ message: "Provider not found" });
+    }
+
+    provider.verificationStatus = "rejected";
+    provider.verificationReviewedAt = new Date();
+    provider.verificationRejectionReason = reason;
+
+    await provider.save();
+
+    res.json({
+      message: "Provider verification rejected",
+      provider,
+    });
+  } catch (err) {
+    console.error("Reject provider error:", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
@@ -424,7 +544,8 @@ router.get("/revenue-dashboard", async (req, res) => {
           r.assignedTowingProviderName ||
           r.assignedAmbulanceProviderName ||
           "-",
-        service: r.service || r.serviceType || r.category || r.providerType || "-",
+        service:
+          r.service || r.serviceType || r.category || r.providerType || "-",
         status: r.status || "-",
         totalAmount,
         systemFee,
@@ -507,6 +628,18 @@ router.get("/stats", async (req, res) => {
       "subscription.active": true,
     });
 
+    const pendingVerificationUsers = await User.countDocuments({
+      verificationStatus: "pending",
+    });
+
+    const verifiedUsers = await User.countDocuments({
+      verificationStatus: "verified",
+    });
+
+    const rejectedVerificationUsers = await User.countDocuments({
+      verificationStatus: "rejected",
+    });
+
     res.json({
       totalUsers,
       totalProviders,
@@ -519,6 +652,9 @@ router.get("/stats", async (req, res) => {
       pendingRequests,
       webRequests,
       androidRequests,
+      pendingVerificationUsers,
+      verifiedUsers,
+      rejectedVerificationUsers,
     });
   } catch (err) {
     console.error("Admin stats error:", err);

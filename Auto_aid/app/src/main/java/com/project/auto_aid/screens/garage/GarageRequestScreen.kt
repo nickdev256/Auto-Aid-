@@ -6,17 +6,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -36,13 +26,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -51,12 +35,11 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
-import com.project.auto_aid.components.LocationSelectionKeys
 import com.project.auto_aid.data.local.TokenStore
 import com.project.auto_aid.data.network.RetrofitClient
 import com.project.auto_aid.data.network.dto.CreateRequestBody
-import com.project.auto_aid.data.network.dto.LocationBody
 import com.project.auto_aid.data.network.dto.RequestDto
+import com.project.auto_aid.data.network.dto.LocationBody
 import com.project.auto_aid.navigation.Routes
 import kotlinx.coroutines.launch
 import java.io.File
@@ -66,33 +49,27 @@ import java.util.UUID
 @Composable
 fun GarageRequestScreen(
     navController: NavHostController,
-    providerId: String? = null
+    providerId: String? = null,
+    userLat: Double = 0.3476,
+    userLng: Double = 32.5825
 ) {
     val context = LocalContext.current
     val tokenStore = remember(context) { TokenStore(context) }
-    val api = remember(tokenStore) { RetrofitClient.create(tokenStore) }
+    val api = remember(context) { RetrofitClient.create(tokenStore) }
 
     val savedStateHandle = navController.previousBackStackEntry?.savedStateHandle
         ?: navController.currentBackStackEntry?.savedStateHandle
 
     val pickedLocationLabelState =
-        savedStateHandle
-            ?.getStateFlow(LocationSelectionKeys.PICKED_LOCATION_LABEL, "")
-            ?.collectAsState()
-
+        savedStateHandle?.getStateFlow("picked_location_label", "")?.collectAsState()
     val pickedLocationLatState =
-        savedStateHandle
-            ?.getStateFlow(LocationSelectionKeys.PICKED_LOCATION_LAT, 0.0)
-            ?.collectAsState()
-
+        savedStateHandle?.getStateFlow("picked_location_lat", userLat)?.collectAsState()
     val pickedLocationLngState =
-        savedStateHandle
-            ?.getStateFlow(LocationSelectionKeys.PICKED_LOCATION_LNG, 0.0)
-            ?.collectAsState()
+        savedStateHandle?.getStateFlow("picked_location_lng", userLng)?.collectAsState()
 
     val pickedLabel = pickedLocationLabelState?.value.orEmpty()
-    val finalLat = pickedLocationLatState?.value ?: 0.0
-    val finalLng = pickedLocationLngState?.value ?: 0.0
+    val finalLat = pickedLocationLatState?.value ?: userLat
+    val finalLng = pickedLocationLngState?.value ?: userLng
 
     var vehicleInfo by remember { mutableStateOf("") }
     var problem by remember { mutableStateOf("") }
@@ -109,9 +86,7 @@ fun GarageRequestScreen(
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
-        if (!granted) {
-            error = "Camera permission denied. Enable it in Settings."
-        }
+        if (!granted) error = "Camera permission denied. Enable it in Settings."
     }
 
     val takePictureLauncher = rememberLauncherForActivityResult(
@@ -159,10 +134,7 @@ fun GarageRequestScreen(
                 .padding(20.dp)
         ) {
             if (providerId != null) {
-                AssistChip(
-                    onClick = {},
-                    label = { Text("Target provider selected") }
-                )
+                AssistChip(onClick = {}, label = { Text("Target provider selected") })
             } else {
                 AssistChip(
                     onClick = {},
@@ -171,14 +143,14 @@ fun GarageRequestScreen(
             }
 
             if (pickedLabel.isNotBlank()) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(Modifier.height(8.dp))
                 AssistChip(
                     onClick = {},
                     label = { Text("Location: $pickedLabel") }
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(Modifier.height(10.dp))
 
             Text(
                 text = "Coordinates: $finalLat, $finalLng",
@@ -186,7 +158,7 @@ fun GarageRequestScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(Modifier.height(12.dp))
 
             OutlinedTextField(
                 value = vehicleInfo,
@@ -196,7 +168,7 @@ fun GarageRequestScreen(
                 shape = RoundedCornerShape(12.dp)
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(Modifier.height(12.dp))
 
             OutlinedTextField(
                 value = problem,
@@ -208,12 +180,9 @@ fun GarageRequestScreen(
                 shape = RoundedCornerShape(12.dp)
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(Modifier.height(12.dp))
 
-            Text(
-                text = "Service Type",
-                fontWeight = FontWeight.SemiBold
-            )
+            Text("Service Type", fontWeight = FontWeight.SemiBold)
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 FilterChip(
@@ -228,7 +197,7 @@ fun GarageRequestScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(Modifier.height(10.dp))
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 FilterChip(
@@ -243,14 +212,9 @@ fun GarageRequestScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Vehicle / Issue Photo",
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(Modifier.height(16.dp))
+            Text("Vehicle / Issue Photo", fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -258,11 +222,11 @@ fun GarageRequestScreen(
             ) {
                 Column(Modifier.padding(14.dp)) {
                     Text(
-                        text = "Take a clear photo of the vehicle or damaged area for verification.",
+                        "Take a clear photo of the vehicle or damaged area for verification.",
                         style = MaterialTheme.typography.bodyMedium
                     )
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(Modifier.height(10.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -295,15 +259,13 @@ fun GarageRequestScreen(
                     }
 
                     if (photoUri != null) {
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(Modifier.height(10.dp))
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Image(
-                                painter = rememberAsyncImagePainter(
-                                    model = "${photoUri}?v=$photoRefreshKey"
-                                ),
+                                painter = rememberAsyncImagePainter(model = "${photoUri}?v=$photoRefreshKey"),
                                 contentDescription = "Photo preview",
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -314,20 +276,12 @@ fun GarageRequestScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = "The selected map location will be used for the mechanic request.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
             error?.let {
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(Modifier.height(12.dp))
                 Text(it, color = MaterialTheme.colorScheme.error)
             }
 
-            Spacer(modifier = Modifier.height(22.dp))
+            Spacer(Modifier.height(22.dp))
 
             Button(
                 onClick = {
@@ -336,11 +290,6 @@ fun GarageRequestScreen(
                     val token = tokenStore.getToken()
                     if (token.isNullOrBlank()) {
                         error = "Please login first."
-                        return@Button
-                    }
-
-                    if (finalLat == 0.0 && finalLng == 0.0) {
-                        error = "Please choose your service location first."
                         return@Button
                     }
 
@@ -365,17 +314,8 @@ fun GarageRequestScreen(
                                     providerType = "garage",
                                     vehicleInfo = vehicleInfo.trim(),
                                     problem = problem.trim(),
-                                    note = if (pickedLabel.isNotBlank()) {
-                                        "Location: $pickedLabel"
-                                    } else {
-                                        ""
-                                    },
                                     towType = serviceType,
-                                    urgency = "normal",
-                                    userLocation = LocationBody(
-                                        lat = finalLat,
-                                        lng = finalLng
-                                    ),
+                                    userLocation = LocationBody(finalLat, finalLng),
                                     targetProviderId = providerId
                                 )
                             )
@@ -388,9 +328,7 @@ fun GarageRequestScreen(
                                 response.body() ?: throw Exception("Empty response body")
 
                             val rid = created._id ?: created.id ?: ""
-                            if (rid.isBlank()) {
-                                throw Exception("Missing request ID")
-                            }
+                            if (rid.isBlank()) throw Exception("Missing request ID")
 
                             tokenStore.saveLastGarageRequestId(rid)
 
@@ -423,7 +361,7 @@ fun GarageRequestScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(Modifier.height(10.dp))
 
             OutlinedButton(
                 onClick = { navController.popBackStack() },
@@ -432,7 +370,7 @@ fun GarageRequestScreen(
                 Text("Cancel")
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(Modifier.height(14.dp))
         }
     }
 }

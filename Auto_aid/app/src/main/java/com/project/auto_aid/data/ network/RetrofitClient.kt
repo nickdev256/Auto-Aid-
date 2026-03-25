@@ -15,23 +15,27 @@ import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
 
-    // Real phone + adb reverse tcp:5001 tcp:5001
+    // For emulator use 10.0.2.2
+    // For real phone with adb reverse tcp:5001 tcp:5001 use 127.0.0.1
     private const val BASE_URL = "http://127.0.0.1:5001/"
 
     private val gson = Gson()
 
     fun create(tokenStore: TokenStore): ApiService {
-
         val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         }
 
         val authAndClientInterceptor = Interceptor { chain ->
-            val original: Request = chain.request()
-            val path = original.url.encodedPath
-            val token = tokenStore.getToken()
+            val originalRequest: Request = chain.request()
+            val path = originalRequest.url.encodedPath
+            val token = try {
+                tokenStore.getToken()
+            } catch (e: Exception) {
+                null
+            }
 
-            val builder = original.newBuilder()
+            val requestBuilder = originalRequest.newBuilder()
                 .header("X-Client", "android")
                 .header("Accept", "application/json")
 
@@ -43,20 +47,25 @@ object RetrofitClient {
                         path.contains("/api/auth/forgot-password")
 
             if (!isAuthEndpoint && !token.isNullOrBlank()) {
-                builder.header("Authorization", "Bearer $token")
+                requestBuilder.header("Authorization", "Bearer $token")
             } else {
-                builder.removeHeader("Authorization")
+                requestBuilder.removeHeader("Authorization")
             }
 
-            chain.proceed(builder.build())
+            chain.proceed(requestBuilder.build())
         }
 
         val maintenanceInterceptor = Interceptor { chain ->
-            val response: Response = chain.proceed(chain.request())
+            val request = chain.request()
+            val response: Response = chain.proceed(request)
 
             val originalBody = response.body
             val contentType = originalBody?.contentType()
-            val rawBody = originalBody?.string().orEmpty()
+            val rawBody = try {
+                originalBody?.string().orEmpty()
+            } catch (e: Exception) {
+                ""
+            }
 
             val maintenance = try {
                 if (rawBody.isNotBlank()) {
@@ -64,7 +73,7 @@ object RetrofitClient {
                 } else {
                     null
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
                 null
             }
 
@@ -87,7 +96,7 @@ object RetrofitClient {
                 .build()
         }
 
-        val okHttp = OkHttpClient.Builder()
+        val okHttpClient = OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
@@ -96,11 +105,12 @@ object RetrofitClient {
             .addInterceptor(logging)
             .build()
 
-        return Retrofit.Builder()
+        val retrofit = Retrofit.Builder()
             .baseUrl(BASE_URL)
-            .client(okHttp)
+            .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
-            .create(ApiService::class.java)
+
+        return retrofit.create(ApiService::class.java)
     }
 }

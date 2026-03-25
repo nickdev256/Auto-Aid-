@@ -7,6 +7,7 @@ import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -97,7 +98,7 @@ fun SignupScreen(navController: NavController) {
         Spacer(modifier = Modifier.height(6.dp))
 
         Text(
-            "Fast help at your location",
+            "Fast help at your actual location",
             color = Color.Gray,
             modifier = Modifier.align(Alignment.CenterHorizontally)
         )
@@ -112,7 +113,12 @@ fun SignupScreen(navController: NavController) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth(0.90f)
-                    .shadow(12.dp, RoundedCornerShape(20.dp)),
+                    .shadow(12.dp, RoundedCornerShape(20.dp))
+                    .border(
+                        width = 0.1.dp,
+                        color = Color(0xFF0A9AD9),
+                        shape = RoundedCornerShape(20.dp)
+                    ),
                 shape = RoundedCornerShape(20.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                 colors = CardDefaults.cardColors(
@@ -124,8 +130,8 @@ fun SignupScreen(navController: NavController) {
                         .fillMaxWidth()
                         .padding(16.dp)
                 ) {
-                    InputField("Full Name", name) { name = it }
-                    InputField("Email Address", email) { email = it }
+                    InputField("Full Name:", name) { name = it }
+                    InputField("Email Address:", email) { email = it }
 
                     UgandaPhoneInput(
                         phone = phone,
@@ -141,7 +147,7 @@ fun SignupScreen(navController: NavController) {
                     ) {
                         Box(modifier = Modifier.weight(1f)) {
                             PasswordInput(
-                                label = "Password",
+                                label = "Password:",
                                 value = password,
                                 show = showPassword,
                                 toggle = { showPassword = !showPassword }
@@ -150,7 +156,7 @@ fun SignupScreen(navController: NavController) {
 
                         Box(modifier = Modifier.weight(1f)) {
                             PasswordInput(
-                                label = "Confirm",
+                                label = "Confirm:",
                                 value = confirmPassword,
                                 show = showConfirm,
                                 toggle = { showConfirm = !showConfirm }
@@ -358,7 +364,16 @@ fun InputField(label: String, value: String, onChange: (String) -> Unit) {
         singleLine = true,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
+            .padding(vertical = 4.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = Color.Black,
+            focusedBorderColor = Color(0xFF0A9AD9),
+            cursorColor = Color(0xFF0A9AD9),
+            unfocusedBorderColor = Color.Gray,
+            focusedLabelColor = Color(0xFF0A9AD9),
+            unfocusedLabelColor = Color.Gray
+        )
     )
 }
 
@@ -385,7 +400,16 @@ fun PasswordInput(
                 )
             }
         },
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = Color.Black,
+            focusedBorderColor = Color(0xFF0A9AD9),
+            cursorColor = Color(0xFF0A9AD9),
+            unfocusedBorderColor = Color.Gray,
+            focusedLabelColor = Color(0xFF0A9AD9),
+            unfocusedLabelColor = Color.Gray
+        )
     )
 }
 
@@ -398,7 +422,16 @@ fun UgandaPhoneInput(phone: String, onPhoneChange: (String) -> Unit, isError: Bo
         leadingIcon = { Text("+256 ") },
         isError = isError,
         singleLine = true,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = Color.Black,
+            focusedBorderColor = Color(0xFF0A9AD9),
+            cursorColor = Color(0xFF0A9AD9),
+            unfocusedBorderColor = Color.Gray,
+            focusedLabelColor = Color(0xFF0A9AD9),
+            unfocusedLabelColor = Color.Gray
+        )
     )
 }
 
@@ -427,7 +460,16 @@ fun Dropdown(
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
             modifier = Modifier
                 .menuAnchor()
-                .fillMaxWidth()
+                .fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                focusedBorderColor = Color(0xFF0A9AD9),
+                cursorColor = Color(0xFF0A9AD9),
+                unfocusedBorderColor = Color.Gray,
+                focusedLabelColor = Color(0xFF0A9AD9),
+                unfocusedLabelColor = Color.Gray
+            )
         )
 
         ExposedDropdownMenu(

@@ -1,56 +1,66 @@
-// src/pages/Admin/Settings.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Settings.css";
 
+const API_BASE =
+  import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "http://localhost:5001";
+
 const DEFAULT_MAINTENANCE_MESSAGE =
-  "AutoAid is currently under maintenance. Please try again later.";
+  "AutoAid is currently under scheduled maintenance. Some services may be temporarily unavailable. Please try again later.";
+
+const DEFAULT_EMAIL_TEMPLATE = {
+  subject: "",
+  heading: "",
+  message: "",
+  audience: "all",
+  sendEmail: true,
+  sendNotification: false,
+};
 
 export default function Settings() {
   const navigate = useNavigate();
 
-  const [systemName, setSystemName] = useState("");
-  const [supportEmail, setSupportEmail] = useState("");
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [maintenanceMode, setMaintenanceMode] = useState(false);
-  const [maintenanceMessage, setMaintenanceMessage] = useState(
-    DEFAULT_MAINTENANCE_MESSAGE
-  );
-
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [lastSavedAt, setLastSavedAt] = useState(null);
 
-  // keep original values so admin can reset unsaved edits
-  const [initialData, setInitialData] = useState({
-    systemName: "",
+  const [settings, setSettings] = useState({
+    systemName: "AutoAid",
     supportEmail: "",
-    notificationsEnabled: false,
+    supportPhone: "",
+    whatsappNumber: "",
+    notificationsEnabled: true,
     maintenanceMode: false,
     maintenanceMessage: DEFAULT_MAINTENANCE_MESSAGE,
+    maintenanceTarget: "both", // web | android | both
+    allowUserRegistration: true,
+    allowProviderRegistration: true,
+    autoApproveProviders: false,
+    emergencyHotline: "",
   });
 
-  const loadSettings = async () => {
-    try {
-      setLoading(true);
-      setError("");
-      setSuccess("");
+  const [initialSettings, setInitialSettings] = useState(null);
 
-      const res = await fetch("http://localhost:5001/api/admin/settings", {
+  const [emailForm, setEmailForm] = useState(DEFAULT_EMAIL_TEMPLATE);
+  const [emailSuccess, setEmailSuccess] = useState("");
+  const [emailError, setEmailError] = useState("");
+
+  const fetchSettings = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/settings`, {
         method: "GET",
         credentials: "include",
-        headers: {
-          "X-Client": "web",
-        },
       });
 
       if (res.status === 401) {
-        throw new Error("Unauthorized. Please login as admin.");
-      }
-
-      if (res.status === 403) {
-        throw new Error("Access denied. Admin only.");
+        throw new Error("Session expired. Please login again.");
       }
 
       if (!res.ok) {
@@ -60,61 +70,105 @@ export default function Settings() {
 
       const data = await res.json();
 
-      const normalized = {
-        systemName: data.systemName || "",
-        supportEmail: data.supportEmail || "",
-        notificationsEnabled: !!data.notificationsEnabled,
-        maintenanceMode: !!data.maintenanceMode,
+      const nextSettings = {
+        systemName: data?.systemName || "AutoAid",
+        supportEmail: data?.supportEmail || "",
+        supportPhone: data?.supportPhone || "",
+        whatsappNumber: data?.whatsappNumber || "",
+        notificationsEnabled:
+          typeof data?.notificationsEnabled === "boolean"
+            ? data.notificationsEnabled
+            : true,
+        maintenanceMode:
+          typeof data?.maintenanceMode === "boolean"
+            ? data.maintenanceMode
+            : false,
         maintenanceMessage:
-          data.maintenanceMessage || DEFAULT_MAINTENANCE_MESSAGE,
+          data?.maintenanceMessage || DEFAULT_MAINTENANCE_MESSAGE,
+        maintenanceTarget: data?.maintenanceTarget || "both",
+        allowUserRegistration:
+          typeof data?.allowUserRegistration === "boolean"
+            ? data.allowUserRegistration
+            : true,
+        allowProviderRegistration:
+          typeof data?.allowProviderRegistration === "boolean"
+            ? data.allowProviderRegistration
+            : true,
+        autoApproveProviders:
+          typeof data?.autoApproveProviders === "boolean"
+            ? data.autoApproveProviders
+            : false,
+        emergencyHotline: data?.emergencyHotline || "",
       };
 
-      setSystemName(normalized.systemName);
-      setSupportEmail(normalized.supportEmail);
-      setNotificationsEnabled(normalized.notificationsEnabled);
-      setMaintenanceMode(normalized.maintenanceMode);
-      setMaintenanceMessage(normalized.maintenanceMessage);
-      setInitialData(normalized);
+      setSettings(nextSettings);
+      setInitialSettings(nextSettings);
+      setLastSavedAt(new Date());
     } catch (err) {
-      console.error("Failed to load settings:", err);
+      console.error("Settings load error:", err);
       setError(err.message || "Failed to load settings");
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    loadSettings();
   }, []);
 
-  const saveSettings = async () => {
-    try {
-      setSaving(true);
-      setError("");
-      setSuccess("");
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
 
-      const res = await fetch("http://localhost:5001/api/admin/settings", {
+  const hasChanges = useMemo(() => {
+    if (!initialSettings) return false;
+    return JSON.stringify(settings) !== JSON.stringify(initialSettings);
+  }, [settings, initialSettings]);
+
+  const systemStatus = settings.maintenanceMode ? "Maintenance" : "Live";
+
+  const updateSetting = (key, value) => {
+    setSettings((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+    setSuccess("");
+    setError("");
+  };
+
+  const validateEmail = (email) => {
+    if (!email) return false;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
+  const saveSettings = async () => {
+    setSaving(true);
+    setError("");
+    setSuccess("");
+
+    if (settings.supportEmail && !validateEmail(settings.supportEmail)) {
+      setSaving(false);
+      setError("Please enter a valid support email address.");
+      return;
+    }
+
+    if (
+      settings.maintenanceMode &&
+      !String(settings.maintenanceMessage || "").trim()
+    ) {
+      setSaving(false);
+      setError("Maintenance message is required when maintenance mode is on.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/settings`, {
         method: "PUT",
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          "X-Client": "web",
         },
-        body: JSON.stringify({
-          systemName,
-          supportEmail,
-          notificationsEnabled,
-          maintenanceMode,
-          maintenanceMessage,
-        }),
+        body: JSON.stringify(settings),
       });
 
       if (res.status === 401) {
-        throw new Error("Unauthorized. Please login as admin.");
-      }
-
-      if (res.status === 403) {
-        throw new Error("Access denied. Admin only.");
+        throw new Error("Session expired. Please login again.");
       }
 
       if (!res.ok) {
@@ -122,259 +176,615 @@ export default function Settings() {
         throw new Error(msg);
       }
 
-      setSuccess("Settings updated successfully.");
+      const saved = await res.json().catch(() => settings);
+      const normalized = {
+        ...settings,
+        ...saved,
+      };
 
-      setInitialData({
-        systemName,
-        supportEmail,
-        notificationsEnabled,
-        maintenanceMode,
-        maintenanceMessage,
-      });
+      setSettings(normalized);
+      setInitialSettings(normalized);
+      setLastSavedAt(new Date());
+      setSuccess("Settings saved successfully.");
     } catch (err) {
-      console.error("Failed to save settings:", err);
+      console.error("Settings save error:", err);
       setError(err.message || "Failed to save settings");
     } finally {
       setSaving(false);
     }
   };
 
-  const toggleMaintenanceQuickly = async () => {
-    const nextValue = !maintenanceMode;
-    setMaintenanceMode(nextValue);
+  const resetChanges = () => {
+    if (!initialSettings) return;
+    setSettings(initialSettings);
+    setError("");
+    setSuccess("");
+  };
+
+  const restoreDefaultMaintenanceMessage = () => {
+    updateSetting("maintenanceMessage", DEFAULT_MAINTENANCE_MESSAGE);
+  };
+
+  const sendMarketingEmail = async () => {
+    setSendingEmail(true);
+    setEmailSuccess("");
+    setEmailError("");
+
+    if (!emailForm.subject.trim()) {
+      setSendingEmail(false);
+      setEmailError("Email subject is required.");
+      return;
+    }
+
+    if (!emailForm.message.trim()) {
+      setSendingEmail(false);
+      setEmailError("Email message is required.");
+      return;
+    }
 
     try {
-      setSaving(true);
-      setError("");
-      setSuccess("");
-
-      const res = await fetch(
-        "http://localhost:5001/api/admin/settings/maintenance",
-        {
-          method: "PATCH",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Client": "web",
-          },
-          body: JSON.stringify({
-            maintenanceMode: nextValue,
-            maintenanceMessage,
-          }),
-        }
-      );
+      const res = await fetch(`${API_BASE}/api/admin/marketing-email/send`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(emailForm),
+      });
 
       if (res.status === 401) {
-        throw new Error("Unauthorized. Please login as admin.");
-      }
-
-      if (res.status === 403) {
-        throw new Error("Access denied. Admin only.");
+        throw new Error("Session expired. Please login again.");
       }
 
       if (!res.ok) {
-        const msg = await res.text().catch(() => "Failed to toggle maintenance");
+        const msg = await res.text().catch(() => "Failed to send email");
         throw new Error(msg);
       }
 
-      setSuccess(
-        `Maintenance mode ${nextValue ? "enabled" : "disabled"} successfully.`
-      );
+      const result = await res.json().catch(() => ({}));
 
-      setInitialData((prev) => ({
-        ...prev,
-        maintenanceMode: nextValue,
-        maintenanceMessage,
-      }));
+      setEmailSuccess(
+        result?.message || "Marketing email / communication sent successfully."
+      );
+      setEmailForm(DEFAULT_EMAIL_TEMPLATE);
     } catch (err) {
-      console.error("Failed to toggle maintenance:", err);
-      setMaintenanceMode(!nextValue);
-      setError(err.message || "Failed to toggle maintenance");
+      console.error("Email send error:", err);
+      setEmailError(
+        err.message ||
+          "Failed to send marketing communication. Add the backend endpoint first if it does not exist."
+      );
     } finally {
-      setSaving(false);
+      setSendingEmail(false);
     }
   };
 
-  const resetChanges = () => {
-    setSystemName(initialData.systemName);
-    setSupportEmail(initialData.supportEmail);
-    setNotificationsEnabled(initialData.notificationsEnabled);
-    setMaintenanceMode(initialData.maintenanceMode);
-    setMaintenanceMessage(initialData.maintenanceMessage);
-    setError("");
-    setSuccess("Unsaved changes reset.");
-  };
-
-  const hasChanges =
-    systemName !== initialData.systemName ||
-    supportEmail !== initialData.supportEmail ||
-    notificationsEnabled !== initialData.notificationsEnabled ||
-    maintenanceMode !== initialData.maintenanceMode ||
-    maintenanceMessage !== initialData.maintenanceMessage;
-
-  if (loading) return <p>Loading settings...</p>;
+  if (loading) {
+    return (
+      <div className="settings-page">
+        <main className="settings-container">
+          <div className="loading-box">Loading settings...</div>
+        </main>
+      </div>
+    );
+  }
 
   return (
-    <div className="settings-container">
-      <button className="back-btn" onClick={() => navigate(-1)}>
-        Back
-      </button>
+    <div className="settings-page">
+      <main className="settings-container">
+        <section className="settings-hero card-ui">
+          <div>
+            <div className="hero-badge">Admin / Settings</div>
+            <h1>System Settings</h1>
+            <p>
+              Manage platform identity, maintenance mode, registration controls,
+              communication preferences, and admin email campaigns.
+            </p>
+          </div>
 
-      <h1 className="settings-title">System Settings </h1>
-
-      {error && (
-        <div
-          style={{
-            background: "#ffe5e5",
-            color: "#b42318",
-            border: "1px solid #f5b5b5",
-            padding: "12px 14px",
-            borderRadius: 8,
-            marginBottom: 16,
-          }}
-        >
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div
-          style={{
-            background: "#e8fff0",
-            color: "#157347",
-            border: "1px solid #b7ebc6",
-            padding: "12px 14px",
-            borderRadius: 8,
-            marginBottom: 16,
-          }}
-        >
-          {success}
-        </div>
-      )}
-
-      <div className="settings-grid">
-        <div className="settings-card">
-          <h3>System Information</h3>
-
-          <label>System Name</label>
-          <input
-            value={systemName}
-            onChange={(e) => setSystemName(e.target.value)}
-            placeholder="Enter system name"
-          />
-
-          <label>Support Email</label>
-          <input
-            type="email"
-            value={supportEmail}
-            onChange={(e) => setSupportEmail(e.target.value)}
-            placeholder="Enter support email"
-          />
-
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16 }}>
+          <div className="hero-actions">
             <button
-              className="settings-btn"
+              className="btn btn-light"
+              type="button"
+              onClick={() => navigate("/admin")}
+            >
+              Back to Dashboard
+            </button>
+
+            <button
+              className="btn btn-light"
+              type="button"
+              onClick={fetchSettings}
+            >
+              Refresh
+            </button>
+
+            <button
+              className="btn btn-primary"
+              type="button"
               onClick={saveSettings}
-              disabled={saving}
-            >
-              {saving ? "Saving..." : "Save Changes"}
-            </button>
-
-            <button
-              className="settings-btn"
-              onClick={loadSettings}
-              disabled={saving}
-              style={{ background: "#fff", color: "#1a2b4c", border: "1px solid #d0d7e6" }}
-            >
-              Reload
-            </button>
-
-            <button
-              className="settings-btn"
-              onClick={resetChanges}
               disabled={saving || !hasChanges}
-              style={{ background: "#fff", color: "#1a2b4c", border: "1px solid #d0d7e6" }}
             >
-              Reset
+              {saving ? "Saving..." : hasChanges ? "Save Changes" : "Saved"}
             </button>
           </div>
-        </div>
+        </section>
 
-        <div className="settings-card">
-          <h3>Platform Controls</h3>
+        <section className="settings-stats">
+          <div className="stat-box">
+            <span>System Status</span>
+            <strong>{systemStatus}</strong>
+          </div>
+          <div className="stat-box">
+            <span>Notifications</span>
+            <strong>{settings.notificationsEnabled ? "Enabled" : "Disabled"}</strong>
+          </div>
+          <div className="stat-box">
+            <span>Unsaved Changes</span>
+            <strong>{hasChanges ? "Yes" : "No"}</strong>
+          </div>
+          <div className="stat-box">
+            <span>Maintenance Target</span>
+            <strong>
+              {settings.maintenanceTarget === "both"
+                ? "Web + Android"
+                : settings.maintenanceTarget === "web"
+                ? "Web Only"
+                : "Android Only"}
+            </strong>
+          </div>
+        </section>
 
-          <div style={{ marginBottom: 16 }}>
-            <strong>Status: </strong>
-            <span
-              style={{
-                color: maintenanceMode ? "#dc2626" : "#16a34a",
-                fontWeight: 700,
-              }}
+        {error && <div className="alert-box error">{error}</div>}
+        {success && <div className="alert-box success">{success}</div>}
+
+        <section className="settings-grid">
+          <div className="card-ui section-card">
+            <div className="section-head">
+              <h3>System Information</h3>
+              <p>Core platform identity and support contacts.</p>
+            </div>
+
+            <div className="form-grid">
+              <div className="field">
+                <label>System Name</label>
+                <input
+                  type="text"
+                  value={settings.systemName}
+                  onChange={(e) => updateSetting("systemName", e.target.value)}
+                  placeholder="AutoAid"
+                />
+              </div>
+
+              <div className="field">
+                <label>Support Email</label>
+                <input
+                  type="email"
+                  value={settings.supportEmail}
+                  onChange={(e) => updateSetting("supportEmail", e.target.value)}
+                  placeholder="support@autoaid.com"
+                />
+              </div>
+
+              <div className="field">
+                <label>Support Phone</label>
+                <input
+                  type="text"
+                  value={settings.supportPhone}
+                  onChange={(e) => updateSetting("supportPhone", e.target.value)}
+                  placeholder="+256..."
+                />
+              </div>
+
+              <div className="field">
+                <label>WhatsApp Number</label>
+                <input
+                  type="text"
+                  value={settings.whatsappNumber}
+                  onChange={(e) => updateSetting("whatsappNumber", e.target.value)}
+                  placeholder="+256..."
+                />
+              </div>
+
+              <div className="field full">
+                <label>Emergency Hotline</label>
+                <input
+                  type="text"
+                  value={settings.emergencyHotline}
+                  onChange={(e) =>
+                    updateSetting("emergencyHotline", e.target.value)
+                  }
+                  placeholder="Emergency hotline number"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="card-ui section-card">
+            <div className="section-head">
+              <h3>Platform Controls</h3>
+              <p>Switch features on or off for the whole system.</p>
+            </div>
+
+            <div className="toggle-list">
+              <div className="toggle-row">
+                <div>
+                  <strong>Enable Notifications</strong>
+                  <span>Allow platform-wide admin notifications.</span>
+                </div>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={settings.notificationsEnabled}
+                    onChange={(e) =>
+                      updateSetting("notificationsEnabled", e.target.checked)
+                    }
+                  />
+                  <span className="slider" />
+                </label>
+              </div>
+
+              <div className="toggle-row">
+                <div>
+                  <strong>Allow User Registration</strong>
+                  <span>Let new users create accounts.</span>
+                </div>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={settings.allowUserRegistration}
+                    onChange={(e) =>
+                      updateSetting("allowUserRegistration", e.target.checked)
+                    }
+                  />
+                  <span className="slider" />
+                </label>
+              </div>
+
+              <div className="toggle-row">
+                <div>
+                  <strong>Allow Provider Registration</strong>
+                  <span>Let new service providers sign up.</span>
+                </div>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={settings.allowProviderRegistration}
+                    onChange={(e) =>
+                      updateSetting("allowProviderRegistration", e.target.checked)
+                    }
+                  />
+                  <span className="slider" />
+                </label>
+              </div>
+
+              <div className="toggle-row">
+                <div>
+                  <strong>Auto Approve Providers</strong>
+                  <span>
+                    Automatically approve provider accounts after registration.
+                  </span>
+                </div>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={settings.autoApproveProviders}
+                    onChange={(e) =>
+                      updateSetting("autoApproveProviders", e.target.checked)
+                    }
+                  />
+                  <span className="slider" />
+                </label>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="settings-grid">
+          <div className="card-ui section-card">
+            <div className="section-head">
+              <h3>Maintenance Mode</h3>
+              <p>Control system availability for users and providers.</p>
+            </div>
+
+            <div className="toggle-row maintenance-main-row">
+              <div>
+                <strong>Enable Maintenance Mode</strong>
+                <span>
+                  Turn this on to temporarily limit access to the platform.
+                </span>
+              </div>
+
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={settings.maintenanceMode}
+                  onChange={(e) =>
+                    updateSetting("maintenanceMode", e.target.checked)
+                  }
+                />
+                <span className="slider" />
+              </label>
+            </div>
+
+            <div className="maintenance-warning">
+              <strong>Important:</strong> Admin access and login can remain
+              available depending on your backend logic. Web and Android users
+              may see the maintenance message below.
+            </div>
+
+            <div className="form-grid">
+              <div className="field">
+                <label>Maintenance Target</label>
+                <select
+                  value={settings.maintenanceTarget}
+                  onChange={(e) =>
+                    updateSetting("maintenanceTarget", e.target.value)
+                  }
+                >
+                  <option value="both">Web + Android</option>
+                  <option value="web">Web Only</option>
+                  <option value="android">Android Only</option>
+                </select>
+              </div>
+
+              <div className="field full">
+                <div className="label-row">
+                  <label>Maintenance Message</label>
+                  <span>
+                    {String(settings.maintenanceMessage || "").length}/250
+                  </span>
+                </div>
+                <textarea
+                  rows={5}
+                  maxLength={250}
+                  value={settings.maintenanceMessage}
+                  onChange={(e) =>
+                    updateSetting("maintenanceMessage", e.target.value)
+                  }
+                  placeholder="Enter maintenance message..."
+                />
+              </div>
+            </div>
+
+            <div className="inline-actions">
+              <button
+                className="btn btn-light"
+                type="button"
+                onClick={restoreDefaultMaintenanceMessage}
+              >
+                Restore Default Message
+              </button>
+            </div>
+          </div>
+
+          <div className="card-ui section-card">
+            <div className="section-head">
+              <h3>Message Preview</h3>
+              <p>What users will see during maintenance.</p>
+            </div>
+
+            <div className="preview-box">
+              <div className="preview-badge">
+                {settings.maintenanceMode ? "MAINTENANCE LIVE" : "PREVIEW"}
+              </div>
+              <h4>{settings.systemName || "AutoAid"}</h4>
+              <p>
+                {settings.maintenanceMessage || DEFAULT_MAINTENANCE_MESSAGE}
+              </p>
+              <span className="preview-target">
+                Target:{" "}
+                {settings.maintenanceTarget === "both"
+                  ? "Web + Android"
+                  : settings.maintenanceTarget === "web"
+                  ? "Web Only"
+                  : "Android Only"}
+              </span>
+            </div>
+
+            <div className="status-note">
+              Last saved:{" "}
+              <strong>
+                {lastSavedAt ? lastSavedAt.toLocaleString() : "Not yet saved"}
+              </strong>
+            </div>
+          </div>
+        </section>
+
+        <section className="card-ui section-card">
+          <div className="section-head">
+            <h3>Email Marketing & Communication</h3>
+            <p>
+              Send announcements, offers, updates, and important communication
+              from admin to users.
+            </p>
+          </div>
+
+          {emailError && <div className="alert-box error">{emailError}</div>}
+          {emailSuccess && <div className="alert-box success">{emailSuccess}</div>}
+
+          <div className="form-grid">
+            <div className="field">
+              <label>Audience</label>
+              <select
+                value={emailForm.audience}
+                onChange={(e) =>
+                  setEmailForm((prev) => ({
+                    ...prev,
+                    audience: e.target.value,
+                  }))
+                }
+              >
+                <option value="all">All Users</option>
+                <option value="providers">Providers Only</option>
+                <option value="customers">Customers Only</option>
+                <option value="verified_providers">Verified Providers</option>
+              </select>
+            </div>
+
+            <div className="field">
+              <label>Email Subject</label>
+              <input
+                type="text"
+                value={emailForm.subject}
+                onChange={(e) =>
+                  setEmailForm((prev) => ({
+                    ...prev,
+                    subject: e.target.value,
+                  }))
+                }
+                placeholder="Enter campaign subject"
+              />
+            </div>
+
+            <div className="field full">
+              <label>Email Heading</label>
+              <input
+                type="text"
+                value={emailForm.heading}
+                onChange={(e) =>
+                  setEmailForm((prev) => ({
+                    ...prev,
+                    heading: e.target.value,
+                  }))
+                }
+                placeholder="Enter email heading"
+              />
+            </div>
+
+            <div className="field full">
+              <div className="label-row">
+                <label>Message Body</label>
+                <span>{String(emailForm.message || "").length}/1000</span>
+              </div>
+              <textarea
+                rows={7}
+                maxLength={1000}
+                value={emailForm.message}
+                onChange={(e) =>
+                  setEmailForm((prev) => ({
+                    ...prev,
+                    message: e.target.value,
+                  }))
+                }
+                placeholder="Write your message to users..."
+              />
+            </div>
+          </div>
+
+          <div className="toggle-list compact">
+            <div className="toggle-row">
+              <div>
+                <strong>Send Email</strong>
+                <span>Deliver this message by email.</span>
+              </div>
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={emailForm.sendEmail}
+                  onChange={(e) =>
+                    setEmailForm((prev) => ({
+                      ...prev,
+                      sendEmail: e.target.checked,
+                    }))
+                  }
+                />
+                <span className="slider" />
+              </label>
+            </div>
+
+            <div className="toggle-row">
+              <div>
+                <strong>Send In-App Notification</strong>
+                <span>Also push the message as an internal platform notification.</span>
+              </div>
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={emailForm.sendNotification}
+                  onChange={(e) =>
+                    setEmailForm((prev) => ({
+                      ...prev,
+                      sendNotification: e.target.checked,
+                    }))
+                  }
+                />
+                <span className="slider" />
+              </label>
+            </div>
+          </div>
+
+          <div className="email-preview">
+            <div className="email-preview-head">
+              <span>Email Preview</span>
+            </div>
+            <div className="email-preview-body">
+              <h4>{emailForm.heading || "Your heading will appear here"}</h4>
+              <h5>{emailForm.subject || "Your email subject will appear here"}</h5>
+              <p>{emailForm.message || "Your message preview will appear here."}</p>
+            </div>
+          </div>
+
+          <div className="inline-actions">
+            <button
+              className="btn btn-light"
+              type="button"
+              onClick={() => setEmailForm(DEFAULT_EMAIL_TEMPLATE)}
             >
-              {maintenanceMode ? "Maintenance ON" : "System Live"}
-            </span>
-          </div>
-
-          <div className="toggle-row">
-            <span>Enable Notifications</span>
-            <label className="switch">
-              <input
-                type="checkbox"
-                checked={notificationsEnabled}
-                onChange={() => setNotificationsEnabled(!notificationsEnabled)}
-              />
-              <span className="slider"></span>
-            </label>
-          </div>
-
-          <div className="toggle-row">
-            <span>Maintenance Mode</span>
-            <label className="switch">
-              <input
-                type="checkbox"
-                checked={maintenanceMode}
-                onChange={() => setMaintenanceMode(!maintenanceMode)}
-              />
-              <span className="slider"></span>
-            </label>
-          </div>
-
-          <label style={{ marginTop: 14, display: "block" }}>
-            Maintenance Message
-          </label>
-          <textarea
-            value={maintenanceMessage}
-            onChange={(e) => setMaintenanceMessage(e.target.value)}
-            rows={4}
-            placeholder="Message users see during maintenance"
-            style={{
-              width: "100%",
-              borderRadius: 8,
-              padding: 10,
-              marginTop: 8,
-              border: "1px solid #d0d7e6",
-              resize: "vertical",
-            }}
-          />
-
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16 }}>
-            <button className="danger-btn" onClick={saveSettings} disabled={saving}>
-              {saving ? "Applying..." : "Apply Changes"}
+              Reset Email Form
             </button>
 
             <button
-              className="danger-btn"
-              onClick={toggleMaintenanceQuickly}
-              disabled={saving}
-              style={{
-                background: maintenanceMode ? "#16a34a" : "#dc2626",
-              }}
+              className="btn btn-primary"
+              type="button"
+              onClick={sendMarketingEmail}
+              disabled={sendingEmail}
             >
-              {maintenanceMode ? "Turn Maintenance OFF" : "Turn Maintenance ON"}
+              {sendingEmail ? "Sending..." : "Send Communication"}
             </button>
           </div>
-        </div>
-      </div>
+        </section>
+
+        <section className="card-ui section-card danger-card">
+          <div className="section-head">
+            <h3>Danger Zone</h3>
+            <p>Use these carefully. These actions affect the whole platform.</p>
+          </div>
+
+          <div className="danger-box">
+            <strong>Emergency Maintenance</strong>
+            <p>
+              If the platform is unstable, enable maintenance mode immediately,
+              save changes, and set a clear user-facing message.
+            </p>
+
+            <div className="inline-actions">
+              <button
+                className="btn btn-danger"
+                type="button"
+                onClick={() => {
+                  updateSetting("maintenanceMode", true);
+                  if (!settings.maintenanceMessage?.trim()) {
+                    updateSetting(
+                      "maintenanceMessage",
+                      DEFAULT_MAINTENANCE_MESSAGE
+                    );
+                  }
+                }}
+              >
+                Turn On Emergency Maintenance
+              </button>
+
+              <button
+                className="btn btn-light"
+                type="button"
+                onClick={resetChanges}
+              >
+                Reset Unsaved Changes
+              </button>
+            </div>
+          </div>
+        </section>
+      </main>
     </div>
   );
 }

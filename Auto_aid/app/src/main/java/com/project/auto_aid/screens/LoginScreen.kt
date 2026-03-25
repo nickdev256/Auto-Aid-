@@ -20,9 +20,11 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -31,6 +33,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -59,6 +62,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
@@ -169,7 +173,9 @@ fun LoginScreen(navController: NavController) {
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize()
+        .verticalScroll(rememberScrollState()),
+    ) {
 
         HeroImageSlider()
 
@@ -177,13 +183,14 @@ fun LoginScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding(),
+//
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
 
             Box(
                 modifier = Modifier
-                    .offset(y = (-45).dp)
+                    .offset(y = (-57).dp)
                     .size(110.dp)
                     .border(
                         width = 7.dp,
@@ -200,13 +207,16 @@ fun LoginScreen(navController: NavController) {
                         .size(130.dp)
                         .clip(CircleShape)
                         .background(Color.White)
+
                 )
             }
 
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 6.dp),
+                    .padding(horizontal = 6.dp)
+                    .offset(y = (-36).dp),
+
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
 
@@ -225,7 +235,13 @@ fun LoginScreen(navController: NavController) {
                     modifier = Modifier
                         .fillMaxWidth(0.90f)
                         .padding(1.dp)
-                        .shadow(12.dp, RoundedCornerShape(20.dp)),
+                        .shadow(12.dp, RoundedCornerShape(20.dp))
+                        .border(
+                            width = 0.1.dp,
+                            color = Color(0xFF0A9AD9),
+                            shape = RoundedCornerShape(20.dp)
+                        ),
+
                     shape = RoundedCornerShape(20.dp),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                     colors = CardDefaults.cardColors(
@@ -247,7 +263,16 @@ fun LoginScreen(navController: NavController) {
                             value = email,
                             onValueChange = { email = it },
                             label = { Text("Email") },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.Black,
+                                focusedBorderColor = Color(0xFF0A9AD9),
+                                cursorColor = Color(0xFF0A9AD9),
+                                unfocusedBorderColor = Color.Gray,
+                                focusedLabelColor = Color(0xFF0A9AD9),
+                                unfocusedLabelColor = Color.Gray
+                            )
                         )
 
                         Spacer(modifier = Modifier.height(5.dp))
@@ -266,17 +291,23 @@ fun LoginScreen(navController: NavController) {
                                         painter = painterResource(
                                             id = if (showPassword) R.drawable.no_see else R.drawable.see
                                         ),
-                                        contentDescription = if (showPassword) {
-                                            "Hide Password"
-                                        } else {
-                                            "Show Password"
-                                        },
-                                        modifier = Modifier.size(25.dp)
-                                    )
+                                        contentDescription = if (showPassword) "Hide Password" else "Show Password",
+                                        modifier = Modifier.size(25.dp),
+
+                                        )
                                 }
                             },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.Black,
+                                focusedBorderColor = Color(0xFF0A9AD9),
+                                cursorColor = Color(0xFF0A9AD9),
+                                focusedLabelColor = Color(0xFF0A9AD9),
+                                unfocusedBorderColor = Color.Gray,
+                                unfocusedLabelColor = Color.Gray
+                            )
                         )
 
                         Spacer(modifier = Modifier.height(5.dp))

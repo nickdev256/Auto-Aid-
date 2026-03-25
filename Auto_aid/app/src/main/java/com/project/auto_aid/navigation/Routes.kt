@@ -46,8 +46,16 @@ sealed class Routes(val route: String) {
     /* ---------- Provider Selection ---------- */
 
     object ProviderSelection : Routes(
-        "provider_selection/{providerType}/{lat}/{lng}?" +
-                "pickedLabel={pickedLabel}&vehicleInfo={vehicleInfo}&problem={problem}&note={note}&urgency={urgency}&towType={towType}"
+        "provider_selection/" +
+                "{providerType}/" +
+                "{lat}/" +
+                "{lng}?" +
+                "pickedLabel={pickedLabel}&" +
+                "vehicleInfo={vehicleInfo}&" +
+                "problem={problem}&" +
+                "note={note}&" +
+                "urgency={urgency}&" +
+                "towType={towType}"
     ) {
         fun createRoute(
             providerType: String,
@@ -73,7 +81,12 @@ sealed class Routes(val route: String) {
     /* ---------- Create Request Form ---------- */
 
     object CreateRequestForm : Routes(
-        "create_request_form?providerType={providerType}&providerId={providerId}&lat={lat}&lng={lng}&locationLabel={locationLabel}"
+        "create_request_form?" +
+                "providerType={providerType}&" +
+                "providerId={providerId}&" +
+                "lat={lat}&" +
+                "lng={lng}&" +
+                "locationLabel={locationLabel}"
     ) {
         fun createRoute(
             providerType: String,
@@ -94,7 +107,10 @@ sealed class Routes(val route: String) {
     /* ---------- Location Picker ---------- */
 
     object LocationPicker : Routes("location_picker?lat={lat}&lng={lng}") {
-        fun createRoute(lat: Double? = null, lng: Double? = null): String {
+        fun createRoute(
+            lat: Double? = null,
+            lng: Double? = null
+        ): String {
             return if (lat == null || lng == null) {
                 "location_picker"
             } else {
@@ -206,6 +222,11 @@ sealed class Routes(val route: String) {
 
     object ProviderDashboard : Routes("provider_dashboard")
     object EditProviderProfile : Routes("edit_provider_profile")
+
+    // ADDED: provider verification flow
+    object ProviderVerificationRequired : Routes("provider_verification_required")
+    object ProviderVerification : Routes("provider_verification")
+
     object ProviderNotifications : Routes("provider_notifications")
     object ProviderMapHome : Routes("provider_map_home")
     object ProviderChatList : Routes("provider_chat_list")
@@ -224,20 +245,14 @@ sealed class Routes(val route: String) {
             "provider_active_job/${Uri.encode(requestId)}"
     }
 
-    /* 🔥 FIXED MAP ROUTE */
-
     object ProviderMapScreen :
-        Routes("provider_map?requestId={requestId}&pickupLat={pickupLat}&pickupLng={pickupLng}") {
-
+        Routes("provider_map/{requestId}?pickupLat={pickupLat}&pickupLng={pickupLng}") {
         fun createRoute(
             requestId: String,
             pickupLat: Double,
             pickupLng: Double
         ): String {
-            return "provider_map" +
-                    "?requestId=${Uri.encode(requestId)}" +
-                    "&pickupLat=${Uri.encode(pickupLat.toString())}" +
-                    "&pickupLng=${Uri.encode(pickupLng.toString())}"
+            return "provider_map/${Uri.encode(requestId)}?pickupLat=$pickupLat&pickupLng=$pickupLng"
         }
     }
 
