@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -35,6 +36,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -42,6 +44,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -60,6 +63,9 @@ import com.project.auto_aid.data.network.dto.ProviderLiteDto
 import com.project.auto_aid.navigation.Routes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,31 +82,49 @@ fun ProviderSelectionScreen(
 
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf("") }
+    var retryKey by remember { mutableIntStateOf(0) }
     val providers = remember { mutableStateListOf<ProviderLiteDto>() }
 
-    LaunchedEffect(providerType, userLat, userLng) {
+    val previousStateHandle = navController.previousBackStackEntry?.savedStateHandle
+    val currentStateHandle = navController.currentBackStackEntry?.savedStateHandle
+
+    val aiProblem = previousStateHandle?.get<String>("ai_problem").orEmpty()
+    val aiUrgency = previousStateHandle?.get<String>("ai_urgency").orEmpty()
+    val aiNote = previousStateHandle?.get<String>("ai_note").orEmpty()
+    val aiVehicleInfo = previousStateHandle?.get<String>("ai_vehicle_info").orEmpty()
+
+    val decodedLocationLabel = remember(pickedLocationLabel) {
+        try {
+            URLDecoder.decode(pickedLocationLabel, StandardCharsets.UTF_8.toString())
+        } catch (_: Exception) {
+            pickedLocationLabel
+        }
+    }
+
+    LaunchedEffect(providerType, retryKey) {
         isLoading = true
         errorMessage = ""
         providers.clear()
-
-        if (userLat == 0.0 && userLng == 0.0) {
-            errorMessage = "User location is missing. Please select a valid location."
-            isLoading = false
-            return@LaunchedEffect
-        }
 
         try {
             val response = withContext(Dispatchers.IO) {
                 api.getAvailableProviders(
                     providerType = providerType,
-                    lat = userLat,
-                    lng = userLng,
+                    lat = null,
+                    lng = null,
                     onlineOnly = false
                 )
             }
 
             if (response.isSuccessful) {
-                providers.addAll(response.body().orEmpty())
+                val sortedProviders = response.body()
+                    .orEmpty()
+                    .sortedWith(
+                        compareByDescending<ProviderLiteDto> { it.rating ?: 0.0 }
+                            .thenBy { it.businessName?.trim().orEmpty().ifBlank { it.name.orEmpty() } }
+                    )
+
+                providers.addAll(sortedProviders)
             } else {
                 val serverMessage = try {
                     response.errorBody()?.string()?.takeIf { it.isNotBlank() }
@@ -120,10 +144,15 @@ fun ProviderSelectionScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("${serviceDisplayName(providerType)} Providers") },
+                title = {
+                    Text("${serviceDisplayName(providerType)} Providers")
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back"
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -138,12 +167,14 @@ fun ProviderSelectionScreen(
                 .background(Color(0xFFF8FAFC))
                 .padding(padding)
         ) {
-            if (pickedLocationLabel.isNotBlank()) {
+            if (decodedLocationLabel.isNotBlank()) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 10.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White)
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
                 ) {
                     Row(
                         modifier = Modifier.padding(14.dp),
@@ -158,10 +189,81 @@ fun ProviderSelectionScreen(
                         Column {
                             Text(
                                 text = "Pickup / Service Location",
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF111827)
                             )
                             Text(
-                                text = pickedLocationLabel,
+                                text = decodedLocationLabel,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (aiProblem.isNotBlank()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF)),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Text(
+                            text = "AutoAid AI Analysis",
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF111827)
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = "Problem",
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF111827)
+                        )
+                        Text(
+                            text = aiProblem,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color(0xFF374151)
+                        )
+
+                        if (aiUrgency.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Risk Level: $aiUrgency",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = urgencyColor(aiUrgency),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+
+                        if (aiNote.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Recommended Action",
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF111827)
+                            )
+                            Text(
+                                text = aiNote,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF374151)
+                            )
+                        }
+
+                        if (aiVehicleInfo.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Vehicle Info",
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF111827)
+                            )
+                            Text(
+                                text = aiVehicleInfo,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color.Gray
                             )
@@ -187,10 +289,27 @@ fun ProviderSelectionScreen(
                             .padding(24.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = errorMessage,
-                            color = Color.Red
-                        )
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = errorMessage,
+                                color = Color.Red,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            OutlinedButton(
+                                onClick = { retryKey++ },
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = null
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Retry")
+                            }
+                        }
                     }
                 }
 
@@ -201,16 +320,37 @@ fun ProviderSelectionScreen(
                             .padding(24.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "No ${serviceDisplayName(providerType)} providers found nearby.",
-                            color = Color.Gray
-                        )
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "No registered ${serviceDisplayName(providerType)} providers found.",
+                                color = Color.Gray,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            OutlinedButton(
+                                onClick = { retryKey++ },
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = null
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Refresh")
+                            }
+                        }
                     }
                 }
 
                 else -> {
                     Text(
-                        text = "Choose a provider to continue to the request form",
+                        text = if (aiProblem.isNotBlank()) {
+                            "Choose a provider to continue with the AI-assisted request"
+                        } else {
+                            "Choose a provider to continue to the request form"
+                        },
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         fontWeight = FontWeight.SemiBold,
                         color = Color(0xFF111827)
@@ -231,37 +371,36 @@ fun ProviderSelectionScreen(
                             ProviderSelectionCard(
                                 provider = provider,
                                 serviceType = providerType,
+                                aiUrgency = aiUrgency,
                                 onChoose = {
                                     val providerId = provider.resolvedId()
+
                                     if (providerId.isBlank()) {
                                         errorMessage = "Selected provider ID is missing."
                                         return@ProviderSelectionCard
                                     }
 
-                                    when (providerType.lowercase()) {
-                                        "garage" -> {
-                                            navController.navigate(
-                                                Routes.GarageRequestScreen.createRoute(providerId)
-                                            )
-                                        }
-                                        "fuel" -> {
-                                            navController.navigate(
-                                                Routes.FuelRequestScreen.createRoute(providerId)
-                                            )
-                                        }
-                                        "towing" -> {
-                                            navController.navigate(
-                                                Routes.TowingRequestScreen.createRoute(providerId)
-                                            )
-                                        }
-                                        "ambulance" -> {
-                                            navController.navigate(
-                                                Routes.AmbulanceRequestScreen.createRoute(providerId)
-                                            )
-                                        }
-                                        else -> {
-                                            errorMessage = "Unknown service type: $providerType"
-                                        }
+                                    currentStateHandle?.set("ai_problem", aiProblem)
+                                    currentStateHandle?.set("ai_urgency", aiUrgency)
+                                    currentStateHandle?.set("ai_note", aiNote)
+                                    currentStateHandle?.set("ai_vehicle_info", aiVehicleInfo)
+                                    currentStateHandle?.set("selected_provider_id", providerId)
+                                    currentStateHandle?.set("picked_location_label", decodedLocationLabel)
+                                    currentStateHandle?.set("picked_location_lat", userLat)
+                                    currentStateHandle?.set("picked_location_lng", userLng)
+
+                                    val route = when (providerType.lowercase()) {
+                                        "garage" -> Routes.GarageRequestScreen.createRoute(providerId)
+                                        "fuel" -> Routes.FuelRequestScreen.createRoute(providerId)
+                                        "towing" -> Routes.TowingRequestScreen.createRoute(providerId)
+                                        "ambulance" -> Routes.AmbulanceRequestScreen.createRoute(providerId)
+                                        else -> null
+                                    }
+
+                                    if (route != null) {
+                                        navController.navigate(route)
+                                    } else {
+                                        errorMessage = "Unknown service type: $providerType"
                                     }
                                 }
                             )
@@ -281,11 +420,13 @@ fun ProviderSelectionScreen(
 private fun ProviderSelectionCard(
     provider: ProviderLiteDto,
     serviceType: String,
+    aiUrgency: String = "",
     onChoose: () -> Unit
 ) {
     val isOnline = provider.isOnline == true
     val isAvailable = provider.isAvailable == true
-    val canChoose = isAvailable
+    val canChoose = true
+    val showAiRecommended = aiUrgency.equals("high", ignoreCase = true)
 
     Card(
         modifier = Modifier
@@ -342,18 +483,29 @@ private fun ProviderSelectionCard(
             ) {
                 InfoChip(
                     icon = Icons.Default.Star,
-                    text = String.format("%.1f", provider.rating ?: 0.0)
+                    text = String.format(Locale.US, "%.1f", provider.rating ?: 0.0)
                 )
 
                 InfoChip(
                     icon = Icons.Default.LocationOn,
-                    text = provider.distanceKm?.let { "$it km away" } ?: "Distance unknown"
+                    text = provider.distanceKm?.let {
+                        String.format(Locale.US, "%.1f km away", it)
+                    } ?: "Registered Provider"
                 )
 
                 StatusBadge(
                     text = if (isAvailable) "Available" else "Busy",
                     bg = if (isAvailable) Color(0xFFDBEAFE) else Color(0xFFFEE2E2),
                     fg = if (isAvailable) Color(0xFF1D4ED8) else Color(0xFFB91C1C)
+                )
+            }
+
+            if (showAiRecommended) {
+                Spacer(modifier = Modifier.height(10.dp))
+                StatusBadge(
+                    text = "AI Recommended",
+                    bg = Color(0xFFFEF3C7),
+                    fg = Color(0xFF92400E)
                 )
             }
 
@@ -382,9 +534,7 @@ private fun ProviderSelectionCard(
                 ),
                 shape = RoundedCornerShape(14.dp)
             ) {
-                Text(
-                    text = if (!isAvailable) "Provider Busy" else "Continue"
-                )
+                Text(text = "Continue")
             }
         }
     }
@@ -452,5 +602,13 @@ private fun serviceIconFor(type: String): ImageVector {
         "towing" -> Icons.Default.LocalShipping
         "ambulance" -> Icons.Default.MedicalServices
         else -> Icons.Default.Person
+    }
+}
+
+private fun urgencyColor(urgency: String): Color {
+    return when (urgency.trim().lowercase()) {
+        "high", "critical", "severe" -> Color(0xFFDC2626)
+        "medium", "moderate" -> Color(0xFFD97706)
+        else -> Color(0xFF1D4ED8)
     }
 }

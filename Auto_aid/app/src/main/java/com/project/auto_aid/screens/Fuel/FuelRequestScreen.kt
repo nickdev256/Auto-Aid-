@@ -6,14 +6,42 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -25,12 +53,13 @@ import coil.compose.rememberAsyncImagePainter
 import com.project.auto_aid.data.local.TokenStore
 import com.project.auto_aid.data.network.RetrofitClient
 import com.project.auto_aid.data.network.dto.CreateRequestBody
-import com.project.auto_aid.data.network.dto.RequestDto
 import com.project.auto_aid.data.network.dto.LocationBody
+import com.project.auto_aid.data.network.dto.RequestDto
 import com.project.auto_aid.navigation.Routes
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.UUID
+import androidx.compose.runtime.rememberCoroutineScope
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,9 +87,20 @@ fun FuelRequestScreen(
     val finalLat = pickedLocationLatState?.value ?: userLat
     val finalLng = pickedLocationLngState?.value ?: userLng
 
+    // AI + direct flow support
+    val prev = navController.previousBackStackEntry
+    val aiState = prev?.savedStateHandle ?: savedStateHandle
+
+    val aiProblem = aiState?.get<String>("ai_problem").orEmpty()
+    val aiUrgency = aiState?.get<String>("ai_urgency").orEmpty()
+    val aiNote = aiState?.get<String>("ai_note").orEmpty()
+    val aiVehicleInfo = aiState?.get<String>("ai_vehicle_info").orEmpty()
+    val selectedProviderId = providerId ?: aiState?.get<String>("selected_provider_id")
+
     var fuelType by remember { mutableStateOf("Petrol") }
     var quantity by remember { mutableStateOf("") }
     var paymentMethod by remember { mutableStateOf("Cash") }
+    var vehicleInfo by remember { mutableStateOf(aiVehicleInfo) }
     var submitting by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -120,7 +160,7 @@ fun FuelRequestScreen(
                 .verticalScroll(scrollState)
                 .padding(20.dp)
         ) {
-            if (providerId != null) {
+            if (selectedProviderId != null) {
                 AssistChip(onClick = {}, label = { Text("Target provider selected") })
             } else {
                 AssistChip(
@@ -137,12 +177,51 @@ fun FuelRequestScreen(
                 )
             }
 
+            if (aiProblem.isNotBlank()) {
+                Spacer(Modifier.height(10.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Column(Modifier.padding(12.dp)) {
+                        Text(
+                            text = "AutoAid AI Suggestion",
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Spacer(Modifier.height(6.dp))
+
+                        Text(aiProblem)
+
+                        if (aiUrgency.isNotBlank()) {
+                            Spacer(Modifier.height(6.dp))
+                            Text("Urgency: $aiUrgency")
+                        }
+
+                        if (aiNote.isNotBlank()) {
+                            Spacer(Modifier.height(6.dp))
+                            Text("Note: $aiNote")
+                        }
+                    }
+                }
+            }
+
             Spacer(Modifier.height(10.dp))
 
             Text(
                 text = "Coordinates: $finalLat, $finalLng",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = vehicleInfo,
+                onValueChange = { vehicleInfo = it },
+                label = { Text("Vehicle Information") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
             )
 
             Spacer(Modifier.height(12.dp))
@@ -283,6 +362,11 @@ fun FuelRequestScreen(
                         return@Button
                     }
 
+                    if (vehicleInfo.isBlank()) {
+                        error = "Please enter vehicle information."
+                        return@Button
+                    }
+
                     if (quantity.isBlank()) {
                         error = "Please enter quantity in litres."
                         return@Button
@@ -302,11 +386,37 @@ fun FuelRequestScreen(
                                 CreateRequestBody(
                                     service = "fuel",
                                     providerType = "fuel",
-                                    vehicleInfo = "$fuelType • ${quantity.trim()} L",
-                                    problem = "Payment: $paymentMethod",
+                                    vehicleInfo = buildString {
+                                        append(vehicleInfo.trim())
+                                        append(" • ")
+                                        append(fuelType)
+                                        append(" • ")
+                                        append(quantity.trim())
+                                        append(" L")
+                                    },
+                                    problem = buildString {
+                                        if (aiProblem.isNotBlank()) {
+                                            append(aiProblem.trim())
+                                        } else {
+                                            append("Fuel delivery request")
+                                        }
+
+                                        append("\nPayment: ")
+                                        append(paymentMethod)
+
+                                        if (aiNote.isNotBlank()) {
+                                            append("\nAI Note: ")
+                                            append(aiNote.trim())
+                                        }
+
+                                        if (aiUrgency.isNotBlank()) {
+                                            append("\nUrgency: ")
+                                            append(aiUrgency.trim())
+                                        }
+                                    },
                                     towType = fuelType,
                                     userLocation = LocationBody(finalLat, finalLng),
-                                    targetProviderId = providerId
+                                    targetProviderId = selectedProviderId
                                 )
                             )
 
@@ -321,6 +431,13 @@ fun FuelRequestScreen(
                             if (rid.isBlank()) throw Exception("Missing request ID")
 
                             tokenStore.saveLastFuelRequestId(rid)
+
+                            aiState?.remove<String>("ai_problem")
+                            aiState?.remove<String>("ai_urgency")
+                            aiState?.remove<String>("ai_note")
+                            aiState?.remove<String>("ai_vehicle_info")
+                            aiState?.remove<String>("selected_provider_id")
+
                             navController.navigate(Routes.FuelActiveScreen.createRoute(rid))
                         } catch (e: Throwable) {
                             error = e.message ?: "Failed to submit."

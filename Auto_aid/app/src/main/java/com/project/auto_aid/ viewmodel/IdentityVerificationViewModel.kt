@@ -10,15 +10,16 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.project.auto_aid.data.local.TokenStore
+import com.project.auto_aid.data.model.UserProfile
 import com.project.auto_aid.data.network.RetrofitClient
-import com.project.auto_aid.model.UserProfile
-import com.project.auto_aid.settings.toUserProfile
 import com.project.auto_aid.utils.FileUtils
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 
 data class IdentityVerificationUiState(
     val user: UserProfile? = null,
@@ -78,24 +79,28 @@ class IdentityVerificationViewModel(app: Application) : AndroidViewModel(app) {
                     )
                 }
 
-                Log.d(TAG, "Refreshing user from /api/auth/me")
-
-                val response = api.getMe()
+                val response = api.getMyUserVerification()
 
                 if (response.isSuccessful) {
                     val body = response.body()
 
-                    if (body != null) {
-                        val user = body.toUserProfile()
-                        val safeStatus = user.verificationStatus.ifBlank { "not_verified" }
+                    if (body != null && body.user != null) {
+                        val apiUser = body.user
 
-                        Log.d(
-                            TAG,
-                            "User refreshed successfully: id=${user.id}, verificationStatus=$safeStatus"
+                        val mappedUser = UserProfile(
+                            id = apiUser.id ?: apiUser._id ?: "",
+                            fullName = apiUser.name ?: "",
+                            email = apiUser.email ?: "",
+                            phone = apiUser.phone ?: "",
+                            verificationStatus = apiUser.verificationStatus
+                                ?: body.verificationStatus
+                                ?: "not_verified"
                         )
 
+                        val safeStatus = mappedUser.verificationStatus.ifBlank { "not_verified" }
+
                         uiState = uiState.copy(
-                            user = user,
+                            user = mappedUser,
                             verificationStatus = safeStatus,
                             isLoadingUser = false,
                             errorMessage = ""
@@ -107,30 +112,27 @@ class IdentityVerificationViewModel(app: Application) : AndroidViewModel(app) {
                             stopAutoRefresh()
                         }
                     } else {
-                        Log.e(TAG, "refreshUser: response body is null")
                         uiState = uiState.copy(
                             isLoadingUser = false,
-                            errorMessage = "Empty user response"
+                            user = null,
+                            errorMessage = "User verification response is empty"
                         )
                     }
                 } else {
-                    val errorBody = response.errorBody()?.string().orEmpty()
-
-                    Log.e(TAG, "refreshUser failed: code=${response.code()} body=$errorBody")
+                    val errorText = response.errorBody()?.string()
+                    Log.e(TAG, "refreshUser failed: code=${response.code()} body=$errorText")
 
                     uiState = uiState.copy(
                         isLoadingUser = false,
-                        errorMessage = if (errorBody.isNotBlank()) {
-                            errorBody
-                        } else {
-                            "Failed to load user (${response.code()})"
-                        }
+                        user = null,
+                        errorMessage = errorText ?: "Failed to load user (${response.code()})"
                     )
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "refreshUser exception", e)
                 uiState = uiState.copy(
                     isLoadingUser = false,
+                    user = null,
                     errorMessage = e.message ?: "Failed to load user"
                 )
             } finally {
@@ -186,6 +188,18 @@ class IdentityVerificationViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
 
+    private fun normalizeDocumentType(documentType: String): String {
+        return when (documentType.trim().lowercase()) {
+            "national id" -> "national_id"
+            "national_id" -> "national_id"
+            "passport" -> "passport"
+            "driver's license" -> "drivers_license"
+            "drivers license" -> "drivers_license"
+            "drivers_license" -> "drivers_license"
+            else -> documentType.trim().lowercase()
+        }
+    }
+
     fun uploadVerification(
         context: Context,
         bitmap: Bitmap?,
@@ -194,21 +208,34 @@ class IdentityVerificationViewModel(app: Application) : AndroidViewModel(app) {
     ) {
         viewModelScope.launch {
             try {
-                val cleanType = documentType.trim().lowercase()
-
                 if (bitmap == null) {
                     uiState = uiState.copy(
                         isSubmitting = false,
-                        errorMessage = "Please choose a document image first",
+                        errorMessage = "Please capture a document image first",
                         successMessage = ""
                     )
                     return@launch
                 }
 
+                val cleanType = normalizeDocumentType(documentType)
+
                 if (cleanType.isBlank()) {
                     uiState = uiState.copy(
                         isSubmitting = false,
                         errorMessage = "Please select document type",
+                        successMessage = ""
+                    )
+                    return@launch
+                }
+
+                if (
+                    cleanType != "national_id" &&
+                    cleanType != "passport" &&
+                    cleanType != "drivers_license"
+                ) {
+                    uiState = uiState.copy(
+                        isSubmitting = false,
+                        errorMessage = "Invalid document type selected",
                         successMessage = ""
                     )
                     return@launch
@@ -220,18 +247,12 @@ class IdentityVerificationViewModel(app: Application) : AndroidViewModel(app) {
                     successMessage = ""
                 )
 
-                val filePart = try {
-                    FileUtils.bitmapToMultipart(
-                        context = context,
-                        bitmap = bitmap,
-                        fileName = "verification_${System.currentTimeMillis()}.jpg"
-                    )
-                } catch (e: Exception) {
-                    Log.e(TAG, "bitmapToMultipart failed", e)
-                    null
-                }
-
-                if (filePart == null) {
+                val documentPart: MultipartBody.Part = FileUtils.bitmapToMultipart(
+                    context = context,
+                    bitmap = bitmap,
+                    fileName = "user_verification_${System.currentTimeMillis()}.jpg",
+                    partName = "verificationDocument"
+                ) ?: run {
                     uiState = uiState.copy(
                         isSubmitting = false,
                         errorMessage = "Failed to prepare file for upload",
@@ -240,70 +261,39 @@ class IdentityVerificationViewModel(app: Application) : AndroidViewModel(app) {
                     return@launch
                 }
 
-                var licensePart: MultipartBody.Part? = null
-                var businessPart: MultipartBody.Part? = null
-                var nationalFrontPart: MultipartBody.Part? = null
-                var nationalBackPart: MultipartBody.Part? = null
-                var profileImagePart: MultipartBody.Part? = null
+                val documentTypeBody = cleanType.toRequestBody("text/plain".toMediaTypeOrNull())
 
-                when (cleanType) {
-                    "license", "driving_license" -> licensePart = filePart
-                    "business", "business_license" -> businessPart = filePart
-                    "national_front", "national_id_front", "nationalidfront" -> nationalFrontPart = filePart
-                    "national_back", "national_id_back", "nationalidback" -> nationalBackPart = filePart
-                    "profile", "profileimage", "profile_image" -> profileImagePart = filePart
-                    else -> {
-                        uiState = uiState.copy(
-                            isSubmitting = false,
-                            errorMessage = "Unsupported document type: $documentType",
-                            successMessage = ""
-                        )
-                        return@launch
-                    }
-                }
+                Log.d(TAG, "Submitting user verification")
+                Log.d(TAG, "documentType = $cleanType")
+                Log.d(TAG, "selectedDocumentType ui = ${uiState.selectedDocumentType}")
+                Log.d(TAG, "documentPart headers = ${documentPart.headers}")
 
-                Log.d(TAG, "Submitting provider verification: type=$cleanType")
-
-                val response = api.submitProviderVerification(
-                    workLicenseDocument = licensePart,
-                    businessRegistrationDocument = businessPart,
-                    nationalIdFront = nationalFrontPart,
-                    nationalIdBack = nationalBackPart,
-                    profileImage = profileImagePart,
-                    businessName = null,
-                    phone = null
+                val response = api.submitUserVerification(
+                    documentType = documentTypeBody,
+                    verificationDocument = documentPart,
+                    profileImage = null
                 )
 
                 if (response.isSuccessful) {
                     val message = response.body()?.message?.takeIf { it.isNotBlank() }
                         ?: "Verification submitted successfully"
 
-                    Log.d(TAG, "Verification upload successful: $message")
-
                     uiState = uiState.copy(
                         isSubmitting = false,
                         successMessage = message,
                         errorMessage = "",
-                        selectedDocumentType = cleanType
+                        selectedDocumentType = documentType.trim()
                     )
 
                     refreshUser(showLoader = false)
                     onSuccess()
                 } else {
-                    val errorBody = response.errorBody()?.string().orEmpty()
-
-                    Log.e(
-                        TAG,
-                        "Verification upload failed: code=${response.code()} body=$errorBody"
-                    )
+                    val errorText = response.errorBody()?.string()
+                    Log.e(TAG, "upload failed: code=${response.code()} body=$errorText")
 
                     uiState = uiState.copy(
                         isSubmitting = false,
-                        errorMessage = if (errorBody.isNotBlank()) {
-                            errorBody
-                        } else {
-                            "Upload failed (${response.code()})"
-                        },
+                        errorMessage = errorText ?: "Upload failed (${response.code()})",
                         successMessage = ""
                     )
                 }

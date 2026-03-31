@@ -1,4 +1,3 @@
-// ✅ FILE NAME: routes/providers.js
 import express from "express";
 import mongoose from "mongoose";
 import User from "../models/User.js";
@@ -17,11 +16,7 @@ function ensureObjectId(id) {
 
 function normalizeBusinessType(value = "") {
   const v = String(value || "").trim().toLowerCase();
-
-  if (["garage", "fuel", "towing", "ambulance"].includes(v)) {
-    return v;
-  }
-
+  if (["garage", "fuel", "towing", "ambulance"].includes(v)) return v;
   return "";
 }
 
@@ -74,6 +69,16 @@ function getProviderRaw(doc) {
 
 function getProviderType(raw = {}) {
   return String(raw.businessType || raw.providerType || "").trim().toLowerCase();
+}
+
+function getPagination(query = {}, defaults = { page: 1, limit: 20, maxLimit: 50 }) {
+  const page = Math.max(parseInt(query.page, 10) || defaults.page, 1);
+  const limit = Math.min(
+    Math.max(parseInt(query.limit, 10) || defaults.limit, 1),
+    defaults.maxLimit
+  );
+  const skip = (page - 1) * limit;
+  return { page, limit, skip };
 }
 
 function formatProvider(providerDoc, userLat = null, userLng = null) {
@@ -163,24 +168,21 @@ function getRequestProviderEarning(requestDoc) {
 async function computeProviderWalletSummary(providerIdInput) {
   const providerId = new mongoose.Types.ObjectId(providerIdInput);
 
-  const paidCompletedRequests = await Request.find({
-    $and: [
-      {
-        $or: [{ assignedProviderId: providerId }, { assignedTo: providerId }],
-      },
-      { status: "completed" },
-      { paymentStatus: "paid" },
-    ],
-  }).select(
-    "providerAmount agreedAmount finalAmount paymentAmount quoteAmount quotedAmount totalAmount amount price"
-  );
+  const [paidCompletedRequests, pendingAgg, paidAgg] = await Promise.all([
+    Request.find({
+      $and: [
+        {
+          $or: [{ assignedProviderId: providerId }, { assignedTo: providerId }],
+        },
+        { status: "completed" },
+        { paymentStatus: "paid" },
+      ],
+    })
+      .select(
+        "providerAmount agreedAmount finalAmount paymentAmount quoteAmount quotedAmount totalAmount amount price"
+      )
+      .lean(),
 
-  const totalEarned = paidCompletedRequests.reduce(
-    (sum, r) => sum + getRequestProviderEarning(r),
-    0
-  );
-
-  const [pendingAgg, paidAgg] = await Promise.all([
     PayoutRequest.aggregate([
       {
         $match: {
@@ -195,6 +197,7 @@ async function computeProviderWalletSummary(providerIdInput) {
         },
       },
     ]),
+
     PayoutRequest.aggregate([
       {
         $match: {
@@ -210,6 +213,11 @@ async function computeProviderWalletSummary(providerIdInput) {
       },
     ]),
   ]);
+
+  const totalEarned = paidCompletedRequests.reduce(
+    (sum, r) => sum + getRequestProviderEarning(r),
+    0
+  );
 
   const pendingBalance = pendingAgg[0]?.total || 0;
   const totalPaidOut = paidAgg[0]?.total || 0;
@@ -230,18 +238,42 @@ async function computeProviderWalletSummary(providerIdInput) {
 
 router.get("/garages/approved", async (req, res) => {
   try {
-    const garages = await User.find(
-      {
-        role: "provider",
-        ...buildProviderTypeQuery("garage"),
-        "subscription.active": true,
-        status: { $in: ["approved", "active"] },
-        isApprovedProvider: true,
-      },
-      "-password"
-    );
+    const { page, limit, skip } = getPagination(req.query, {
+      page: 1,
+      limit: 20,
+      maxLimit: 50,
+    });
 
-    return res.json({ garages: garages.map((g) => formatProvider(g)) });
+    const query = {
+      role: "provider",
+      ...buildProviderTypeQuery("garage"),
+      "subscription.active": true,
+      status: { $in: ["approved", "active"] },
+      isApprovedProvider: true,
+    };
+
+    const [garages, total] = await Promise.all([
+      User.find(query)
+        .select(
+          "name phone businessName businessType providerType servicesOffered address rating profileImageUrl profileImage logoUrl subscription payoutInfo lat lng isAvailable isOnline isApprovedProvider status"
+        )
+        .sort({ rating: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      User.countDocuments(query),
+    ]);
+
+    return res.json({
+      garages: garages.map((g) => formatProvider(g)),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: skip + garages.length < total,
+      },
+    });
   } catch (err) {
     console.error("Get approved garages error:", err);
     return res.status(500).json({ message: "Server error" });
@@ -256,9 +288,11 @@ router.get("/public/:id", async (req, res) => {
       return res.status(400).json({ message: "Invalid provider id" });
     }
 
-    const provider = await User.findById(id).select(
-      "name businessName businessType providerType servicesOffered address phone logoUrl subscription payoutInfo rating lat lng isAvailable isOnline isApprovedProvider profileImageUrl profileImage status"
-    );
+    const provider = await User.findById(id)
+      .select(
+        "name businessName businessType providerType servicesOffered address phone logoUrl subscription payoutInfo rating lat lng isAvailable isOnline isApprovedProvider profileImageUrl profileImage status"
+      )
+      .lean();
 
     if (!provider) {
       return res.status(404).json({ message: "Provider not found" });
@@ -279,7 +313,10 @@ router.get("/:id/subscription", async (req, res) => {
       return res.status(400).json({ message: "Invalid provider id" });
     }
 
-    const provider = await User.findById(id).select("subscription role status");
+    const provider = await User.findById(id)
+      .select("subscription role status")
+      .lean();
+
     if (!provider) {
       return res.status(404).json({ message: "Provider not found" });
     }
@@ -312,6 +349,7 @@ router.get("/available", async (req, res) => {
     const lng = toNumberOrNull(req.query.lng);
     const onlineOnly =
       String(req.query.onlineOnly || "true").trim().toLowerCase() !== "false";
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10, 1), 30);
 
     if (!providerType) {
       return res.status(400).json({
@@ -331,12 +369,14 @@ router.get("/available", async (req, res) => {
       query.isOnline = true;
     }
 
-    const providers = await User.find(query).select(
-      "name phone businessName businessType providerType servicesOffered address rating profileImageUrl profileImage logoUrl payoutInfo subscription lat lng isAvailable isOnline isApprovedProvider status"
-    );
+    const providers = await User.find(query)
+      .select(
+        "name phone businessName businessType providerType servicesOffered address rating profileImageUrl profileImage logoUrl payoutInfo subscription lat lng isAvailable isOnline isApprovedProvider status"
+      )
+      .lean();
 
     let list = providers.map((p) => formatProvider(p, lat, lng));
-    list = sortProviders(list, lat, lng);
+    list = sortProviders(list, lat, lng).slice(0, limit);
 
     return res.json(list);
   } catch (err) {
@@ -355,11 +395,32 @@ router.get(
   authorize("admin"),
   async (req, res) => {
     try {
-      const list = await PayoutRequest.find()
-        .populate("providerId", "name email businessName phone")
-        .sort({ createdAt: -1 });
+      const { page, limit, skip } = getPagination(req.query, {
+        page: 1,
+        limit: 20,
+        maxLimit: 50,
+      });
 
-      return res.json(list);
+      const [list, total] = await Promise.all([
+        PayoutRequest.find()
+          .populate("providerId", "name email businessName phone")
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .lean(),
+        PayoutRequest.countDocuments(),
+      ]);
+
+      return res.json({
+        items: list,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+          hasNextPage: skip + list.length < total,
+        },
+      });
     } catch (err) {
       console.error("Admin get payout requests error:", err);
       return res.status(500).json({ message: "Server error" });
@@ -444,7 +505,10 @@ router.use(protect, authorize("provider"));
 
 router.get("/me", async (req, res) => {
   try {
-    const providerDoc = await User.findById(req.user._id).select("-password");
+    const providerDoc = await User.findById(req.user._id)
+      .select("-password")
+      .lean();
+
     if (!providerDoc) {
       return res.status(404).json({ message: "Provider not found" });
     }
@@ -462,8 +526,13 @@ router.patch("/me", async (req, res) => {
 
     delete updates._id;
     delete updates.id;
+    delete updates.password;
+    delete updates.role;
+    delete updates.subscription;
+    delete updates.payoutInfo;
+    delete updates.isApprovedProvider;
+    delete updates.status;
 
-    // ✅ Prevent empty required name from overwriting the existing one
     if (updates.name === undefined || String(updates.name).trim() === "") {
       delete updates.name;
     } else {
@@ -483,17 +552,21 @@ router.patch("/me", async (req, res) => {
     }
 
     if (updates.businessType !== undefined) {
-      updates.businessType = normalizeBusinessType(updates.businessType) || updates.businessType;
+      updates.businessType =
+        normalizeBusinessType(updates.businessType) || updates.businessType;
     }
 
     if (updates.providerType !== undefined) {
-      updates.providerType = normalizeBusinessType(updates.providerType) || updates.providerType;
+      updates.providerType =
+        normalizeBusinessType(updates.providerType) || updates.providerType;
     }
 
     const providerDoc = await User.findByIdAndUpdate(req.user._id, updates, {
       new: true,
       runValidators: true,
-    }).select("-password");
+    })
+      .select("-password")
+      .lean();
 
     if (!providerDoc) {
       return res.status(404).json({ message: "Provider not found" });
@@ -527,7 +600,9 @@ router.patch("/availability", async (req, res) => {
       req.user._id,
       { $set: update },
       { new: true, runValidators: true }
-    ).select("-password");
+    )
+      .select("-password")
+      .lean();
 
     if (!providerDoc) {
       return res.status(404).json({ message: "Provider not found" });
@@ -548,7 +623,10 @@ router.patch("/availability", async (req, res) => {
 ------------------------------------------ */
 router.get("/payout-info", async (req, res) => {
   try {
-    const providerDoc = await User.findById(req.user._id).select("payoutInfo");
+    const providerDoc = await User.findById(req.user._id)
+      .select("payoutInfo")
+      .lean();
+
     if (!providerDoc) {
       return res.status(404).json({ message: "Provider not found" });
     }
@@ -567,29 +645,20 @@ router.patch("/payout-info", async (req, res) => {
       method,
       accountName = "",
       phoneNumber = "",
-      bankName = "",
-      accountNumber = "",
     } = req.body || {};
 
-    if (!method || !["mobile_money", "bank"].includes(method)) {
-      return res.status(400).json({ message: "Valid payout method is required" });
+    if (method !== "airtel_money") {
+      return res.status(400).json({
+        message: "Only Airtel Money payout is supported",
+      });
     }
 
     if (!String(accountName).trim()) {
       return res.status(400).json({ message: "Account name is required" });
     }
 
-    if (method === "mobile_money" && !String(phoneNumber).trim()) {
-      return res.status(400).json({ message: "Phone number is required" });
-    }
-
-    if (
-      method === "bank" &&
-      (!String(bankName).trim() || !String(accountNumber).trim())
-    ) {
-      return res.status(400).json({
-        message: "Bank name and account number are required",
-      });
+    if (!String(phoneNumber).trim()) {
+      return res.status(400).json({ message: "Airtel number is required" });
     }
 
     const providerDoc = await User.findById(req.user._id);
@@ -598,11 +667,11 @@ router.patch("/payout-info", async (req, res) => {
     }
 
     providerDoc.payoutInfo = {
-      method,
+      method: "airtel_money",
       accountName: String(accountName).trim(),
-      phoneNumber: method === "mobile_money" ? String(phoneNumber).trim() : "",
-      bankName: method === "bank" ? String(bankName).trim() : "",
-      accountNumber: method === "bank" ? String(accountNumber).trim() : "",
+      phoneNumber: String(phoneNumber).trim(),
+      bankName: "",
+      accountNumber: "",
       isVerified: false,
     };
 
@@ -630,6 +699,7 @@ router.get("/wallet", async (req, res) => {
       pendingBalance: summary.pendingBalance,
       totalPaidOut: summary.totalPaidOut,
       availableBalance: summary.availableBalance,
+      paidCompletedRequestsCount: summary.paidCompletedRequestsCount,
     });
   } catch (err) {
     console.error("Get provider wallet error:", err);
@@ -642,14 +712,22 @@ router.get("/wallet", async (req, res) => {
 ------------------------------------------ */
 router.post("/payout-requests", async (req, res) => {
   try {
-    const providerDoc = await User.findById(req.user._id);
+    const providerDoc = await User.findById(req.user._id).select("payoutInfo");
     if (!providerDoc) {
       return res.status(404).json({ message: "Provider not found" });
     }
 
     const payoutInfo = getProviderRaw(providerDoc).payoutInfo || {};
     if (!payoutInfo.accountName || !payoutInfo.method) {
-      return res.status(400).json({ message: "Please add payout information first" });
+      return res.status(400).json({
+        message: "Please add payout information first",
+      });
+    }
+
+    if (payoutInfo.method !== "airtel_money") {
+      return res.status(400).json({
+        message: "Only Airtel Money payout is supported",
+      });
     }
 
     const amount = Number(req.body?.amount || 0);
@@ -670,11 +748,9 @@ router.post("/payout-requests", async (req, res) => {
     const payoutRequest = await PayoutRequest.create({
       providerId: new mongoose.Types.ObjectId(req.user._id),
       amount,
-      method: payoutInfo.method,
+      method: "airtel_money",
       accountName: payoutInfo.accountName || "",
       phoneNumber: payoutInfo.phoneNumber || "",
-      bankName: payoutInfo.bankName || "",
-      accountNumber: payoutInfo.accountNumber || "",
       status: "pending",
     });
 
@@ -690,11 +766,35 @@ router.post("/payout-requests", async (req, res) => {
 ------------------------------------------ */
 router.get("/payout-requests", async (req, res) => {
   try {
-    const payoutRequests = await PayoutRequest.find({
-      providerId: new mongoose.Types.ObjectId(req.user._id),
-    }).sort({ createdAt: -1 });
+    const { page, limit, skip } = getPagination(req.query, {
+      page: 1,
+      limit: 20,
+      maxLimit: 50,
+    });
 
-    return res.json(payoutRequests);
+    const query = {
+      providerId: new mongoose.Types.ObjectId(req.user._id),
+    };
+
+    const [payoutRequests, total] = await Promise.all([
+      PayoutRequest.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      PayoutRequest.countDocuments(query),
+    ]);
+
+    return res.json({
+      items: payoutRequests,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: skip + payoutRequests.length < total,
+      },
+    });
   } catch (err) {
     console.error("Get provider payout requests error:", err);
     return res.status(500).json({ message: "Server error" });
@@ -719,6 +819,12 @@ router.put("/provider/:id/settings", async (req, res) => {
     const updates = { ...(req.body || {}) };
     delete updates._id;
     delete updates.id;
+    delete updates.password;
+    delete updates.role;
+    delete updates.subscription;
+    delete updates.payoutInfo;
+    delete updates.isApprovedProvider;
+    delete updates.status;
 
     if (updates.name === undefined || String(updates.name).trim() === "") {
       delete updates.name;
@@ -737,7 +843,9 @@ router.put("/provider/:id/settings", async (req, res) => {
     const providerDoc = await User.findByIdAndUpdate(id, updates, {
       new: true,
       runValidators: true,
-    }).select("-password");
+    })
+      .select("-password")
+      .lean();
 
     if (!providerDoc) {
       return res.status(404).json({ message: "Provider not found" });
@@ -756,6 +864,11 @@ router.put("/provider/:id/settings", async (req, res) => {
 router.get("/requests/byProvider/:providerId", async (req, res) => {
   try {
     const { providerId } = req.params;
+    const { page, limit, skip } = getPagination(req.query, {
+      page: 1,
+      limit: 20,
+      maxLimit: 50,
+    });
 
     if (req.user._id.toString() !== providerId) {
       return res.status(403).json({ message: "Access denied" });
@@ -765,7 +878,10 @@ router.get("/requests/byProvider/:providerId", async (req, res) => {
       return res.status(400).json({ message: "Invalid provider id" });
     }
 
-    const provider = await User.findById(providerId);
+    const provider = await User.findById(providerId)
+      .select("businessType providerType")
+      .lean();
+
     if (!provider) {
       return res.status(404).json({ message: "Provider not found" });
     }
@@ -773,15 +889,36 @@ router.get("/requests/byProvider/:providerId", async (req, res) => {
     const rawProvider = getProviderRaw(provider);
     const normalizedType = getProviderType(rawProvider);
 
-    const requests = await Request.find({
+    const query = {
       $or: [
-        { providerType: normalizedType },
+        ...(normalizedType ? [{ providerType: normalizedType }] : []),
         { assignedProviderId: provider._id },
         { targetProviderId: provider._id },
       ],
-    }).sort({ createdAt: -1 });
+    };
 
-    return res.json(requests);
+    const [requests, total] = await Promise.all([
+      Request.find(query)
+        .select(
+          "_id userId assignedProviderId targetProviderId providerType service status createdAt updatedAt paymentStatus paymentAmount userLocation assignedProviderName"
+        )
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Request.countDocuments(query),
+    ]);
+
+    return res.json({
+      items: requests,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: skip + requests.length < total,
+      },
+    });
   } catch (err) {
     console.error("Provider requests error:", err);
     return res.status(500).json({ message: "Server error" });

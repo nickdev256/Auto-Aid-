@@ -4,9 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project.auto_aid.data.network.ApiService
 import com.project.auto_aid.data.network.dto.CreateRequestBody
-import com.project.auto_aid.data.network.dto.RequestDto
-import com.project.auto_aid.data.network.dto.UpdateStatusBody
 import com.project.auto_aid.data.network.dto.LocationBody
+import com.project.auto_aid.data.network.dto.RequestDto
+import com.project.auto_aid.data.network.dto.StatusUpdateResponse
+import com.project.auto_aid.data.network.dto.UpdateStatusBody
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,7 +32,7 @@ class FuelViewModel(
                     val response = api.getRequestById(requestId)
                     if (!response.isSuccessful) throw Exception("HTTP ${response.code()}")
                     response.body() ?: throw Exception("Empty body")
-                }.onSuccess { dto ->
+                }.onSuccess { dto: RequestDto ->
                     _request.value = dto.toFuelRequest()
 
                     val s = _request.value.status
@@ -68,7 +69,7 @@ class FuelViewModel(
                 )
                 if (!response.isSuccessful) throw Exception("HTTP ${response.code()}")
                 response.body() ?: throw Exception("Empty body")
-            }.onSuccess { created ->
+            }.onSuccess { created: RequestDto ->
                 val id = created.resolvedId()
                 if (id.isBlank()) return@onSuccess
 
@@ -89,8 +90,12 @@ class FuelViewModel(
                     UpdateStatusBody(status = "cancelled")
                 )
                 if (!response.isSuccessful) throw Exception("HTTP ${response.code()}")
-                response.body() ?: throw Exception("Empty body")
-            }.onSuccess { updated ->
+
+                val body: StatusUpdateResponse =
+                    response.body() ?: throw Exception("Empty body")
+
+                body.request ?: throw Exception("Missing request in response")
+            }.onSuccess { updated: RequestDto ->
                 _request.value = updated.toFuelRequest()
             }
         }
@@ -108,7 +113,8 @@ private fun RequestDto.toFuelRequest(): FuelRequest {
     val mapped = when (backendStatus) {
         "PENDING", "REQUEST_SENT" -> FuelStatus.REQUEST_SENT
         "ASSIGNED", "VENDOR_ASSIGNED" -> FuelStatus.VENDOR_ASSIGNED
-        "DRIVER_ON_THE_WAY", "VENDOR_ON_THE_WAY" -> FuelStatus.VENDOR_ON_THE_WAY
+        "EN_ROUTE", "ON_THE_WAY", "PROVIDER_ON_THE_WAY", "DRIVER_ON_THE_WAY", "VENDOR_ON_THE_WAY" ->
+            FuelStatus.VENDOR_ON_THE_WAY
         "ARRIVED" -> FuelStatus.ARRIVED
         "IN_PROGRESS", "DELIVERING" -> FuelStatus.DELIVERING
         "DELIVERED" -> FuelStatus.DELIVERED
@@ -136,4 +142,8 @@ private fun RequestDto.toFuelRequest(): FuelRequest {
         quantity = this.vehicleInfo ?: "",
         paymentMethod = this.problem ?: "Cash"
     )
+}
+
+private fun RequestDto.resolvedId(): String {
+    return this.requestId ?: this._id ?: this.id ?: ""
 }

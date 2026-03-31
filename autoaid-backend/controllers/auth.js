@@ -1,6 +1,14 @@
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 import User from "../models/User.js";
+import Referral from "../models/Referral.js";
 import Settings from "../models/Settings.js";
 import { signToken } from "../utils/jwt.js";
+import { sendResetEmail } from "../utils/sendResetEmail.js";
+import {
+  generateUniqueReferralCode,
+  REFERRAL_DISCOUNT_AMOUNT,
+} from "../utils/referral.js";
 
 function isMobileClient(req) {
   const client = (req.headers["x-client"] || "").toString().toLowerCase();
@@ -21,9 +29,25 @@ function buildAuthUser(userDoc) {
     phone: user.phone || "",
     role: user.role,
     status: user.status,
+
+    // IMPORTANT: send provider type to frontend
+    businessType: user.businessType || "",
+    services: Array.isArray(user.services) ? user.services : [],
+    businessName: user.businessName || "",
+    address: user.address || "",
+    description: user.description || "",
+    isOnline: user.isOnline ?? false,
+    isVerified: !!user.isVerified,
+
     verificationStatus: user.verificationStatus || "not_verified",
     registeredFrom: user.registeredFrom || "web",
     lastLoginFrom: user.lastLoginFrom || "web",
+
+    // referral
+    referralCode: user.referralCode || "",
+    referredBy: user.referredBy || null,
+    hasUsedReferralDiscount: !!user.hasUsedReferralDiscount,
+    nextReferralDiscountAmount: Number(user.nextReferralDiscountAmount || 0),
   };
 }
 
@@ -53,7 +77,19 @@ async function getSystemSettings() {
 
 export async function signup(req, res) {
   try {
-    const { name, email, password, role, phone } = req.body || {};
+    const {
+      name,
+      email,
+      password,
+      role,
+      phone,
+      referralCode,
+      businessType,
+      businessName,
+      address,
+      services,
+      description,
+    } = req.body || {};
 
     if (!name || !email || !password) {
       return res.status(400).json({
@@ -64,6 +100,12 @@ export async function signup(req, res) {
     const cleanEmail = String(email).toLowerCase().trim();
     const cleanName = String(name).trim();
     const cleanPhone = String(phone || "").trim();
+    const cleanReferralCode = String(referralCode || "")
+      .trim()
+      .toUpperCase();
+    const cleanBusinessType = String(businessType || "")
+      .trim()
+      .toLowerCase();
 
     const exists = await User.findOne({ email: cleanEmail });
     if (exists) {
@@ -89,15 +131,38 @@ export async function signup(req, res) {
       });
     }
 
+    if (
+      newRole === "provider" &&
+      cleanBusinessType &&
+      !["garage", "fuel", "towing", "ambulance"].includes(cleanBusinessType)
+    ) {
+      return res.status(400).json({
+        message: "Invalid business type for provider account.",
+      });
+    }
+
     let status = "active";
 
     if (newRole === "provider") {
       status = settings.autoApproveProviders ? "approved" : "pending";
     }
 
-    const clientSource = isMobileClient(req) ? "android" : "web";
+    let referrer = null;
 
-    const user = await new User({
+    if (cleanReferralCode) {
+      referrer = await User.findOne({ referralCode: cleanReferralCode });
+
+      if (!referrer) {
+        return res.status(400).json({
+          message: "Invalid referral code",
+        });
+      }
+    }
+
+    const clientSource = isMobileClient(req) ? "android" : "web";
+    const ownReferralCode = await generateUniqueReferralCode(cleanName);
+
+    const payload = {
       name: cleanName,
       email: cleanEmail,
       password,
@@ -107,7 +172,36 @@ export async function signup(req, res) {
       verificationStatus: "not_verified",
       registeredFrom: clientSource,
       lastLoginFrom: clientSource,
-    }).save();
+
+      referralCode: ownReferralCode,
+      referredBy: referrer ? referrer._id : null,
+      referralCodeUsedAtSignup: referrer ? cleanReferralCode : null,
+      hasUsedReferralDiscount: false,
+      nextReferralDiscountAmount: 0,
+    };
+
+    if (newRole === "provider") {
+      payload.businessType = cleanBusinessType || "";
+      payload.businessName = String(businessName || cleanName).trim();
+      payload.address = String(address || "").trim();
+      payload.description = String(description || "").trim();
+      payload.services = Array.isArray(services) ? services : [];
+      payload.isOnline = false;
+      payload.isVerified = false;
+    }
+
+    const user = await new User(payload).save();
+
+    if (referrer && String(referrer._id) !== String(user._id)) {
+      await Referral.create({
+        referrerUserId: referrer._id,
+        referredUserId: user._id,
+        referralCode: cleanReferralCode,
+        status: "signed_up",
+        friendDiscountAmount: REFERRAL_DISCOUNT_AMOUNT,
+        referrerRewardAmount: REFERRAL_DISCOUNT_AMOUNT,
+      });
+    }
 
     const token = signToken(user);
 
@@ -172,6 +266,18 @@ export async function login(req, res) {
     if (user.role === "provider" && user.status === "pending") {
       return res.status(403).json({
         message: "Provider account is pending admin approval.",
+      });
+    }
+
+    if (user.role === "provider" && user.status === "rejected") {
+      return res.status(403).json({
+        message: "Provider account has been rejected.",
+      });
+    }
+
+    if (user.role === "provider" && user.status === "suspended") {
+      return res.status(403).json({
+        message: "Provider account is suspended.",
       });
     }
 
@@ -241,4 +347,80 @@ export async function logout(req, res) {
   return res.json({
     message: "Logged out",
   });
+}
+
+export async function forgotPassword(req, res) {
+  try {
+    const email = String(req.body.email || "").trim().toLowerCase();
+
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(200).json({
+        message: "If that email exists, a reset link has been sent.",
+      });
+    }
+
+    const resetToken = jwt.sign(
+      { id: user._id, email: user.email, type: "password_reset" },
+      process.env.JWT_SECRET,
+      { expiresIn: "30m" }
+    );
+
+    const resetLink = `${process.env.FRONTEND_RESET_URL}?token=${resetToken}`;
+
+    await sendResetEmail(user.email, resetLink);
+
+    return res.status(200).json({
+      message: "Reset link sent to your email.",
+    });
+  } catch (error) {
+    console.error("forgotPassword error:", error);
+    return res.status(500).json({
+      message: "Failed to send reset link",
+    });
+  }
+}
+
+export async function resetPassword(req, res) {
+  try {
+    const { token, newPassword } = req.body || {};
+
+    if (!token || !newPassword) {
+      return res.status(400).json({
+        message: "Token and new password are required",
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (decoded.type !== "password_reset") {
+      return res.status(400).json({
+        message: "Invalid reset token",
+      });
+    }
+
+    const user = await User.findById(decoded.id);
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+
+    return res.status(200).json({
+      message: "Password reset successful",
+    });
+  } catch (error) {
+    console.error("resetPassword error:", error);
+    return res.status(400).json({
+      message: "Reset link is invalid or expired",
+    });
+  }
 }

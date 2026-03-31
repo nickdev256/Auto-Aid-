@@ -1,5 +1,5 @@
 // src/Provider/ProviderSettings.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { updateProviderBusiness } from "../services/api";
 import { useNavigate } from "react-router-dom";
@@ -11,61 +11,75 @@ export default function ProviderSettings() {
 
   if (!user) return <p>You must be logged in as a provider.</p>;
 
-  /* =======================================================
-        INITIAL FORM STATE
-  ======================================================= */
   const [form, setForm] = useState({
     businessName: user.businessName || "",
     phone: user.phone || "",
     address: user.address || "",
     businessType: user.businessType || "",
     services: user.services || [],
-
     description: user.description || "",
     serviceRadiusKm: user.serviceRadiusKm || 10,
     isOnline: user.isOnline ?? true,
-
     basePrice: user.basePrice || 0,
     pricePerKm: user.pricePerKm || 0,
-
     openTime: user.openTime || "",
     closeTime: user.closeTime || "",
-
     paymentMethod: user.paymentMethod || "mtn",
-
     lat: user.lat || null,
     lng: user.lng || null,
-
     logo: null,
     licenseFile: null,
   });
 
   const [saving, setSaving] = useState(false);
 
-  /* =======================================================
-       GPS LOCATION UPDATE
-  ======================================================= */
+  const goBackToDashboard = () => {
+    const type = String(user?.businessType || form?.businessType || "")
+      .toLowerCase()
+      .trim();
+
+    if (type === "garage") {
+      navigate("/provider/garage");
+      return;
+    }
+    if (type === "fuel") {
+      navigate("/provider/fuel");
+      return;
+    }
+    if (type === "towing") {
+      navigate("/provider/towing");
+      return;
+    }
+    if (type === "ambulance") {
+      navigate("/provider/ambulance");
+      return;
+    }
+
+    navigate("/provider/dashboard");
+  };
+
   const updateLocation = () => {
-    if (!navigator.geolocation)
-      return alert("Your device does not support GPS.");
+    if (!navigator.geolocation) {
+      alert("Your device does not support GPS.");
+      return;
+    }
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setForm({
-          ...form,
+        setForm((prev) => ({
+          ...prev,
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
-        });
+        }));
         alert("📍 GPS Location Updated!");
       },
-      () => alert("Enable GPS permissions to update location."),
+      () => {
+        alert("Enable GPS permissions to update location.");
+      },
       { enableHighAccuracy: true }
     );
   };
 
-  /* =======================================================
-       SAVE CHANGES TO BACKEND
-  ======================================================= */
   const saveChanges = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -75,40 +89,78 @@ export default function ProviderSettings() {
     delete payload.licenseFile;
 
     try {
-      const res = await updateProviderBusiness(user.id || user._id, payload);
+      const providerId = user.id || user._id;
+      const res = await updateProviderBusiness(providerId, payload);
 
-      const updatedUser = { ...user, ...res };
+      // support either:
+      // 1) backend returns { user: {...} }
+      // 2) backend returns {...userFields}
+      const returnedUser = res?.user && typeof res.user === "object" ? res.user : res;
+
+      const updatedUser = {
+        ...user,
+        ...returnedUser,
+        businessType:
+          returnedUser?.businessType ??
+          payload.businessType ??
+          user.businessType ??
+          "",
+        services: Array.isArray(returnedUser?.services)
+          ? returnedUser.services
+          : payload.services,
+        businessName:
+          returnedUser?.businessName ??
+          payload.businessName ??
+          user.businessName ??
+          "",
+        address:
+          returnedUser?.address ??
+          payload.address ??
+          user.address ??
+          "",
+        description:
+          returnedUser?.description ??
+          payload.description ??
+          user.description ??
+          "",
+        isOnline:
+          typeof returnedUser?.isOnline === "boolean"
+            ? returnedUser.isOnline
+            : payload.isOnline,
+        phone:
+          returnedUser?.phone ??
+          payload.phone ??
+          user.phone ??
+          "",
+      };
+
       setUser(updatedUser);
-      localStorage.setItem("autoaid_user", JSON.stringify(updatedUser));
+      localStorage.setItem("auth_user", JSON.stringify(updatedUser));
+      localStorage.removeItem("autoaid_user");
 
       alert("Settings updated successfully! 🎉");
+      goBackToDashboard();
     } catch (err) {
-      alert("❌ Update failed: " + err.message);
+      alert("❌ Update failed: " + (err?.message || "Something went wrong"));
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
   };
 
-  /* =======================================================
-        MULTI-SERVICE SELECT HANDLER
-  ======================================================= */
   const toggleService = (service) => {
     const selected = form.services.includes(service)
       ? form.services.filter((s) => s !== service)
       : [...form.services, service];
 
-    setForm({ ...form, services: selected });
+    setForm((prev) => ({ ...prev, services: selected }));
   };
 
   return (
     <div className="provider-settings">
-
-      {/* BACK BUTTON */}
-      <button className="back-btn" onClick={() => navigate("/provider/dashboard")}>
+      <button className="back-btn" onClick={goBackToDashboard}>
         ← Back to Dashboard
       </button>
 
-      {/* HEADER */}
       <div className="settings-header">
         <h1>Provider Business Settings</h1>
         <p>Update your business details & service preferences.</p>
@@ -118,19 +170,16 @@ export default function ProviderSettings() {
         </div>
       </div>
 
-      {/* MAIN CARD */}
       <div className="settings-card">
         <form className="settings-form" onSubmit={saveChanges}>
-
-          {/* =======================================================
-              BUSINESS NAME + PHONE
-          ======================================================= */}
           <div className="two-col">
             <div className="form-group">
               <label>Business Name</label>
               <input
                 value={form.businessName}
-                onChange={(e) => setForm({ ...form, businessName: e.target.value })}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, businessName: e.target.value }))
+                }
                 placeholder="Enter your business name"
               />
             </div>
@@ -139,21 +188,22 @@ export default function ProviderSettings() {
               <label>Phone Number</label>
               <input
                 value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, phone: e.target.value }))
+                }
                 placeholder="+256 700 000000"
               />
             </div>
           </div>
 
-          {/* =======================================================
-              ADDRESS + BUSINESS TYPE
-          ======================================================= */}
           <div className="two-col">
             <div className="form-group">
               <label>Address</label>
               <input
                 value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value })}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, address: e.target.value }))
+                }
                 placeholder="Business address"
               />
             </div>
@@ -162,7 +212,9 @@ export default function ProviderSettings() {
               <label>Primary Business Type</label>
               <select
                 value={form.businessType}
-                onChange={(e) => setForm({ ...form, businessType: e.target.value })}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, businessType: e.target.value }))
+                }
               >
                 <option value="">Select service type</option>
                 <option value="garage">Garage / Mechanic</option>
@@ -173,23 +225,36 @@ export default function ProviderSettings() {
             </div>
           </div>
 
-        
-          {/* =======================================================
-              DESCRIPTION
-          ======================================================= */}
           <div className="form-group">
             <label>Description</label>
             <textarea
               rows={3}
               value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, description: e.target.value }))
+              }
               placeholder="Describe your service"
             />
           </div>
 
-          {/* =======================================================
-              PRICING
-          ======================================================= */}
+          <h3 className="section-label">Services</h3>
+          <div className="two-col">
+            {["garage", "fuel", "towing", "ambulance"].map((service) => (
+              <label
+                key={service}
+                className="form-group"
+                style={{ display: "flex", gap: 8, alignItems: "center" }}
+              >
+                <input
+                  type="checkbox"
+                  checked={form.services.includes(service)}
+                  onChange={() => toggleService(service)}
+                />
+                <span style={{ textTransform: "capitalize" }}>{service}</span>
+              </label>
+            ))}
+          </div>
+
           <h3 className="section-label">Pricing</h3>
 
           <div className="two-col">
@@ -198,7 +263,12 @@ export default function ProviderSettings() {
               <input
                 type="number"
                 value={form.basePrice}
-                onChange={(e) => setForm({ ...form, basePrice: Number(e.target.value) })}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    basePrice: Number(e.target.value),
+                  }))
+                }
               />
             </div>
 
@@ -207,14 +277,16 @@ export default function ProviderSettings() {
               <input
                 type="number"
                 value={form.pricePerKm}
-                onChange={(e) => setForm({ ...form, pricePerKm: Number(e.target.value) })}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    pricePerKm: Number(e.target.value),
+                  }))
+                }
               />
             </div>
           </div>
 
-          {/* =======================================================
-              OPERATING HOURS
-          ======================================================= */}
           <h3 className="section-label">Operating Hours</h3>
 
           <div className="two-col">
@@ -223,7 +295,9 @@ export default function ProviderSettings() {
               <input
                 type="time"
                 value={form.openTime}
-                onChange={(e) => setForm({ ...form, openTime: e.target.value })}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, openTime: e.target.value }))
+                }
               />
             </div>
 
@@ -232,33 +306,36 @@ export default function ProviderSettings() {
               <input
                 type="time"
                 value={form.closeTime}
-                onChange={(e) => setForm({ ...form, closeTime: e.target.value })}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, closeTime: e.target.value }))
+                }
               />
             </div>
           </div>
 
-          {/* =======================================================
-              AVAILABILITY
-          ======================================================= */}
           <div className="form-group">
             <label>Availability</label>
             <select
-              value={form.isOnline}
-              onChange={(e) => setForm({ ...form, isOnline: e.target.value === "true" })}
+              value={String(form.isOnline)}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  isOnline: e.target.value === "true",
+                }))
+              }
             >
               <option value="true">Online / Available</option>
               <option value="false">Offline / Not Available</option>
             </select>
           </div>
 
-          {/* =======================================================
-              PAYMENT METHOD
-          ======================================================= */}
           <div className="form-group">
             <label>Preferred Payment Method</label>
             <select
               value={form.paymentMethod}
-              onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, paymentMethod: e.target.value }))
+              }
             >
               <option value="mtn">MTN Mobile Money</option>
               <option value="airtel">Airtel Money</option>
@@ -266,53 +343,54 @@ export default function ProviderSettings() {
             </select>
           </div>
 
-          {/* =======================================================
-              BUSINESS LOGO
-          ======================================================= */}
           <div className="form-group">
             <label>Business Logo</label>
             <input
               type="file"
-              onChange={(e) => setForm({ ...form, logo: e.target.files[0] })}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  logo: e.target.files?.[0] || null,
+                }))
+              }
             />
           </div>
 
-          {/* =======================================================
-              LICENSE / CERTIFICATION UPLOAD
-          ======================================================= */}
           <div className="form-group">
             <label>Upload License / ID</label>
             <input
               type="file"
-              onChange={(e) => setForm({ ...form, licenseFile: e.target.files[0] })}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  licenseFile: e.target.files?.[0] || null,
+                }))
+              }
             />
           </div>
 
-          {/* =======================================================
-              GPS LOCATION
-          ======================================================= */}
           <div className="location-box">
             <div>
               <label>GPS Location</label>
               <p className="location-view">
                 {form.lat && form.lng
-                  ? `📍 ${form.lat.toFixed(6)}, ${form.lng.toFixed(6)}`
+                  ? `📍 ${Number(form.lat).toFixed(6)}, ${Number(form.lng).toFixed(6)}`
                   : "Location not set"}
               </p>
             </div>
 
-            <button type="button" onClick={updateLocation} className="btn-outline small">
+            <button
+              type="button"
+              onClick={updateLocation}
+              className="btn-outline small"
+            >
               Update GPS Location
             </button>
           </div>
 
-          {/* =======================================================
-              SAVE BUTTON
-          ======================================================= */}
           <button className="btn-primary large" type="submit" disabled={saving}>
             {saving ? "Saving..." : "Save Changes"}
           </button>
-
         </form>
       </div>
     </div>

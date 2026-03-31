@@ -6,7 +6,17 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -26,7 +36,12 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -38,12 +53,13 @@ import coil.compose.rememberAsyncImagePainter
 import com.project.auto_aid.data.local.TokenStore
 import com.project.auto_aid.data.network.RetrofitClient
 import com.project.auto_aid.data.network.dto.CreateRequestBody
-import com.project.auto_aid.data.network.dto.RequestDto
 import com.project.auto_aid.data.network.dto.LocationBody
+import com.project.auto_aid.data.network.dto.RequestDto
 import com.project.auto_aid.navigation.Routes
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.UUID
+import androidx.compose.runtime.rememberCoroutineScope
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,8 +87,18 @@ fun GarageRequestScreen(
     val finalLat = pickedLocationLatState?.value ?: userLat
     val finalLng = pickedLocationLngState?.value ?: userLng
 
-    var vehicleInfo by remember { mutableStateOf("") }
-    var problem by remember { mutableStateOf("") }
+    // ✅ AI + direct flow support
+    val prev = navController.previousBackStackEntry
+    val aiState = prev?.savedStateHandle ?: savedStateHandle
+
+    val aiProblem = aiState?.get<String>("ai_problem").orEmpty()
+    val aiUrgency = aiState?.get<String>("ai_urgency").orEmpty()
+    val aiNote = aiState?.get<String>("ai_note").orEmpty()
+    val aiVehicleInfo = aiState?.get<String>("ai_vehicle_info").orEmpty()
+    val selectedProviderId = providerId ?: aiState?.get<String>("selected_provider_id")
+
+    var vehicleInfo by remember { mutableStateOf(aiVehicleInfo) }
+    var problem by remember { mutableStateOf(aiProblem) }
     var serviceType by remember { mutableStateOf("General Repair") }
     var submitting by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -133,7 +159,7 @@ fun GarageRequestScreen(
                 .verticalScroll(scrollState)
                 .padding(20.dp)
         ) {
-            if (providerId != null) {
+            if (selectedProviderId != null) {
                 AssistChip(onClick = {}, label = { Text("Target provider selected") })
             } else {
                 AssistChip(
@@ -148,6 +174,36 @@ fun GarageRequestScreen(
                     onClick = {},
                     label = { Text("Location: $pickedLabel") }
                 )
+            }
+
+            // ✅ AI summary card
+            if (aiProblem.isNotBlank()) {
+                Spacer(Modifier.height(10.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Column(Modifier.padding(12.dp)) {
+                        Text(
+                            text = "AutoAid AI Suggestion",
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Spacer(Modifier.height(6.dp))
+
+                        Text(aiProblem)
+
+                        if (aiUrgency.isNotBlank()) {
+                            Spacer(Modifier.height(6.dp))
+                            Text("Urgency: $aiUrgency")
+                        }
+
+                        if (aiNote.isNotBlank()) {
+                            Spacer(Modifier.height(6.dp))
+                            Text("Note: $aiNote")
+                        }
+                    }
+                }
             }
 
             Spacer(Modifier.height(10.dp))
@@ -313,10 +369,20 @@ fun GarageRequestScreen(
                                     service = "garage",
                                     providerType = "garage",
                                     vehicleInfo = vehicleInfo.trim(),
-                                    problem = problem.trim(),
+                                    problem = buildString {
+                                        append(problem.trim())
+                                        if (aiNote.isNotBlank()) {
+                                            append("\n\nAI Note: ")
+                                            append(aiNote.trim())
+                                        }
+                                        if (aiUrgency.isNotBlank()) {
+                                            append("\nUrgency: ")
+                                            append(aiUrgency.trim())
+                                        }
+                                    },
                                     towType = serviceType,
                                     userLocation = LocationBody(finalLat, finalLng),
-                                    targetProviderId = providerId
+                                    targetProviderId = selectedProviderId
                                 )
                             )
 
@@ -335,6 +401,13 @@ fun GarageRequestScreen(
                             navController.previousBackStackEntry
                                 ?.savedStateHandle
                                 ?.set("active_garage_request_id", rid)
+
+                            // ✅ clear AI temp state after success
+                            aiState?.remove<String>("ai_problem")
+                            aiState?.remove<String>("ai_urgency")
+                            aiState?.remove<String>("ai_note")
+                            aiState?.remove<String>("ai_vehicle_info")
+                            aiState?.remove<String>("selected_provider_id")
 
                             navController.navigate(Routes.GarageActiveScreen.createRoute(rid))
                         } catch (e: Throwable) {

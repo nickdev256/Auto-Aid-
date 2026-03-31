@@ -10,9 +10,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import com.project.auto_aid.data.model.UserProfile
+import com.project.auto_aid.screens.IdentityVerificationScreen
 import com.project.auto_aid.viewmodel.AuthViewModel
 import com.project.auto_aid.viewmodel.IdentityVerificationViewModel
-import com.project.auto_aid.screens.IdentityVerificationScreen
 
 @Composable
 fun IdentityVerificationRoute(
@@ -34,7 +35,17 @@ fun IdentityVerificationRoute(
 
     LaunchedEffect(authState.data) {
         authState.data?.let { authResponse ->
-            verificationViewModel.loadUser(authResponse.toUserProfile())
+            val user = UserProfile(
+                id = authResponse.user?.id
+                    ?: authResponse.user?._id
+                    ?: "",
+                fullName = authResponse.user?.name ?: "",
+                email = authResponse.user?.email ?: "",
+                phone = authResponse.user?.phone ?: "",
+                verificationStatus = authResponse.user?.verificationStatus ?: "not_verified"
+            )
+
+            verificationViewModel.loadUser(user)
         }
     }
 

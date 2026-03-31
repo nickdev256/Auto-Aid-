@@ -15,14 +15,12 @@ data class ProviderVerificationUiState(
     val verificationStatus: String = "not_verified",
     val rejectionReason: String = "",
 
-    // Uploaded URLs from backend
     val licenseDocumentUrl: String = "",
     val businessDocumentUrl: String = "",
     val nationalIdFrontUrl: String = "",
     val nationalIdBackUrl: String = "",
     val profileImageUrl: String = "",
 
-    // Newly selected local images before upload
     val selectedLicenseUri: Uri? = null,
     val selectedBusinessUri: Uri? = null,
     val selectedNationalIdFrontUri: Uri? = null,
@@ -32,7 +30,6 @@ data class ProviderVerificationUiState(
     val canReceiveJobs: Boolean = false,
     val verifiedBadgeText: String = "",
 
-    // Helpful preview flags
     val hasLicensePhoto: Boolean = false,
     val hasBusinessPhoto: Boolean = false,
     val hasNationalIdFrontPhoto: Boolean = false,

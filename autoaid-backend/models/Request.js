@@ -28,21 +28,23 @@ const LastMessageSchema = new Schema(
   { _id: false }
 );
 
+const REQUEST_STATUS_ENUM = [
+  "pending",
+  "accepted",
+  "started",
+  "arrived",
+  "quotation_sent",
+  "paid",
+  "provider_done",
+  "completed",
+  "cancelled",
+];
+
 const StatusHistorySchema = new Schema(
   {
     status: {
       type: String,
-      enum: [
-        "pending",
-        "assigned",
-        "arrived",
-        "quoted",
-        "awaiting_payment",
-        "in_progress",
-        "awaiting_dual_confirmation",
-        "completed",
-        "cancelled",
-      ],
+      enum: REQUEST_STATUS_ENUM,
       required: true,
       lowercase: true,
       trim: true,
@@ -70,9 +72,6 @@ const StatusHistorySchema = new Schema(
 ================================================= */
 const RequestSchema = new Schema(
   {
-    // -------------------------
-    // USER
-    // -------------------------
     userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -90,9 +89,6 @@ const RequestSchema = new Schema(
       trim: true,
     },
 
-    // -------------------------
-    // SOURCE
-    // -------------------------
     requestedFrom: {
       type: String,
       enum: ["android", "web"],
@@ -107,9 +103,6 @@ const RequestSchema = new Schema(
       index: true,
     },
 
-    // -------------------------
-    // TYPE
-    // -------------------------
     providerType: {
       type: String,
       enum: ["towing", "fuel", "ambulance", "garage"],
@@ -127,9 +120,6 @@ const RequestSchema = new Schema(
       trim: true,
     },
 
-    // -------------------------
-    // TARGETING
-    // -------------------------
     targetProviderId: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -144,22 +134,9 @@ const RequestSchema = new Schema(
       index: true,
     },
 
-    // -------------------------
-    // STATUS / ASSIGNMENT
-    // -------------------------
     status: {
       type: String,
-      enum: [
-        "pending",
-        "assigned",
-        "arrived",
-        "quoted",
-        "awaiting_payment",
-        "in_progress",
-        "awaiting_dual_confirmation",
-        "completed",
-        "cancelled",
-      ],
+      enum: REQUEST_STATUS_ENUM,
       default: "pending",
       index: true,
       lowercase: true,
@@ -178,7 +155,6 @@ const RequestSchema = new Schema(
       index: true,
     },
 
-    // ✅ legacy compatibility
     assignedTo: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -202,9 +178,46 @@ const RequestSchema = new Schema(
       min: 0,
     },
 
-    // -------------------------
-    // COMPLETION CONFIRMATION
-    // -------------------------
+    assignedAt: {
+      type: Date,
+      default: null,
+    },
+
+    tripStartedAt: {
+      type: Date,
+      default: null,
+    },
+
+    arrivedAt: {
+      type: Date,
+      default: null,
+    },
+
+    quoteSentAt: {
+      type: Date,
+      default: null,
+    },
+
+    paymentReadyAt: {
+      type: Date,
+      default: null,
+    },
+
+    providerCompletedAt: {
+      type: Date,
+      default: null,
+    },
+
+    userCompletedAt: {
+      type: Date,
+      default: null,
+    },
+
+    cancelledAt: {
+      type: Date,
+      default: null,
+    },
+
     providerCompleted: {
       type: Boolean,
       default: false,
@@ -223,9 +236,6 @@ const RequestSchema = new Schema(
       index: true,
     },
 
-    // -------------------------
-    // LOCATION
-    // -------------------------
     userLocation: {
       type: LocationSchema,
       default: () => ({ lat: 0, lng: 0 }),
@@ -236,9 +246,6 @@ const RequestSchema = new Schema(
       default: () => ({ lat: 0, lng: 0 }),
     },
 
-    // -------------------------
-    // DETAILS
-    // -------------------------
     vehicleInfo: {
       type: String,
       default: "",
@@ -271,9 +278,48 @@ const RequestSchema = new Schema(
       trim: true,
     },
 
-    // -------------------------
-    // OPTIONAL PHOTO ON REQUEST
-    // -------------------------
+    aiSummary: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    aiUrgency: {
+      type: String,
+      enum: ["", "low", "medium", "high", "critical"],
+      default: "",
+      lowercase: true,
+      trim: true,
+    },
+
+    aiSuggestedService: {
+      type: String,
+      enum: ["", "garage", "towing", "fuel", "ambulance", "none"],
+      default: "",
+      lowercase: true,
+      trim: true,
+    },
+
+    aiSafeToDrive: {
+      type: String,
+      enum: ["", "yes", "no", "unknown"],
+      default: "",
+      lowercase: true,
+      trim: true,
+    },
+
+    providerFinalDiagnosis: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    providerNotes: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
     requestPhoto: {
       type: String,
       default: "",
@@ -286,16 +332,12 @@ const RequestSchema = new Schema(
       trim: true,
     },
 
-    // -------------------------
-    // PRICING
-    // -------------------------
     providerAmount: {
       type: Number,
       default: 0,
       min: 0,
     },
 
-    // ✅ extra pricing compatibility fields
     quotedAmount: {
       type: Number,
       default: 0,
@@ -349,6 +391,12 @@ const RequestSchema = new Schema(
       default: false,
     },
 
+    quotationAccepted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
     priceSetAt: {
       type: Date,
       default: null,
@@ -356,24 +404,15 @@ const RequestSchema = new Schema(
 
     pricingStatus: {
       type: String,
-      enum: ["not_set", "quoted", "approved", "rejected"],
+      enum: ["not_set", "quoted", "accepted", "approved", "rejected"],
       default: "not_set",
       lowercase: true,
       trim: true,
     },
 
-    // -------------------------
-    // PAYMENT
-    // -------------------------
     paymentStatus: {
       type: String,
-      enum: [
-        "unpaid",
-        "paid",
-        "held_in_escrow",
-        "released",
-        "refunded",
-      ],
+      enum: ["unpaid", "pending", "awaiting_cash", "paid", "failed", "refunded"],
       default: "unpaid",
       index: true,
       lowercase: true,
@@ -382,16 +421,7 @@ const RequestSchema = new Schema(
 
     paymentMethod: {
       type: String,
-      enum: [
-        "",
-        "mobile_money",
-        "momo",
-        "mtn",
-        "airtel",
-        "card",
-        "cash",
-        "wallet",
-      ],
+      enum: ["", "airtel_money", "cash", "wallet", "mobile_money"],
       default: "",
       lowercase: true,
       trim: true,
@@ -420,9 +450,18 @@ const RequestSchema = new Schema(
       default: null,
     },
 
-    // -------------------------
-    // CHAT SUMMARY
-    // -------------------------
+    paymentConfirmedByProvider: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    paymentConfirmedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
     lastMessage: {
       type: LastMessageSchema,
       default: () => ({
@@ -443,13 +482,52 @@ RequestSchema.pre("validate", function (next) {
   if (this.assignedProviderId === "") this.assignedProviderId = null;
   if (this.assignedTo === "") this.assignedTo = null;
 
-  if (!Array.isArray(this.statusHistory)) {
-    this.statusHistory = [];
-  }
+  if (!Array.isArray(this.statusHistory)) this.statusHistory = [];
 
   if (this.requestPhoto == null) this.requestPhoto = "";
   if (this.requestPhotoPublicId == null) this.requestPhotoPublicId = "";
   if (this.paymentPhoneNumber == null) this.paymentPhoneNumber = "";
+  if (this.paymentReference == null) this.paymentReference = "";
+
+  if (this.aiSummary == null) this.aiSummary = "";
+  if (this.aiUrgency == null) this.aiUrgency = "";
+  if (this.aiSuggestedService == null) this.aiSuggestedService = "";
+  if (this.aiSafeToDrive == null) this.aiSafeToDrive = "";
+  if (this.providerFinalDiagnosis == null) this.providerFinalDiagnosis = "";
+  if (this.providerNotes == null) this.providerNotes = "";
+
+  if (this.paymentConfirmedByProvider == null) this.paymentConfirmedByProvider = false;
+  if (this.quotationAccepted == null) this.quotationAccepted = false;
+
+  next();
+});
+
+/* =================================================
+   STATUS HISTORY TRACKING
+================================================= */
+RequestSchema.pre("save", function (next) {
+  if (!Array.isArray(this.statusHistory)) {
+    this.statusHistory = [];
+  }
+
+  if (this.isNew) {
+    this.statusHistory.push({
+      status: this.status || "pending",
+      changedAt: new Date(),
+      changedBy: this.userId || null,
+      note: "Request created",
+    });
+    return next();
+  }
+
+  if (this.isModified("status")) {
+    this.statusHistory.push({
+      status: this.status,
+      changedAt: new Date(),
+      changedBy: null,
+      note: "Status changed",
+    });
+  }
 
   next();
 });
@@ -465,5 +543,8 @@ RequestSchema.index({ pricingStatus: 1, paymentStatus: 1, updatedAt: -1 });
 RequestSchema.index({ targetProviderId: 1, status: 1, createdAt: -1 });
 RequestSchema.index({ providerCompleted: 1, userCompleted: 1, status: 1 });
 RequestSchema.index({ completedAt: -1 });
+RequestSchema.index({ aiUrgency: 1, createdAt: -1 });
+RequestSchema.index({ aiSuggestedService: 1, createdAt: -1 });
+RequestSchema.index({ paymentConfirmedByProvider: 1, paymentStatus: 1, updatedAt: -1 });
 
 export default mongoose.models.Request || mongoose.model("Request", RequestSchema);

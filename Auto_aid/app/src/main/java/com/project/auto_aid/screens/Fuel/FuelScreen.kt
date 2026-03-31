@@ -31,6 +31,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,7 +43,6 @@ import androidx.navigation.NavHostController
 import com.project.auto_aid.data.local.TokenStore
 import com.project.auto_aid.navigation.Routes
 import kotlinx.coroutines.launch
-import androidx.compose.runtime.rememberCoroutineScope
 
 @Composable
 fun FuelScreen(navController: NavHostController) {
@@ -154,12 +154,7 @@ fun FuelScreen(navController: NavHostController) {
                     providerType = "fuel",
                     lat = pickedLat,
                     lng = pickedLng,
-                    pickedLabel = pickedLabel,
-                    vehicleInfo = "",
-                    problem = "",
-                    note = "",
-                    urgency = "normal",
-                    towType = ""
+                    pickedLabel = pickedLabel
                 )
             )
         }

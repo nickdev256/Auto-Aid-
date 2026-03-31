@@ -8,37 +8,42 @@ export default function ProviderHome() {
   const nav = useNavigate();
 
   useEffect(() => {
-    // Don't run if user hasn't loaded yet
     if (!user) return;
 
-    // If provider hasn't chosen service type
-    if (!user.businessType) {
+    console.log("PROVIDER USER:", user);
+    console.log("BUSINESS TYPE:", user?.businessType);
+
+    const type = String(user?.businessType || "").toLowerCase().trim();
+
+    if (!type) {
+      console.warn("No businessType found on provider account");
       nav("/provider/settings");
       return;
     }
 
-    // Route based on provider business type
-    switch (String(user.businessType).toLowerCase()) {
-      case "garage":
-        nav("/provider/garage");
-        break;
-
-      case "fuel":
-        nav("/provider/fuel");
-        break;
-
-      case "towing":
-        nav("/provider/towing");
-        break;
-
-      case "ambulance":
-        nav("/provider/ambulance");
-        break;
-
-      default:
-        nav("/provider/settings");
+    if (type === "garage") {
+      nav("/provider/garage");
+      return;
     }
-  }, [user, nav]); // runs ONLY after render
+
+    if (type === "fuel") {
+      nav("/provider/fuel");
+      return;
+    }
+
+    if (type === "towing") {
+      nav("/provider/towing");
+      return;
+    }
+
+    if (type === "ambulance") {
+      nav("/provider/ambulance");
+      return;
+    }
+
+    console.warn("Unknown businessType:", type);
+    nav("/provider/settings");
+  }, [user, nav]);
 
   return <p>Loading provider dashboard...</p>;
 }

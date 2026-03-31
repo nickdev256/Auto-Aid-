@@ -4,9 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project.auto_aid.data.network.ApiService
 import com.project.auto_aid.data.network.dto.CreateRequestBody
-import com.project.auto_aid.data.network.dto.RequestDto
-import com.project.auto_aid.data.network.dto.UpdateStatusBody
 import com.project.auto_aid.data.network.dto.LocationBody
+import com.project.auto_aid.data.network.dto.RequestDto
+import com.project.auto_aid.data.network.dto.StatusUpdateResponse
+import com.project.auto_aid.data.network.dto.UpdateStatusBody
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -89,7 +90,11 @@ class TowingViewModel(
                     UpdateStatusBody(status = "cancelled")
                 )
                 if (!response.isSuccessful) throw Exception("HTTP ${response.code()}")
-                response.body() ?: throw Exception("Empty body")
+
+                val body: StatusUpdateResponse =
+                    response.body() ?: throw Exception("Empty body")
+
+                body.request ?: throw Exception("Missing request in response")
             }.onSuccess { updated: RequestDto ->
                 _request.value = updated.toTowingRequest()
             }
@@ -110,7 +115,8 @@ private fun RequestDto.toTowingRequest(): TowingRequest {
     val mapped = when (backendStatus) {
         "PENDING", "REQUEST_SENT" -> TowingStatus.REQUEST_SENT
         "ASSIGNED", "DRIVER_ASSIGNED" -> TowingStatus.DRIVER_ASSIGNED
-        "DRIVER_ON_THE_WAY" -> TowingStatus.DRIVER_ON_THE_WAY
+        "EN_ROUTE", "ON_THE_WAY", "PROVIDER_ON_THE_WAY", "DRIVER_ON_THE_WAY" ->
+            TowingStatus.DRIVER_ON_THE_WAY
         "ARRIVED" -> TowingStatus.ARRIVED
         "IN_PROGRESS" -> TowingStatus.IN_PROGRESS
         "VEHICLE_TOWED" -> TowingStatus.VEHICLE_TOWED
@@ -138,4 +144,8 @@ private fun RequestDto.toTowingRequest(): TowingRequest {
         problem = this.problem ?: "",
         towType = this.towType ?: "Standard"
     )
+}
+
+private fun RequestDto.resolvedId(): String {
+    return this.requestId ?: this._id ?: this.id ?: ""
 }

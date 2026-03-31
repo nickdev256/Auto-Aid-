@@ -2,36 +2,15 @@ package com.project.auto_aid.screens.garage
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -97,10 +76,7 @@ fun GarageScreen(navController: NavHostController) {
                 },
                 label = { Text("Choose service location") },
                 leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.LocationOn,
-                        contentDescription = null
-                    )
+                    Icon(Icons.Default.LocationOn, contentDescription = null)
                 }
             )
         }
@@ -108,20 +84,13 @@ fun GarageScreen(navController: NavHostController) {
         Spacer(modifier = Modifier.height(20.dp))
 
         error?.let {
-            Text(
-                text = it,
-                color = MaterialTheme.colorScheme.error
-            )
+            Text(it, color = MaterialTheme.colorScheme.error)
             Spacer(modifier = Modifier.height(10.dp))
         }
 
         GarageServiceCard(
             icon = {
-                Icon(
-                    Icons.Default.Build,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
+                Icon(Icons.Default.Build, contentDescription = null)
             },
             title = "Request Garage Help",
             subtitle = "Choose the closest available mechanic"
@@ -151,12 +120,7 @@ fun GarageScreen(navController: NavHostController) {
                     providerType = "garage",
                     lat = pickedLat,
                     lng = pickedLng,
-                    pickedLabel = pickedLabel,
-                    vehicleInfo = "",
-                    problem = "",
-                    note = "",
-                    urgency = "normal",
-                    towType = ""
+                    pickedLabel = pickedLabel
                 )
             )
         }
@@ -165,31 +129,19 @@ fun GarageScreen(navController: NavHostController) {
 
         GarageServiceCard(
             icon = {
-                Icon(
-                    Icons.Default.PlayArrow,
-                    contentDescription = null,
-                    tint = Color(0xFF16A34A)
-                )
+                Icon(Icons.Default.PlayArrow, contentDescription = null)
             },
             title = "Active Requests",
-            subtitle = "View and track your ongoing garage requests"
+            subtitle = "View ongoing garage requests"
         ) {
             error = null
 
-            val requestIdFromState = navController.currentBackStackEntry
-                ?.savedStateHandle
-                ?.get<String>("active_garage_request_id")
-
-            val requestIdFromTokenStore = tokenStore.getLastGarageRequestId()
-
-            val requestId = when {
-                !requestIdFromState.isNullOrBlank() -> requestIdFromState
-                !requestIdFromTokenStore.isNullOrBlank() -> requestIdFromTokenStore
-                else -> null
-            }
+            val requestId = tokenStore.getLastGarageRequestId()
 
             if (!requestId.isNullOrBlank()) {
-                navController.navigate(Routes.GarageActiveScreen.createRoute(requestId))
+                navController.navigate(
+                    Routes.GarageActiveScreen.createRoute(requestId)
+                )
             } else {
                 error = "No active garage request found."
             }
@@ -199,16 +151,11 @@ fun GarageScreen(navController: NavHostController) {
 
         GarageServiceCard(
             icon = {
-                Icon(
-                    Icons.Default.History,
-                    contentDescription = null,
-                    tint = Color(0xFF0284C7)
-                )
+                Icon(Icons.Default.History, contentDescription = null)
             },
             title = "Garage History",
             subtitle = "View past garage requests"
         ) {
-            error = null
             navController.navigate(Routes.GarageHistoryScreen.route)
         }
 
@@ -251,12 +198,9 @@ private fun GarageServiceCard(
             Spacer(modifier = Modifier.width(16.dp))
 
             Column {
+                Text(title, fontWeight = FontWeight.SemiBold)
                 Text(
-                    text = title,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = subtitle,
+                    subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.Gray
                 )

@@ -26,15 +26,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.CarRepair
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.LocalGasStation
-import androidx.compose.material.icons.filled.LocalShipping
-import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -49,10 +43,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -62,6 +56,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -77,6 +72,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
@@ -84,13 +80,9 @@ import com.project.auto_aid.R
 import com.project.auto_aid.components.GpsLocationSearchField
 import com.project.auto_aid.data.local.TokenStore
 import com.project.auto_aid.data.network.RetrofitClient
-import com.project.auto_aid.data.network.dto.RequestDto
 import com.project.auto_aid.navigation.Routes
-import java.text.SimpleDateFormat
-import java.util.Locale
-import androidx.compose.foundation.Image
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.graphics.ColorFilter
+import com.project.auto_aid.viewmodel.HomeViewModel
+import com.project.auto_aid.viewmodel.HomeViewModelFactory
 
 object AppColors {
     val background = Color(0xFFF9F9F9)
@@ -104,21 +96,13 @@ object AppColors {
 
 data class ReferralUiData(
     val title: String = "Refer a Friend",
-    val subtitle: String = "Invite friends to AutoAid and earn rewards when they sign up and use the app.",
-    val code: String = "AUTOAID123",
-    val earnedAmount: String = "UGX 15,000",
-    val bonusText: String = "UGX 5,000 / friend"
+    val subtitle: String = "Invite friends to AutoAid. They get UGX 5,000 off their first service, and you get UGX 5,000 off your next service after they complete it.",
+    val code: String = "",
+    val earnedAmount: String = "UGX 0",
+    val bonusText: String = "0 rewarded"
 )
 
 data class QuickAccessItem(val iconRes: Int, val title: String)
-
-data class RecentItem(
-    val requestId: String,
-    val service: String,
-    val date: String,
-    val status: String,
-    val icon: ImageVector
-)
 
 data class LiveFeaturedServiceItem(
     val name: String,
@@ -128,143 +112,27 @@ data class LiveFeaturedServiceItem(
     val imageRes: Int
 )
 
+data class RecentItem(
+    val requestId: String,
+    val service: String,
+    val date: String,
+    val status: String,
+    val icon: ImageVector
+)
+
+object AppImages {
+    val shell = R.drawable.fuel1
+    val stabex = R.drawable.garage
+    val total = R.drawable.towi1
+    val rubis = R.drawable.ambulance
+}
+
 val quickAccessData = listOf(
     QuickAccessItem(R.drawable.garage, "Garage"),
     QuickAccessItem(R.drawable.tow, "Towing Track"),
     QuickAccessItem(R.drawable.fu, "Fuel Delivery"),
     QuickAccessItem(R.drawable.medical, "Ambulance")
 )
-
-object AppImages {
-    val shell = R.drawable.shell_2
-    val total = R.drawable.total_1
-    val stabex = R.drawable.stabex_2
-    val rubis = R.drawable.rubis_1
-    val gazz = R.drawable.gazz_1
-}
-
-private fun normalizeServiceKey(value: String?): String {
-    return when (value?.trim()?.lowercase()) {
-        "fuel", "fuel delivery" -> "fuel"
-        "garage", "garage repair" -> "garage"
-        "towing", "tow", "towing service", "towing track" -> "towing"
-        "ambulance", "ambulance service" -> "ambulance"
-        else -> ""
-    }
-}
-
-private fun serviceDisplayName(service: String?): String {
-    return when (normalizeServiceKey(service)) {
-        "fuel" -> "Fuel Delivery"
-        "garage" -> "Garage"
-        "towing" -> "Towing Service"
-        "ambulance" -> "Ambulance Service"
-        else -> "AutoAid Service"
-    }
-}
-
-private fun serviceIcon(service: String?): ImageVector {
-    return when (normalizeServiceKey(service)) {
-        "fuel" -> Icons.Default.LocalGasStation
-        "garage" -> Icons.Default.CarRepair
-        "towing" -> Icons.Default.LocalShipping
-        "ambulance" -> Icons.Default.MedicalServices
-        else -> Icons.Default.Build
-    }
-}
-
-private fun featuredImageFor(service: String?): Int {
-    return when (normalizeServiceKey(service)) {
-        "fuel" -> AppImages.shell
-        "garage" -> AppImages.stabex
-        "towing" -> AppImages.total
-        "ambulance" -> AppImages.rubis
-        else -> AppImages.shell
-    }
-}
-
-private fun formatStatus(status: String?): String {
-    return when (status?.trim()?.lowercase()) {
-        "pending", "request_sent" -> "Pending"
-        "assigned", "driver_assigned", "mechanic_assigned", "vendor_assigned" -> "Assigned"
-        "driver_on_the_way", "mechanic_on_the_way", "vendor_on_the_way", "ambulance_on_the_way" -> "On Going"
-        "arrived" -> "Arrived"
-        "in_progress", "delivering", "patient_picked", "vehicle_towed", "repaired" -> "On Going"
-        "delivered", "at_hospital", "completed" -> "Completed"
-        "cancelled" -> "Cancelled"
-        else -> status?.replaceFirstChar {
-            if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
-        } ?: "Unknown"
-    }
-}
-
-private fun statusColorFor(status: String): Color {
-    return when (status.lowercase()) {
-        "completed" -> Color(0xFF16A34A)
-        "cancelled" -> Color(0xFFDC2626)
-        "pending", "assigned", "on going", "arrived" -> Color(0xFFF59E0B)
-        else -> Color.Gray
-    }
-}
-
-private fun parseServerDateToDisplay(value: String?): String {
-    if (value.isNullOrBlank()) return "Unknown time"
-
-    val inputPatterns = listOf(
-        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
-        "yyyy-MM-dd'T'HH:mm:ss'Z'",
-        "yyyy-MM-dd HH:mm:ss",
-        "yyyy-MM-dd'T'HH:mm:ss.SSS",
-        "yyyy-MM-dd'T'HH:mm:ss"
-    )
-
-    for (pattern in inputPatterns) {
-        try {
-            val parser = SimpleDateFormat(pattern, Locale.getDefault())
-            val date = parser.parse(value)
-            if (date != null) {
-                val formatter = SimpleDateFormat("dd MMM • hh:mm a", Locale.getDefault())
-                return formatter.format(date)
-            }
-        } catch (_: Exception) {
-        }
-    }
-
-    return value
-}
-
-private fun requestToRecentItem(req: RequestDto): RecentItem {
-    return RecentItem(
-        requestId = req.resolvedId(),
-        service = serviceDisplayName(req.service ?: req.providerType),
-        date = parseServerDateToDisplay(req.createdAt),
-        status = formatStatus(req.status),
-        icon = serviceIcon(req.service ?: req.providerType)
-    )
-}
-
-private fun serviceUsageOrderFromRequests(requests: List<RequestDto>): List<String> {
-    val counts = linkedMapOf(
-        "garage" to 0,
-        "towing" to 0,
-        "fuel" to 0,
-        "ambulance" to 0
-    )
-
-    requests.forEach { req ->
-        val key = normalizeServiceKey(req.service ?: req.providerType)
-        if (counts.containsKey(key)) {
-            counts[key] = (counts[key] ?: 0) + 1
-        }
-    }
-
-    val sorted = counts.entries
-        .sortedByDescending { it.value }
-        .map { it.key }
-
-    val fallback = listOf("garage", "towing", "fuel", "ambulance")
-    return (sorted + fallback).distinct()
-}
 
 @Composable
 fun HomeScreen(navController: NavHostController) {
@@ -275,10 +143,11 @@ fun HomeScreen(navController: NavHostController) {
     val tokenStore = if (isPreview) null else remember(context) { TokenStore(context) }
     val api = if (isPreview || tokenStore == null) null else remember(tokenStore) { RetrofitClient.create(tokenStore) }
 
-    var userName by rememberSaveable { mutableStateOf("User") }
-    var notificationCount by rememberSaveable { mutableIntStateOf(0) }
-    var isLoadingHome by rememberSaveable { mutableStateOf(false) }
-    var featuredTitle by rememberSaveable { mutableStateOf("Featured Services") }
+    val viewModel: HomeViewModel? =
+        if (isPreview || api == null) null
+        else viewModel(factory = HomeViewModelFactory(api))
+
+    val uiState = viewModel?.uiState
 
     val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
     val pickedLocationLabelState =
@@ -292,142 +161,45 @@ fun HomeScreen(navController: NavHostController) {
     val pickedLat = pickedLocationLatState?.value ?: 0.0
     val pickedLng = pickedLocationLngState?.value ?: 0.0
 
-    var featuredServicesState by remember {
-        mutableStateOf(
-            listOf(
-                LiveFeaturedServiceItem(
-                    name = "Loading...",
-                    subtitle = "Please wait",
-                    type = "AutoAid",
-                    rating = 0.0,
-                    imageRes = AppImages.shell
-                )
-            )
-        )
+    val referral = ReferralUiData(
+        title = "Refer a Friend",
+        subtitle = "Invite friends to AutoAid. They get UGX 5,000 off their first service, and you get UGX 5,000 off your next service after they complete it.",
+        code = uiState?.referralCode.orEmpty(),
+        earnedAmount = "UGX ${(uiState?.nextReferralDiscountAmount ?: 0.0).toInt()}",
+        bonusText = "${uiState?.rewardedReferralCount ?: 0} rewarded"
+    )
+
+    LaunchedEffect(viewModel) {
+        viewModel?.loadInitialData()
     }
 
-    var recentItemsState by remember { mutableStateOf(emptyList<RecentItem>()) }
-
-    val referral = remember {
-        ReferralUiData(
-            title = "Refer a Friend",
-            subtitle = "Invite friends to AutoAid and earn rewards when they sign up and use the app.",
-            code = "AUTOAID123",
-            earnedAmount = "UGX 1,500",
-            bonusText = "UGX 500 / friend"
-        )
+    LaunchedEffect(viewModel, pickedLat, pickedLng) {
+        viewModel?.loadProviders(pickedLat, pickedLng)
     }
 
-    LaunchedEffect(pickedLat, pickedLng) {
-        if (isPreview || api == null) return@LaunchedEffect
+    LaunchedEffect(viewModel) {
+        viewModel?.startRealtimeUpdates()
+    }
 
-        isLoadingHome = true
-
-        runCatching {
-            val res = api.getMe()
-            if (res.isSuccessful) {
-                val user = res.body()?.user
-                userName = user?.name?.trim().takeIf { !it.isNullOrEmpty() } ?: "User"
-            } else {
-                userName = "User"
-            }
-        }.onFailure {
-            userName = "User"
+    DisposableEffect(viewModel) {
+        onDispose {
+            viewModel?.stopRealtimeUpdates()
         }
-
-        runCatching {
-            notificationCount = 5
-        }.onFailure {
-            notificationCount = 0
-        }
-
-        val serviceOrder = runCatching {
-            val requestsResponse = api.getMyRequests()
-            val requests = if (requestsResponse.isSuccessful) {
-                requestsResponse.body().orEmpty()
-            } else {
-                emptyList()
-            }
-
-            val sortedRequests = requests.sortedByDescending { it.createdAt ?: "" }
-            recentItemsState = sortedRequests.take(10).map(::requestToRecentItem)
-            serviceUsageOrderFromRequests(sortedRequests)
-        }.getOrElse {
-            recentItemsState = emptyList()
-            listOf("garage", "towing", "fuel", "ambulance")
-        }
-
-        runCatching {
-            val grouped = linkedMapOf(
-                "garage" to mutableListOf<LiveFeaturedServiceItem>(),
-                "towing" to mutableListOf<LiveFeaturedServiceItem>(),
-                "fuel" to mutableListOf<LiveFeaturedServiceItem>(),
-                "ambulance" to mutableListOf<LiveFeaturedServiceItem>()
-            )
-
-            suspend fun loadProvidersFor(serviceKey: String) {
-                val response = api.getAvailableProviders(serviceKey, pickedLat, pickedLng)
-                if (response.isSuccessful) {
-                    val providers = response.body().orEmpty()
-                    grouped[serviceKey]?.addAll(
-                        providers.take(3).map {
-                            LiveFeaturedServiceItem(
-                                name = it.name ?: "${serviceDisplayName(serviceKey)} Provider",
-                                subtitle = if (recentItemsState.any { item ->
-                                        normalizeServiceKey(item.service) == serviceKey
-                                    }
-                                ) "Based on your activity" else "Online provider",
-                                type = it.businessType ?: serviceDisplayName(serviceKey),
-                                rating = it.rating ?: 0.0,
-                                imageRes = featuredImageFor(serviceKey)
-                            )
-                        }
-                    )
-                }
-            }
-
-            loadProvidersFor("garage")
-            loadProvidersFor("towing")
-            loadProvidersFor("fuel")
-            loadProvidersFor("ambulance")
-
-            val prioritized = serviceOrder.flatMap { grouped[it].orEmpty() }
-
-            featuredTitle =
-                if (recentItemsState.isNotEmpty()) "Featured Based on Your Activity"
-                else "Featured Services"
-
-            featuredServicesState = prioritized.ifEmpty {
-                listOf(
-                    LiveFeaturedServiceItem(
-                        name = "No providers online",
-                        subtitle = "Try again later",
-                        type = "AutoAid",
-                        rating = 0.0,
-                        imageRes = AppImages.shell
-                    )
-                )
-            }
-        }.onFailure {
-            featuredServicesState = listOf(
-                LiveFeaturedServiceItem(
-                    name = "Failed to load providers",
-                    subtitle = "Check connection",
-                    type = "AutoAid",
-                    rating = 0.0,
-                    imageRes = AppImages.shell
-                )
-            )
-        }
-
-        isLoadingHome = false
     }
 
     Scaffold(
         bottomBar = {
             AppBottomNavigationBar(
                 navController = navController,
-                notificationCount = notificationCount
+                notificationCount = uiState?.notificationCount ?: 0
+            )
+        },
+        floatingActionButton = {
+            FloatingAiChatButton(
+                navController = navController,
+                pickedLabel = pickedLabel,
+                pickedLat = pickedLat,
+                pickedLng = pickedLng
             )
         }
     ) { padding ->
@@ -439,7 +211,7 @@ fun HomeScreen(navController: NavHostController) {
         ) {
             item { Spacer(modifier = Modifier.height(6.dp)) }
 
-            item { TopHeader(userName = userName) }
+            item { TopHeader(userName = uiState?.userName ?: "User") }
 
             item {
                 SearchAndProfileBar(
@@ -462,45 +234,47 @@ fun HomeScreen(navController: NavHostController) {
             item {
                 ReferralCard(
                     referral = referral,
+                    isLoading = uiState?.isReferralLoading == true,
                     onCopyClick = { code ->
-                        clipboardManager.setText(AnnotatedString(code))
-                        Toast.makeText(context, "Referral code copied", Toast.LENGTH_SHORT).show()
+                        if (code.isNotBlank()) {
+                            clipboardManager.setText(AnnotatedString(code))
+                            Toast.makeText(context, "Referral code copied", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(context, "Referral code not ready yet", Toast.LENGTH_SHORT).show()
+                        }
                     },
                     onReferClick = { data ->
                         val playStoreLink = "https://play.google.com/store/apps/details?id=com.project.auto_aid"
                         val websiteLink = "https://autoaid-web.vercel.app"
 
-                        val shareMessage = StringBuilder().apply {
-                            append("Get roadside help, towing, fuel delivery, garage repair, and ambulance support easily.\n\n")
-                            append("Referral Code: ${data.code}\n\n")
-                            append("Play Store Link:\n")
-                            append(playStoreLink)
-                            append("\n\n")
-                            append("Website Link:\n")
-                            append(websiteLink)
-                        }.toString()
+                        val shareMessage = """
+Join AutoAid for roadside help 🚗
+
+Use my referral code: ${data.code}
+
+You get UGX 5,000 off your first completed service.
+
+Play Store:
+$playStoreLink
+
+Website:
+$websiteLink
+""".trimIndent()
 
                         val shareIntent = Intent(Intent.ACTION_SEND).apply {
                             type = "text/plain"
-                            putExtra(Intent.EXTRA_SUBJECT, ("Join AutoAid\n"))
+                            putExtra(Intent.EXTRA_SUBJECT, "Join AutoAid")
                             putExtra(Intent.EXTRA_TEXT, shareMessage)
                         }
 
-                        context.startActivity(Intent.createChooser(shareIntent, "Share AutoAid with a friend"))
+                        context.startActivity(
+                            Intent.createChooser(shareIntent, "Share AutoAid with a friend")
+                        )
                     }
                 )
             }
 
-            item { FeaturesSection(featuredTitle, featuredServicesState) }
-
-            item {
-                RecentsSection(
-                    navController = navController,
-                    items = recentItemsState
-                )
-            }
-
-            if (isLoadingHome) {
+            if ((uiState?.isProfileLoading == true) || (uiState?.isProvidersLoading == true)) {
                 item {
                     Spacer(modifier = Modifier.height(8.dp))
                     LinearProgressIndicator(
@@ -511,6 +285,44 @@ fun HomeScreen(navController: NavHostController) {
                 }
             }
 
+            item {
+                FeaturesSection(
+                    title = uiState?.featuredTitle ?: "Featured Services",
+                    items = uiState?.featuredServices.orEmpty()
+                )
+            }
+
+            item {
+                RecentsSection(
+                    navController = navController,
+                    items = uiState?.recentItems.orEmpty()
+                )
+            }
+
+            uiState?.error?.let { errorMessage ->
+                if (errorMessage.isNotBlank()) {
+                    item {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color(0xFFFFF3F3)
+                            )
+                        ) {
+                            Text(
+                                text = errorMessage,
+                                color = Color(0xFFB91C1C),
+                                modifier = Modifier.padding(14.dp),
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                }
+            }
+
             item { Spacer(modifier = Modifier.height(16.dp)) }
         }
     }
@@ -518,7 +330,7 @@ fun HomeScreen(navController: NavHostController) {
 
 @Composable
 fun TopHeader(userName: String) {
-    var showName by remember { mutableStateOf(false) }
+    var showName by rememberSaveable(userName) { mutableStateOf(false) }
 
     LaunchedEffect(userName) {
         showName = userName.isNotBlank()
@@ -671,7 +483,7 @@ fun SearchAndProfileBar(
     pickedLat: Double,
     pickedLng: Double
 ) {
-    var locationText by remember { mutableStateOf(pickedLabel) }
+    var locationText by rememberSaveable { mutableStateOf(pickedLabel) }
 
     LaunchedEffect(pickedLabel) {
         if (pickedLabel.isNotBlank()) {
@@ -685,6 +497,8 @@ fun SearchAndProfileBar(
         GpsLocationSearchField(
             value = locationText,
             onValueChange = { locationText = it },
+            lat = pickedLat,
+            lng = pickedLng,
             onOpenMapPicker = { lat, lng ->
                 navController.navigate(
                     Routes.LocationPicker.createRoute(lat = lat, lng = lng)
@@ -695,8 +509,92 @@ fun SearchAndProfileBar(
         if (pickedLabel.isNotBlank()) {
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "Picked: $pickedLabel ($pickedLat, $pickedLng)",
+                text = "Picked: $pickedLabel",
                 style = MaterialTheme.typography.bodySmall
+            )
+        }
+    }
+}
+
+@Composable
+fun FloatingAiChatButton(
+    navController: NavHostController,
+    pickedLabel: String,
+    pickedLat: Double,
+    pickedLng: Double
+) {
+    Card(
+        modifier = Modifier
+            .clickable {
+                navController.currentBackStackEntry
+                    ?.savedStateHandle
+                    ?.set("picked_location_label", pickedLabel)
+
+                navController.currentBackStackEntry
+                    ?.savedStateHandle
+                    ?.set("picked_location_lat", pickedLat)
+
+                navController.currentBackStackEntry
+                    ?.savedStateHandle
+                    ?.set("picked_location_lng", pickedLng)
+
+                navController.navigate(
+                    Routes.AiAssistantScreen.createRoute(
+                        address = pickedLabel,
+                        lat = pickedLat,
+                        lng = pickedLng
+                    )
+                )
+            },
+        shape = RoundedCornerShape(50),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF0F172A)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 14.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .background(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            Color(0xFF0F172A),
+                            Color(0xFF132238)
+                        )
+                    )
+                )
+                .padding(horizontal = 18.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFF00E5FF),
+                                Color(0xFF0F172A)
+                            )
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.ai_icon),
+                    contentDescription = "AI Assistant",
+                    modifier = Modifier.size(20.dp),
+                    contentScale = ContentScale.Fit
+                )
+            }
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Text(
+                text = "\uD83E\uDD16 Ask AI",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
             )
         }
     }
@@ -782,6 +680,7 @@ fun QuickAccessItemView(
 @Composable
 fun ReferralCard(
     referral: ReferralUiData,
+    isLoading: Boolean = false,
     onReferClick: (ReferralUiData) -> Unit,
     onCopyClick: (String) -> Unit
 ) {
@@ -805,9 +704,8 @@ fun ReferralCard(
                 Image(
                     painter = painterResource(id = R.drawable.star),
                     contentDescription = "Referral reward",
-                    modifier = Modifier.size(44.dp),
-
-                    )
+                    modifier = Modifier.size(44.dp)
+                )
 
                 Spacer(modifier = Modifier.width(12.dp))
 
@@ -832,6 +730,24 @@ fun ReferralCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            if (!isLoading && referral.earnedAmount != "UGX 0") {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(Color(0xFFDFF7E8))
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = "Reward available",
+                        color = Color(0xFF15803D),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
             Text(
                 text = "Referral Code",
                 fontSize = 12.sp,
@@ -852,7 +768,7 @@ fun ReferralCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = referral.code,
+                    text = if (isLoading) "Loading..." else referral.code.ifBlank { "AUTOAID" },
                     modifier = Modifier.weight(1f),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
@@ -861,6 +777,7 @@ fun ReferralCard(
 
                 TextButton(
                     onClick = { onCopyClick(referral.code) },
+                    enabled = !isLoading && referral.code.isNotBlank(),
                     colors = ButtonDefaults.textButtonColors(
                         contentColor = Color.Black
                     )
@@ -875,14 +792,21 @@ fun ReferralCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                ReferralStatItem(label = "Earned", value = referral.earnedAmount)
-                ReferralStatItem(label = "Bonus", value = referral.bonusText)
+                ReferralStatItem(
+                    label = "Next Reward",
+                    value = if (isLoading) "..." else referral.earnedAmount
+                )
+                ReferralStatItem(
+                    label = "Referrals",
+                    value = if (isLoading) "..." else referral.bonusText
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Button(
                 onClick = { onReferClick(referral) },
+                enabled = !isLoading && referral.code.isNotBlank(),
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
@@ -932,6 +856,23 @@ fun FeaturesSection(
         modifier = Modifier.padding(20.dp),
         color = AppColors.textPrimary
     )
+
+    if (items.isEmpty()) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White)
+        ) {
+            Text(
+                text = "No featured providers yet",
+                modifier = Modifier.padding(16.dp),
+                color = AppColors.textSecondary
+            )
+        }
+        return
+    }
 
     LazyRow(
         contentPadding = PaddingValues(horizontal = 20.dp),
@@ -1037,7 +978,7 @@ fun RecentsSection(
         contentPadding = PaddingValues(horizontal = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(items) { item ->
+        items(items, key = { it.requestId }) { item ->
             RecentCard(
                 item = item,
                 onClick = {
@@ -1057,7 +998,12 @@ fun RecentCard(
     item: RecentItem,
     onClick: () -> Unit
 ) {
-    val statusColor = statusColorFor(item.status)
+    val statusColor = when (item.status.lowercase()) {
+        "completed", "paid", "payment confirmed" -> Color(0xFF16A34A)
+        "cancelled" -> Color(0xFFDC2626)
+        "pending", "assigned", "on going", "arrived", "quotation sent", "awaiting payment" -> Color(0xFFF59E0B)
+        else -> Color.Gray
+    }
 
     Card(
         modifier = Modifier

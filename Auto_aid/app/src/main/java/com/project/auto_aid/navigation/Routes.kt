@@ -17,7 +17,9 @@ sealed class Routes(val route: String) {
     object ForgotPasswordScreen : Routes("forgot_password")
 
     object VerifyCodeScreen : Routes("verify_code/{email}") {
-        fun createRoute(email: String) = "verify_code/${Uri.encode(email)}"
+        fun createRoute(email: String): String {
+            return "verify_code/${Uri.encode(email)}"
+        }
     }
 
     object ResetPasswordScreen : Routes("reset_password")
@@ -37,44 +39,58 @@ sealed class Routes(val route: String) {
     /* ---------- Main ---------- */
 
     object HomeScreen : Routes("home")
+
+    object AiAssistantScreen : Routes(
+        "ai_assistant?" +
+                "problem={problem}&" +
+                "vehicleType={vehicleType}&" +
+                "fuelType={fuelType}&" +
+                "address={address}&" +
+                "lat={lat}&" +
+                "lng={lng}"
+    ) {
+        fun createRoute(
+            problem: String = "",
+            vehicleType: String = "",
+            fuelType: String = "",
+            address: String = "",
+            lat: Double? = null,
+            lng: Double? = null
+        ): String {
+            val safeLat = lat ?: 0.0
+            val safeLng = lng ?: 0.0
+
+            return "ai_assistant" +
+                    "?problem=${Uri.encode(problem)}" +
+                    "&vehicleType=${Uri.encode(vehicleType)}" +
+                    "&fuelType=${Uri.encode(fuelType)}" +
+                    "&address=${Uri.encode(address)}" +
+                    "&lat=$safeLat" +
+                    "&lng=$safeLng"
+        }
+    }
+
     object NotificationScreen : Routes("notifications")
 
     object RequestDetails : Routes("request_details/{requestId}") {
-        fun createRoute(requestId: String) = "request_details/${Uri.encode(requestId)}"
+        fun createRoute(requestId: String): String {
+            return "request_details/${Uri.encode(requestId)}"
+        }
     }
 
     /* ---------- Provider Selection ---------- */
 
     object ProviderSelection : Routes(
-        "provider_selection/" +
-                "{providerType}/" +
-                "{lat}/" +
-                "{lng}?" +
-                "pickedLabel={pickedLabel}&" +
-                "vehicleInfo={vehicleInfo}&" +
-                "problem={problem}&" +
-                "note={note}&" +
-                "urgency={urgency}&" +
-                "towType={towType}"
+        "provider_selection/{providerType}/{lat}/{lng}?pickedLabel={pickedLabel}"
     ) {
         fun createRoute(
             providerType: String,
             lat: Double,
             lng: Double,
-            pickedLabel: String = "",
-            vehicleInfo: String = "",
-            problem: String = "",
-            note: String = "",
-            urgency: String = "normal",
-            towType: String = ""
+            pickedLabel: String = ""
         ): String {
             return "provider_selection/${Uri.encode(providerType)}/$lat/$lng" +
-                    "?pickedLabel=${Uri.encode(pickedLabel)}" +
-                    "&vehicleInfo=${Uri.encode(vehicleInfo)}" +
-                    "&problem=${Uri.encode(problem)}" +
-                    "&note=${Uri.encode(note)}" +
-                    "&urgency=${Uri.encode(urgency)}" +
-                    "&towType=${Uri.encode(towType)}"
+                    "?pickedLabel=${Uri.encode(pickedLabel)}"
         }
     }
 
@@ -126,7 +142,30 @@ sealed class Routes(val route: String) {
     object AboutUsScreen : Routes("about_us")
     object PrivacyPolicyScreen : Routes("privacy_policy")
     object PromotionScreen : Routes("promotion")
-    object PayoutInformationScreen : Routes("payout_information")
+    object PaymentHistoryScreen : Routes("payment_history")
+
+    object IdentityVerification : Routes("identity_verification")
+
+    object PayoutInformationScreen : Routes(
+        "payout_information?" +
+                "requestId={requestId}&" +
+                "providerName={providerName}&" +
+                "serviceName={serviceName}&" +
+                "amount={amount}"
+    ) {
+        fun createRoute(
+            requestId: String = "",
+            providerName: String = "Service Provider",
+            serviceName: String = "Completed Job",
+            amount: Double = 0.0
+        ): String {
+            return "payout_information" +
+                    "?requestId=${Uri.encode(requestId)}" +
+                    "&providerName=${Uri.encode(providerName)}" +
+                    "&serviceName=${Uri.encode(serviceName)}" +
+                    "&amount=$amount"
+        }
+    }
 
     object TermsAndConditionsScreen : Routes("terms_conditions?fromSignup={fromSignup}") {
         fun createRoute(fromSignup: Boolean = false): String {
@@ -150,7 +189,9 @@ sealed class Routes(val route: String) {
     }
 
     object GarageActiveScreen : Routes("garage_active/{requestId}") {
-        fun createRoute(requestId: String) = "garage_active/${Uri.encode(requestId)}"
+        fun createRoute(requestId: String): String {
+            return "garage_active/${Uri.encode(requestId)}"
+        }
     }
 
     object GarageHistoryScreen : Routes("garage_history")
@@ -171,7 +212,9 @@ sealed class Routes(val route: String) {
     }
 
     object TowingActiveScreen : Routes("towing_active/{requestId}") {
-        fun createRoute(requestId: String) = "towing_active/${Uri.encode(requestId)}"
+        fun createRoute(requestId: String): String {
+            return "towing_active/${Uri.encode(requestId)}"
+        }
     }
 
     object TowingHistoryScreen : Routes("towing_history")
@@ -192,7 +235,9 @@ sealed class Routes(val route: String) {
     }
 
     object FuelActiveScreen : Routes("fuel_active/{requestId}") {
-        fun createRoute(requestId: String) = "fuel_active/${Uri.encode(requestId)}"
+        fun createRoute(requestId: String): String {
+            return "fuel_active/${Uri.encode(requestId)}"
+        }
     }
 
     object FuelHistoryScreen : Routes("fuel_history")
@@ -213,7 +258,9 @@ sealed class Routes(val route: String) {
     }
 
     object AmbulanceActiveScreen : Routes("ambulance_active/{requestId}") {
-        fun createRoute(requestId: String) = "ambulance_active/${Uri.encode(requestId)}"
+        fun createRoute(requestId: String): String {
+            return "ambulance_active/${Uri.encode(requestId)}"
+        }
     }
 
     object AmbulanceHistoryScreen : Routes("ambulance_history")
@@ -222,11 +269,8 @@ sealed class Routes(val route: String) {
 
     object ProviderDashboard : Routes("provider_dashboard")
     object EditProviderProfile : Routes("edit_provider_profile")
-
-    // ADDED: provider verification flow
     object ProviderVerificationRequired : Routes("provider_verification_required")
     object ProviderVerification : Routes("provider_verification")
-
     object ProviderNotifications : Routes("provider_notifications")
     object ProviderMapHome : Routes("provider_map_home")
     object ProviderChatList : Routes("provider_chat_list")
@@ -236,13 +280,15 @@ sealed class Routes(val route: String) {
     object ProviderPayoutRequests : Routes("provider_payout_requests")
 
     object ProviderChatThread : Routes("provider_chat_thread/{requestId}") {
-        fun createRoute(requestId: String) =
-            "provider_chat_thread/${Uri.encode(requestId)}"
+        fun createRoute(requestId: String): String {
+            return "provider_chat_thread/${Uri.encode(requestId)}"
+        }
     }
 
     object ProviderActiveJob : Routes("provider_active_job/{requestId}") {
-        fun createRoute(requestId: String) =
-            "provider_active_job/${Uri.encode(requestId)}"
+        fun createRoute(requestId: String): String {
+            return "provider_active_job/${Uri.encode(requestId)}"
+        }
     }
 
     object ProviderMapScreen :
@@ -257,7 +303,8 @@ sealed class Routes(val route: String) {
     }
 
     object ProviderRequestDetails : Routes("provider_request_details/{requestId}") {
-        fun createRoute(requestId: String) =
-            "provider_request_details/${Uri.encode(requestId)}"
+        fun createRoute(requestId: String): String {
+            return "provider_request_details/${Uri.encode(requestId)}"
+        }
     }
 }

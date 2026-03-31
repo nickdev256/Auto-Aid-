@@ -1,51 +1,63 @@
 package com.project.auto_aid.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.ReceiptLong
-import androidx.compose.material.icons.filled.SupportAgent
+import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.project.auto_aid.data.local.TokenStore
@@ -53,11 +65,24 @@ import com.project.auto_aid.data.network.RetrofitClient
 import com.project.auto_aid.data.network.dto.CreatePaymentBody
 import com.project.auto_aid.data.network.dto.RequestDto
 import com.project.auto_aid.data.network.dto.RequestQuoteDto
-import com.project.auto_aid.navigation.Routes
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
-import java.text.SimpleDateFormat
 import java.util.Locale
+
+private val AutoAidBlue = Color(0xFF1DA1F2)
+private val AutoAidDark = Color(0xFF114B5F)
+private val ScreenBg = Color(0xFFF5F9FC)
+private val CardBg = Color.White
+private val SoftBlue = Color(0xFFEAF6FF)
+private val SoftBorder = Color(0xFFDCEAF5)
+private val SuccessGreen = Color(0xFF20B26B)
+private val SuccessGreenBg = Color(0xFFEAF8F1)
+private val PendingAmber = Color(0xFFF59E0B)
+private val PendingAmberBg = Color(0xFFFFF4DB)
+private val DangerRed = Color(0xFFE53935)
+private val DangerRedBg = Color(0xFFFDECEC)
+private val MutedText = Color(0xFF6B7280)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,674 +90,792 @@ fun RequestDetailsScreen(
     navController: NavHostController,
     requestId: String
 ) {
-    val context = LocalContext.current
+    val context = androidx.compose.ui.platform.LocalContext.current
     val tokenStore = remember(context) { TokenStore(context) }
     val api = remember(tokenStore) { RetrofitClient.create(tokenStore) }
     val scope = rememberCoroutineScope()
 
     var loading by remember { mutableStateOf(true) }
-    var paying by remember { mutableStateOf(false) }
-    var confirmingCompletion by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
+    var actionLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var successMessage by remember { mutableStateOf<String?>(null) }
 
     var request by remember { mutableStateOf<RequestDto?>(null) }
     var quote by remember { mutableStateOf<RequestQuoteDto?>(null) }
 
-    var paymentMessage by remember { mutableStateOf<String?>(null) }
-    var completionMessage by remember { mutableStateOf<String?>(null) }
+    var currentStatus by remember { mutableStateOf("pending") }
+    var paymentStatus by remember { mutableStateOf("unpaid") }
 
-    fun openLiveTracking(serviceKey: String) {
-        when (serviceKey) {
-            "garage" -> navController.navigate(Routes.GarageActiveScreen.createRoute(requestId))
-            "towing" -> navController.navigate(Routes.TowingActiveScreen.createRoute(requestId))
-            "fuel" -> navController.navigate(Routes.FuelActiveScreen.createRoute(requestId))
-            "ambulance" -> navController.navigate(Routes.AmbulanceActiveScreen.createRoute(requestId))
+    var userPhone by remember { mutableStateOf("") }
+    var providerName by remember { mutableStateOf("Service Provider") }
+    var serviceName by remember { mutableStateOf("AutoAid Service") }
+    var problemText by remember { mutableStateOf("-") }
+    var locationLabel by remember { mutableStateOf("Location not available") }
+
+    var quotationAmount by remember { mutableDoubleStateOf(0.0) }
+    var quotationNote by remember { mutableStateOf("") }
+
+    var showQuotation by remember { mutableStateOf(false) }
+    var phoneNumber by remember { mutableStateOf("") }
+
+    var quotationAcceptedLocally by remember { mutableStateOf(false) }
+
+    fun normalizedStatus(value: String?): String {
+        return value?.trim()?.lowercase()?.replace(" ", "_") ?: "pending"
+    }
+
+    fun normalizedPaymentStatus(value: String?): String {
+        return value?.trim()?.lowercase()?.replace(" ", "_") ?: "unpaid"
+    }
+
+    fun serviceDisplayName(value: String?): String {
+        return when (value?.trim()?.lowercase()) {
+            "fuel" -> "Fuel Delivery"
+            "garage" -> "Garage Service"
+            "towing" -> "Towing Service"
+            "ambulance" -> "Ambulance Service"
+            else -> value?.replaceFirstChar { it.uppercase() } ?: "AutoAid Service"
         }
     }
 
-    fun loadData() {
+    fun readError(responseCode: Int, errorText: String?, fallback: String): String {
+        val clean = errorText?.trim()
+        return if (!clean.isNullOrBlank()) clean else "$fallback ($responseCode)"
+    }
+
+    fun buildLocationLabel(r: RequestDto): String {
+        val lat = r.userLocation?.lat
+        val lng = r.userLocation?.lng
+
+        return if (lat != null && lng != null) {
+            "Lat: $lat, Lng: $lng"
+        } else {
+            "Location not available"
+        }
+    }
+
+    fun loadRequest() {
         scope.launch {
             loading = true
-            error = null
+            errorMessage = null
 
-            try {
+            runCatching {
                 val requestRes = api.getRequestById(requestId)
                 if (!requestRes.isSuccessful) {
-                    throw Exception("Failed to load request (HTTP ${requestRes.code()})")
+                    throw Exception(
+                        readError(
+                            requestRes.code(),
+                            requestRes.errorBody()?.string(),
+                            "Failed to load request"
+                        )
+                    )
                 }
 
-                val requestBody = requestRes.body()
-                    ?: throw Exception("Request not found")
-
-                request = requestBody
+                val r = requestRes.body() ?: throw Exception("Request not found")
+                request = r
+                currentStatus = normalizedStatus(r.status)
+                paymentStatus = normalizedPaymentStatus(r.paymentStatus)
+                providerName = r.assignedProviderName ?: "Service Provider"
+                serviceName = serviceDisplayName(r.service ?: r.providerType)
+                userPhone = r.userPhone ?: ""
+                problemText = r.problem ?: r.note ?: "-"
+                locationLabel = buildLocationLabel(r)
 
                 val quoteRes = api.getRequestQuote(requestId)
-                quote = if (quoteRes.isSuccessful) quoteRes.body() else null
-            } catch (e: Throwable) {
-                error = e.message ?: "Failed to load request details"
-            } finally {
-                loading = false
+                if (quoteRes.isSuccessful) {
+                    val q = quoteRes.body()
+                    quote = q
+                    quotationAmount = when {
+                        (q?.totalAmount ?: 0.0) > 0 -> q?.totalAmount ?: 0.0
+                        (q?.providerAmount ?: 0.0) > 0 -> q?.providerAmount ?: 0.0
+                        else -> 0.0
+                    }
+                    quotationNote = q?.pricingStatus ?: ""
+
+                    if (paymentStatus == "paid") {
+                        quotationAcceptedLocally = true
+                    }
+                } else {
+                    quote = null
+                    quotationAmount = when {
+                        (r.totalAmount ?: 0.0) > 0 -> r.totalAmount ?: 0.0
+                        (r.quotedAmount ?: 0.0) > 0 -> r.quotedAmount ?: 0.0
+                        (r.quoteAmount ?: 0.0) > 0 -> r.quoteAmount ?: 0.0
+                        (r.providerAmount ?: 0.0) > 0 -> r.providerAmount ?: 0.0
+                        (r.finalAmount ?: 0.0) > 0 -> r.finalAmount ?: 0.0
+                        (r.agreedAmount ?: 0.0) > 0 -> r.agreedAmount ?: 0.0
+                        else -> 0.0
+                    }
+                    quotationNote = r.pricingStatus ?: ""
+
+                    if (paymentStatus == "paid") {
+                        quotationAcceptedLocally = true
+                    }
+                }
+            }.onFailure {
+                errorMessage = it.message ?: "Failed to load request details"
             }
+
+            loading = false
+        }
+    }
+
+    fun acceptQuotation() {
+        if (quotationAcceptedLocally || actionLoading) return
+
+        scope.launch {
+            actionLoading = true
+            errorMessage = null
+            successMessage = null
+
+            runCatching {
+                val response = api.acceptQuotation(requestId)
+                if (!response.isSuccessful) {
+                    throw Exception(
+                        readError(
+                            response.code(),
+                            response.errorBody()?.string(),
+                            "Failed to accept quotation"
+                        )
+                    )
+                }
+
+                quotationAcceptedLocally = true
+                showQuotation = true
+                successMessage = "Quotation accepted"
+                loadRequest()
+            }.onFailure {
+                errorMessage = it.message ?: "Failed to accept quotation"
+            }
+
+            actionLoading = false
         }
     }
 
     fun payNow() {
-        val total = quote?.totalAmount
-            ?: request?.totalAmount
-            ?: request?.amount
-            ?: request?.price
-            ?: 0.0
+        if (phoneNumber.trim().isBlank()) {
+            errorMessage = "Enter phone number"
+            successMessage = null
+            return
+        }
 
-        if (total <= 0.0) {
-            paymentMessage = "Invalid payment amount"
+        if (quotationAmount <= 0.0) {
+            errorMessage = "Quotation amount is missing"
+            successMessage = null
             return
         }
 
         scope.launch {
-            paying = true
-            paymentMessage = null
-            completionMessage = null
+            actionLoading = true
+            errorMessage = null
+            successMessage = null
 
-            try {
-                val res = api.makePayment(
+            runCatching {
+                val response = api.createPayment(
                     CreatePaymentBody(
                         requestId = requestId,
-                        amount = total,
-                        method = "mobile_money"
+                        amount = quotationAmount,
+                        method = "mobile_money",
+                        phoneNumber = phoneNumber.trim()
                     )
                 )
 
-                if (!res.isSuccessful) {
-                    throw Exception("Payment failed (HTTP ${res.code()})")
+                if (!response.isSuccessful) {
+                    throw Exception(
+                        readError(
+                            response.code(),
+                            response.errorBody()?.string(),
+                            "Payment failed"
+                        )
+                    )
                 }
 
-                paymentMessage = res.body()?.message
-                    ?: "Payment successful. Funds are now held in escrow."
+                delay(700)
 
-                loadData()
-            } catch (e: Throwable) {
-                paymentMessage = e.message ?: "Payment failed"
-            } finally {
-                paying = false
+                paymentStatus = "paid"
+                quotationAcceptedLocally = true
+                successMessage = "Payment sent successfully"
+                loadRequest()
+            }.onFailure {
+                errorMessage = it.message ?: "Payment failed"
             }
+
+            actionLoading = false
         }
     }
 
-    fun confirmJobCompleted() {
+    fun markUserDone() {
         scope.launch {
-            confirmingCompletion = true
-            completionMessage = null
-            paymentMessage = null
+            actionLoading = true
+            errorMessage = null
+            successMessage = null
 
-            try {
-                val res = api.confirmUserComplete(requestId)
-
-                if (!res.isSuccessful) {
-                    throw Exception("Failed to confirm completion (HTTP ${res.code()})")
+            runCatching {
+                val response = api.confirmUserComplete(requestId)
+                if (!response.isSuccessful) {
+                    throw Exception(
+                        readError(
+                            response.code(),
+                            response.errorBody()?.string(),
+                            "Failed to complete request"
+                        )
+                    )
                 }
 
-                completionMessage = res.body()?.message
-                    ?: "Job completion confirmed successfully."
-
-                loadData()
-            } catch (e: Throwable) {
-                completionMessage = e.message ?: "Failed to confirm completion"
-            } finally {
-                confirmingCompletion = false
+                currentStatus = "completed"
+                successMessage = "Job completed successfully"
+                loadRequest()
+            }.onFailure {
+                errorMessage = it.message ?: "Failed to complete request"
             }
+
+            actionLoading = false
         }
     }
 
     LaunchedEffect(requestId) {
-        loadData()
+        loadRequest()
+    }
+
+    val status = normalizedStatus(currentStatus)
+    val payState = normalizedPaymentStatus(paymentStatus)
+
+    val canViewQuotation = status in listOf(
+        "quotation_sent",
+        "provider_done",
+        "completed"
+    ) || payState == "paid"
+
+    val canAcceptQuotation =
+        status == "quotation_sent" &&
+                !quotationAcceptedLocally &&
+                payState != "paid"
+
+    val canPay =
+        status == "quotation_sent" &&
+                quotationAcceptedLocally &&
+                payState != "paid"
+
+    val canUserDone = status == "provider_done"
+
+    val progressValue = when {
+        status == "pending" -> 0.10f
+        status == "accepted" -> 0.20f
+        status == "started" -> 0.35f
+        status == "arrived" -> 0.50f
+        status == "quotation_sent" && payState != "paid" && !quotationAcceptedLocally -> 0.65f
+        status == "quotation_sent" && (quotationAcceptedLocally || payState == "paid") -> 0.80f
+        status == "provider_done" -> 0.95f
+        status == "completed" -> 1f
+        else -> 0.10f
+    }
+
+    val bannerTitle = when {
+        status == "quotation_sent" && !quotationAcceptedLocally && payState != "paid" ->
+            "Quotation Available"
+        status == "quotation_sent" && quotationAcceptedLocally && payState != "paid" ->
+            "Quotation Accepted"
+        payState == "paid" && status != "provider_done" && status != "completed" ->
+            "Payment Sent"
+        status == "provider_done" ->
+            "Provider Finished"
+        status == "completed" ->
+            "Completed"
+        else ->
+            "Request in Progress"
+    }
+
+    val bannerBody = when {
+        status == "quotation_sent" && !quotationAcceptedLocally && payState != "paid" ->
+            "Your provider has sent a quotation. Tap View Quotation."
+        status == "quotation_sent" && quotationAcceptedLocally && payState != "paid" ->
+            "Enter your phone number. The quotation amount is already filled."
+        payState == "paid" && status != "provider_done" && status != "completed" ->
+            "Payment has been sent. Wait for the provider to click Job Done."
+        status == "provider_done" ->
+            "The provider marked the job done. You can now click Job Done."
+        status == "completed" ->
+            "This request has been fully completed."
+        else ->
+            "Track your request progress below."
+    }
+
+    val bannerType = when {
+        status == "completed" -> BannerType.SUCCESS
+        status == "provider_done" -> BannerType.SUCCESS
+        status == "quotation_sent" -> BannerType.WARNING
+        payState == "paid" -> BannerType.INFO
+        else -> BannerType.INFO
     }
 
     Scaffold(
+        containerColor = ScreenBg,
         topBar = {
-            TopAppBar(
-                title = { Text("Request Details") },
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        "Request Details",
+                        color = AutoAidDark,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = "Back",
+                            tint = AutoAidBlue
                         )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = CardBg
+                )
             )
-        }
-    ) { innerPadding ->
-
-        when {
-            loading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
-
-            error != null -> {
+        },
+        bottomBar = {
+            Surface(
+                color = CardBg,
+                shadowElevation = 10.dp
+            ) {
                 Column(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.Center
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                        .navigationBarsPadding(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    when {
+                        canViewQuotation && !showQuotation -> {
+                            Button(
+                                onClick = { showQuotation = true },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(56.dp),
+                                shape = RoundedCornerShape(18.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = AutoAidBlue)
+                            ) {
+                                Text("View Quotation", fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        canAcceptQuotation && showQuotation -> {
+                            Button(
+                                onClick = { acceptQuotation() },
+                                enabled = !actionLoading,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(56.dp),
+                                shape = RoundedCornerShape(18.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = AutoAidBlue)
+                            ) {
+                                if (actionLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp,
+                                        color = Color.White
+                                    )
+                                } else {
+                                    Text("Accept Quotation", fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+
+                        canPay -> {
+                            Button(
+                                onClick = { payNow() },
+                                enabled = !actionLoading,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(56.dp),
+                                shape = RoundedCornerShape(18.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = AutoAidBlue)
+                            ) {
+                                if (actionLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp,
+                                        color = Color.White
+                                    )
+                                } else {
+                                    Text("Pay", fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+
+                        canUserDone -> {
+                            Button(
+                                onClick = { markUserDone() },
+                                enabled = !actionLoading,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(56.dp),
+                                shape = RoundedCornerShape(18.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen)
+                            ) {
+                                if (actionLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp,
+                                        color = Color.White
+                                    )
+                                } else {
+                                    Text("Job Done", fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    ) { padding ->
+        if (loading) {
+            Box(
+                modifier = Modifier
+                    .padding(padding)
+                    .fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = AutoAidBlue)
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .padding(padding)
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                LinearProgressIndicator(
+                    progress = { progressValue },
+                    modifier = Modifier.fillMaxWidth(),
+                    color = AutoAidBlue,
+                    trackColor = SoftBlue
+                )
+
+                StatusBanner(
+                    title = bannerTitle,
+                    body = bannerBody,
+                    type = bannerType
+                )
+
+                successMessage?.let { message ->
+                    StatusBanner("Success", message, BannerType.SUCCESS)
+                }
+
+                errorMessage?.let { message ->
+                    StatusBanner("Error", message, BannerType.ERROR)
+                }
+
+                RequestHeroCard(
+                    serviceName = serviceName,
+                    providerName = providerName,
+                    status = formatStatus(status),
+                    paymentStatus = formatPaymentStatus(payState)
+                )
+
+                InfoSectionCard(
+                    title = "Request Information",
+                    icon = Icons.Default.ReceiptLong
+                ) {
+                    InfoRow("Request ID", requestId)
+                    InfoRow("Service", serviceName)
+                    InfoRow("Problem", problemText)
+                    InfoRow("Phone", userPhone.ifBlank { "-" })
+                }
+
+                InfoSectionCard(
+                    title = "Location",
+                    icon = Icons.Default.LocationOn,
+                    containerColor = SoftBlue
                 ) {
                     Text(
-                        text = error ?: "Error",
-                        color = MaterialTheme.colorScheme.error
+                        text = locationLabel,
+                        color = AutoAidDark
                     )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Button(
-                        onClick = { loadData() },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Retry")
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    OutlinedButton(
-                        onClick = { navController.popBackStack() },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Back")
-                    }
-                }
-            }
-
-            else -> {
-                val r = request ?: return@Scaffold
-                val q = quote
-
-                val serviceName = serviceDisplayName(r.service ?: r.providerType)
-                val statusText = formatStatus(r.status)
-                val requestTime = parseServerDateToDisplay(r.createdAt)
-                val serviceKey = normalizeServiceKey(r.service ?: r.providerType)
-
-                val totalAmount = q?.totalAmount
-                    ?: r.totalAmount
-                    ?: r.amount
-                    ?: r.price
-                    ?: 0.0
-
-                val quoteExists = totalAmount > 0.0
-                val paymentStatusRaw = (r.paymentStatus ?: "unpaid").trim().lowercase()
-                val providerCompleted = r.providerCompleted == true
-                val userCompleted = r.userCompleted == true
-                val activeRequest = isRequestActive(r.status)
-
-                val assignedProviderName = r.assignedProviderName?.takeIf { it.isNotBlank() }
-                val assignedProviderPhone = r.assignedProviderPhone?.takeIf { it.isNotBlank() }
-                val assignedProviderRating = r.assignedProviderRating
-                val targetProviderId = r.targetProviderId?.takeIf { it.isNotBlank() }
-
-                val providerStateText = when {
-                    !assignedProviderName.isNullOrBlank() -> "Provider assigned"
-                    !targetProviderId.isNullOrBlank() -> "Provider selected, waiting for acceptance"
-                    else -> "Waiting for provider"
                 }
 
-                val showPayNow =
-                    quoteExists &&
-                            paymentStatusRaw == "unpaid" &&
-                            !userCompleted &&
-                            !providerCompleted
-
-                val showConfirmCompletedButton =
-                    paymentStatusRaw == "held_in_escrow" &&
-                            providerCompleted &&
-                            !userCompleted &&
-                            activeRequest
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                        .padding(16.dp)
-                        .verticalScroll(rememberScrollState())
+                if (
+                    showQuotation ||
+                    canPay ||
+                    payState == "paid" ||
+                    status in listOf("provider_done", "completed") ||
+                    quotationAcceptedLocally
                 ) {
                     InfoSectionCard(
-                        title = "Request Summary",
-                        icon = Icons.Default.ReceiptLong
+                        title = "Quotation",
+                        icon = Icons.Default.Payments
                     ) {
-                        LabelValue("Request ID", r.resolvedId())
-                        LabelValue("Status", statusText)
-                        LabelValue("Service", serviceName)
-                        LabelValue("Created At", requestTime)
-                        LabelValue("Problem", r.problem ?: "-")
-                        LabelValue("Vehicle Info", r.vehicleInfo ?: "-")
+                        InfoRow("Provider", providerName)
+                        InfoRow("Amount", formatUgx(quotationAmount), true)
 
-                        if (!r.towType.isNullOrBlank()) {
-                            LabelValue("Tow Type", r.towType)
+                        val quoteStateLabel = when {
+                            payState == "paid" -> "Paid"
+                            quotationAcceptedLocally -> "Accepted"
+                            quotationNote.isNotBlank() -> quotationNote
+                            else -> "Quoted"
                         }
 
-                        if (!r.note.isNullOrBlank()) {
-                            LabelValue("Note", r.note)
-                        }
+                        InfoRow("Status", quoteStateLabel)
 
-                        if (!r.urgency.isNullOrBlank()) {
-                            LabelValue(
-                                "Urgency",
-                                r.urgency.replaceFirstChar {
-                                    if (it.isLowerCase()) {
-                                        it.titlecase(Locale.getDefault())
-                                    } else {
-                                        it.toString()
-                                    }
-                                }
+                        if (canPay) {
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            OutlinedTextField(
+                                value = phoneNumber,
+                                onValueChange = { newValue -> phoneNumber = newValue },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                label = { Text("Phone Number") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                singleLine = true
+                            )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            OutlinedTextField(
+                                value = formatUgx(quotationAmount),
+                                onValueChange = {},
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                label = { Text("Amount") },
+                                readOnly = true,
+                                enabled = false,
+                                singleLine = true
                             )
                         }
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    InfoSectionCard(
-                        title = "Provider Information",
-                        icon = Icons.Default.SupportAgent
-                    ) {
-                        LabelValue("Provider Status", providerStateText)
-                        LabelValue("Name", assignedProviderName ?: "-")
-                        LabelValue("Phone", assignedProviderPhone ?: "-")
-                        LabelValue(
-                            "Rating",
-                            assignedProviderRating?.toString()?.takeIf { it.isNotBlank() } ?: "-"
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    InfoSectionCard(
-                        title = "Service Location",
-                        icon = Icons.Default.LocationOn
-                    ) {
-                        LabelValue("Latitude", "${r.userLocation?.lat ?: 0.0}")
-                        LabelValue("Longitude", "${r.userLocation?.lng ?: 0.0}")
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    InfoSectionCard(
-                        title = "Payment & Completion",
-                        icon = Icons.Default.Lock,
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    ) {
-                        LabelValue("Total Amount", formatUgx(totalAmount))
-                        LabelValue(
-                            "Payment Status",
-                            paymentStatusLabel(
-                                paymentStatus = paymentStatusRaw,
-                                providerCompleted = providerCompleted,
-                                userCompleted = userCompleted
-                            )
-                        )
-                        LabelValue("Provider Completed", if (providerCompleted) "Yes" else "No")
-                        LabelValue("User Completed", if (userCompleted) "Yes" else "No")
-                    }
-
-                    if (q != null) {
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        InfoSectionCard(
-                            title = "Provider Quotation",
-                            icon = Icons.Default.Person,
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        ) {
-                            LabelValue("Provider Charge", formatUgx(q.providerAmount ?: 0.0))
-                            LabelValue("System Fee", formatUgx(q.systemFee ?: 0.0))
-                            LabelValue("Total User Pays", formatUgx(q.totalAmount ?: 0.0))
-                            LabelValue(
-                                "Price Set By Provider",
-                                if (q.priceSetByProvider == true) "Yes" else "No"
-                            )
-                        }
-                    }
-
-                    if (showPayNow) {
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        StatusMessageCard(
-                            title = "System-secured payment",
-                            message = "Pay now so your funds are held safely in escrow until the job is completed."
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Button(
-                            onClick = { payNow() },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !paying
-                        ) {
-                            if (paying) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.dp,
-                                    color = MaterialTheme.colorScheme.onPrimary
-                                )
-                            } else {
-                                Text("Pay Now")
-                            }
-                        }
-                    }
-
-                    if (paymentStatusRaw == "held_in_escrow" && !providerCompleted) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        StatusMessageCard(
-                            title = "Payment Held in Escrow",
-                            message = "Your payment is secured. Waiting for service completion."
-                        )
-                    }
-
-                    if (paymentStatusRaw == "held_in_escrow" && providerCompleted && !userCompleted) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        StatusMessageCard(
-                            title = "Waiting for your confirmation",
-                            message = "The provider marked the job as completed. Confirm to release payment."
-                        )
-                    }
-
-                    if (paymentStatusRaw == "released" && providerCompleted && userCompleted) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        StatusMessageCard(
-                            title = "Completed - Payment Released",
-                            message = "This request is fully completed and payment has been released to the provider."
-                        )
-                    }
-
-                    paymentMessage?.let { message ->
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = message,
-                            color = if (
-                                message.contains("fail", ignoreCase = true) ||
-                                message.contains("invalid", ignoreCase = true)
-                            ) {
-                                MaterialTheme.colorScheme.error
-                            } else {
-                                MaterialTheme.colorScheme.primary
-                            }
-                        )
-                    }
-
-                    completionMessage?.let { message ->
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = message,
-                            color = if (message.contains("fail", ignoreCase = true)) {
-                                MaterialTheme.colorScheme.error
-                            } else {
-                                MaterialTheme.colorScheme.primary
-                            }
-                        )
-                    }
-
-                    if (showConfirmCompletedButton) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(
-                            onClick = { confirmJobCompleted() },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !confirmingCompletion
-                        ) {
-                            if (confirmingCompletion) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.dp,
-                                    color = MaterialTheme.colorScheme.onPrimary
-                                )
-                            } else {
-                                Text("Confirm Job Completed")
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    if (serviceKey.isNotBlank()) {
-                        Button(
-                            onClick = { openLiveTracking(serviceKey) },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Open Live Tracking")
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-                    }
-
-                    Button(
-                        onClick = { loadData() },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Refresh")
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    OutlinedButton(
-                        onClick = { navController.popBackStack() },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Back")
-                    }
-
-                    Spacer(modifier = Modifier.height(20.dp))
+                InfoSectionCard(
+                    title = "Flow",
+                    icon = Icons.Default.Info,
+                    containerColor = SoftBlue
+                ) {
+                    StepText("1. Provider accepts request")
+                    StepText("2. Provider clicks Start Job")
+                    StepText("3. Provider clicks Arrived")
+                    StepText("4. Provider sends quotation")
+                    StepText("5. User clicks View Quotation")
+                    StepText("6. User accepts quotation")
+                    StepText("7. User enters phone number")
+                    StepText("8. Amount stays auto-filled")
+                    StepText("9. User clicks Pay")
+                    StepText("10. Provider receives payment and clicks Job Done")
+                    StepText("11. User confirms completion by clicking Job Done")
                 }
             }
         }
+    }
+}
+
+private enum class BannerType {
+    SUCCESS, WARNING, ERROR, INFO
+}
+
+@Composable
+private fun StatusBanner(
+    title: String,
+    body: String,
+    type: BannerType
+) {
+    val bg = when (type) {
+        BannerType.SUCCESS -> SuccessGreenBg
+        BannerType.WARNING -> PendingAmberBg
+        BannerType.ERROR -> DangerRedBg
+        BannerType.INFO -> SoftBlue
+    }
+
+    val fg = when (type) {
+        BannerType.SUCCESS -> SuccessGreen
+        BannerType.WARNING -> PendingAmber
+        BannerType.ERROR -> DangerRed
+        BannerType.INFO -> AutoAidBlue
+    }
+
+    val icon = when (type) {
+        BannerType.SUCCESS -> Icons.Default.CheckCircle
+        BannerType.WARNING -> Icons.Default.WarningAmber
+        BannerType.ERROR -> Icons.Default.WarningAmber
+        BannerType.INFO -> Icons.Default.Info
+    }
+
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = bg)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.75f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = fg)
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(title, color = AutoAidDark, fontWeight = FontWeight.Bold)
+                Text(body, color = AutoAidDark)
+            }
+        }
+    }
+}
+
+@Composable
+private fun RequestHeroCard(
+    serviceName: String,
+    providerName: String,
+    status: String,
+    paymentStatus: String
+) {
+    Card(
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = CardBg),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = serviceName,
+                color = AutoAidDark,
+                fontWeight = FontWeight.ExtraBold,
+                style = MaterialTheme.typography.titleLarge
+            )
+
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                MiniPill(Icons.Default.Person, providerName)
+                MiniPill(Icons.Default.Info, status)
+            }
+
+            Divider(color = SoftBorder)
+            InfoRow("Current Status", status)
+            InfoRow("Payment", paymentStatus)
+        }
+    }
+}
+
+@Composable
+private fun MiniPill(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String
+) {
+    Row(
+        modifier = Modifier
+            .background(SoftBlue, RoundedCornerShape(50))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = AutoAidBlue,
+            modifier = Modifier.size(16.dp)
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(text = text, color = AutoAidDark, fontWeight = FontWeight.SemiBold)
     }
 }
 
 @Composable
 private fun InfoSectionCard(
     title: String,
-    icon: ImageVector,
-    containerColor: Color = MaterialTheme.colorScheme.surface,
-    content: @Composable ColumnScope.() -> Unit
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    containerColor: Color = CardBg,
+    content: @Composable () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = containerColor)
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
         Column(
-            modifier = Modifier.padding(14.dp)
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null
-                )
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.8f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, contentDescription = null, tint = AutoAidBlue)
+                }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
                 Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
+                    title,
+                    color = AutoAidDark,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
             content()
         }
     }
 }
 
 @Composable
-private fun StatusMessageCard(
-    title: String,
-    message: String
+private fun InfoRow(
+    label: String,
+    value: String,
+    highlight: Boolean = false
 ) {
-    Card(
+    Row(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
-        )
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Column(
-            modifier = Modifier.padding(14.dp)
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
+        Text(label, color = MutedText)
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            value,
+            color = if (highlight) AutoAidBlue else AutoAidDark,
+            fontWeight = if (highlight) FontWeight.Bold else FontWeight.Medium
+        )
     }
 }
 
 @Composable
-private fun LabelValue(
-    label: String,
-    value: String
-) {
-    Text(
-        text = label,
-        style = MaterialTheme.typography.titleSmall
-    )
-    Text(text = value)
-    Spacer(modifier = Modifier.height(10.dp))
+private fun StepText(text: String) {
+    Text(text = text, color = AutoAidDark)
 }
 
-private fun normalizeServiceKey(value: String?): String {
-    return when (value?.trim()?.lowercase()) {
-        "fuel", "fuel delivery" -> "fuel"
-        "garage", "garage repair" -> "garage"
-        "towing", "tow", "towing service", "towing track" -> "towing"
-        "ambulance", "ambulance service" -> "ambulance"
-        else -> ""
-    }
-}
-
-private fun serviceDisplayName(service: String?): String {
-    return when (normalizeServiceKey(service)) {
-        "fuel" -> "Fuel Delivery"
-        "garage" -> "Garage"
-        "towing" -> "Towing Service"
-        "ambulance" -> "Ambulance Service"
-        else -> "AutoAid Service"
-    }
-}
-
-private fun formatStatus(status: String?): String {
-    return when (status?.trim()?.lowercase()) {
-        "pending", "request_sent" -> "Pending"
-        "assigned", "driver_assigned", "mechanic_assigned", "vendor_assigned" -> "Assigned"
-        "driver_on_the_way",
-        "mechanic_on_the_way",
-        "vendor_on_the_way",
-        "ambulance_on_the_way" -> "On Going"
-        "arrived" -> "Arrived"
-        "in_progress",
-        "delivering",
-        "patient_picked",
-        "vehicle_towed",
-        "repaired" -> "On Going"
-        "awaiting_dual_confirmation" -> "Waiting for Confirmation"
-        "delivered", "at_hospital", "completed" -> "Completed"
-        "cancelled" -> "Cancelled"
-        "awaiting_payment" -> "Awaiting Payment"
-        "quoted" -> "Quoted"
-        else -> status?.replaceFirstChar {
-            if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
-        } ?: "Unknown"
-    }
-}
-
-private fun paymentStatusLabel(
-    paymentStatus: String?,
-    providerCompleted: Boolean,
-    userCompleted: Boolean
-): String {
-    val status = paymentStatus?.trim()?.lowercase() ?: "unpaid"
-
-    return when {
-        status == "released" && providerCompleted && userCompleted ->
-            "Completed - Payment Released"
-
-        status == "held_in_escrow" && !providerCompleted ->
-            "Waiting for Provider Completion"
-
-        status == "held_in_escrow" && providerCompleted && !userCompleted ->
-            "Waiting for User Confirmation"
-
-        status == "held_in_escrow" ->
-            "Payment Held in Escrow"
-
-        else ->
-            "Unpaid"
-    }
-}
-
-private fun isRequestActive(status: String?): Boolean {
-    return when (status?.trim()?.lowercase()) {
-        "assigned",
-        "arrived",
-        "in_progress",
-        "quoted",
-        "awaiting_payment",
-        "awaiting_dual_confirmation",
-        "paid",
-        "active",
-        "ongoing",
-        "on going",
-        "driver_on_the_way",
-        "mechanic_on_the_way",
-        "vendor_on_the_way",
-        "ambulance_on_the_way",
-        "delivering",
-        "patient_picked",
-        "vehicle_towed",
-        "repaired" -> true
-
-        else -> false
-    }
-}
-
-private fun formatUgx(amount: Double): String {
-    val formatter = NumberFormat.getNumberInstance(Locale.US).apply {
-        maximumFractionDigits = 0
-        minimumFractionDigits = 0
-    }
-    return "UGX ${formatter.format(amount)}"
-}
-
-private fun parseServerDateToDisplay(value: String?): String {
-    if (value.isNullOrBlank()) return "Unknown time"
-
-    val inputPatterns = listOf(
-        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
-        "yyyy-MM-dd'T'HH:mm:ss'Z'",
-        "yyyy-MM-dd HH:mm:ss",
-        "yyyy-MM-dd'T'HH:mm:ss.SSS",
-        "yyyy-MM-dd'T'HH:mm:ss"
-    )
-
-    for (pattern in inputPatterns) {
-        try {
-            val parser = SimpleDateFormat(pattern, Locale.getDefault())
-            val date = parser.parse(value)
-            if (date != null) {
-                val formatter = SimpleDateFormat("dd MMM • hh:mm a", Locale.getDefault())
-                return formatter.format(date)
-            }
-        } catch (_: Exception) {
-        }
-    }
-
+private fun formatStatus(value: String?): String {
     return value
+        ?.replace("_", " ")
+        ?.replaceFirstChar {
+            if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
+        }
+        ?: "Unknown"
+}
+
+private fun formatPaymentStatus(value: String?): String {
+    return when (value?.trim()?.lowercase()) {
+        "paid" -> "Paid"
+        "unpaid" -> "Unpaid"
+        else -> formatStatus(value)
+    }
+}
+
+private fun formatUgx(value: Double): String {
+    return try {
+        "UGX ${NumberFormat.getNumberInstance(Locale.US).format(value)}"
+    } catch (_: Throwable) {
+        "UGX $value"
+    }
 }

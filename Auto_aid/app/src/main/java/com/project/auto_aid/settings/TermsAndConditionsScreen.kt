@@ -102,21 +102,164 @@ fun TermsAndConditionsScreen(
 
                 Text(
                     text = """
-                        By using AutoAid, you agree to the following terms and conditions.
-                        1. AutoAid provides roadside assistance services including towing, fuel delivery, garage assistance, and emergency services.
-                        
-                        2. Users must provide accurate personal and vehicle information.
-                        
-                        3. Payments are processed securely and are non-refundable once a service is completed.
-                        
-                        4. Service providers are independent contractors; AutoAid is not liable for damages caused during service delivery.
-                        
-                        5. Misuse of the platform may result in account suspension.
-                        
-                        6. Your data is handled according to our Privacy Policy.
-                        
-                        Please read carefully before accepting.
-                    """.trimIndent(),
+WELCOME TO AUTO AID
+
+Effective Date: [Insert Date]
+
+By using Auto Aid, you agree to the following Terms and Conditions. Please read carefully.
+
+--------------------------------------------------
+
+1. PLATFORM ROLE
+Auto Aid is a digital platform that connects users with independent service providers for:
+- Towing
+- Fuel delivery
+- Mechanical assistance
+- Emergency services
+
+Auto Aid is NOT a direct service provider and is not responsible for how services are executed.
+
+--------------------------------------------------
+
+2. ELIGIBILITY
+You must:
+- Be at least 18 years old
+- Provide accurate information
+- Use the platform lawfully
+
+--------------------------------------------------
+
+3. SERVICE FLOW AGREEMENT (STRICT)
+All users and providers MUST follow this system:
+
+1. Request created
+2. Provider accepts
+3. Provider clicks Start Job
+4. Provider clicks Arrived
+5. Provider analyzes issue
+6. Provider sends quotation
+7. User accepts & pays
+8. Provider completes job
+9. Both confirm Job Done
+
+Any attempt to bypass this flow is a violation.
+
+--------------------------------------------------
+
+4. USER RESPONSIBILITIES
+Users must:
+- Provide correct location and problem details
+- Pay agreed amount through the platform
+- Treat providers respectfully
+- Avoid false or misleading requests
+
+--------------------------------------------------
+
+5. PROVIDER RESPONSIBILITIES
+Providers must:
+- Offer professional and honest services
+- Send fair quotations
+- Avoid off-platform payments
+- Follow the Auto Aid workflow strictly
+
+--------------------------------------------------
+
+6. PAYMENTS
+- Payments may be simulated or real depending on system stage
+- Service proceeds after payment confirmation
+- Auto Aid may apply commission fees
+
+--------------------------------------------------
+
+7. PROHIBITED ACTIVITIES
+The following are strictly forbidden:
+- Fraud or scams
+- Fake requests or fake services
+- Harassment or abuse
+- Bypassing platform payments
+- Impersonation
+
+--------------------------------------------------
+
+8. CRIMINAL ACTIVITIES & LEGAL LIABILITY
+If any user or provider commits a crime including:
+- Theft
+- Assault
+- Fraud
+- Damage to property
+- Any illegal act under Ugandan law
+
+THEN:
+
+- The individual is fully responsible under the laws of Uganda
+- Auto Aid will:
+    • Suspend or terminate the account
+    • Report to law enforcement authorities
+    • Provide evidence including:
+        - Location data
+        - Chat records
+        - Payment records
+
+Auto Aid is NOT liable for criminal actions.
+
+--------------------------------------------------
+
+9. CONSEQUENCES OF VIOLATIONS
+Auto Aid may:
+- Suspend accounts
+- Permanently ban users/providers
+- Withhold payments
+- Report to authorities
+
+Repeated violations lead to permanent removal.
+
+--------------------------------------------------
+
+10. DATA & PRIVACY
+Auto Aid may collect and use:
+- Location data
+- Communication logs
+- Payment records
+
+This data may be shared with authorities if required by law.
+
+--------------------------------------------------
+
+11. LIMITATION OF LIABILITY
+Auto Aid is not responsible for:
+- Service quality
+- Delays or cancellations
+- Damages or injuries
+
+All responsibility lies with the service provider or user.
+
+--------------------------------------------------
+
+12. SAFETY NOTICE
+Users and providers use the platform at their own risk.
+
+Always:
+- Verify details
+- Meet in safe environments
+- Report suspicious activity
+
+--------------------------------------------------
+
+13. TERMINATION
+Auto Aid may suspend or terminate any account that violates these terms.
+
+--------------------------------------------------
+
+14. GOVERNING LAW
+These terms are governed by the laws of the Republic of Uganda.
+
+--------------------------------------------------
+
+15. ACCEPTANCE
+By continuing, you confirm that:
+- You have read and understood these terms
+- You agree to comply with all rules
+    """.trimIndent(),
                     fontSize = 15.sp,
                     lineHeight = 22.sp
                 )

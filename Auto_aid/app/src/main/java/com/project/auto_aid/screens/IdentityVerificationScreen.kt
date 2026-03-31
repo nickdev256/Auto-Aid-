@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -62,6 +63,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -158,10 +160,10 @@ fun IdentityVerificationScreen(
                 navigationIcon = {
                     IconButton(
                         onClick = {
-                            if (currentStep > 0) {
-                                currentStep -= 1
-                            } else {
-                                navController.popBackStack()
+                            when {
+                                state.isSubmitting -> Unit
+                                currentStep > 0 -> currentStep -= 1
+                                else -> navController.popBackStack()
                             }
                         }
                     ) {
@@ -244,16 +246,29 @@ fun IdentityVerificationScreen(
                                 "not_verified" -> 1
                                 "pending" -> 2
                                 "verified" -> 3
+                                "rejected" -> 1
                                 else -> 1
                             }
                         )
 
+                        if (state.verificationStatus.equals("rejected", ignoreCase = true)) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Your previous verification was rejected. Please submit a clearer and valid document.",
+                                color = Color(0xFFC62828),
+                                fontSize = 13.sp
+                            )
+                        }
+
                         Spacer(modifier = Modifier.height(20.dp))
 
                         Button(
-                            onClick = { currentStep = 1 },
-                            enabled = state.verificationStatus.lowercase() != "verified" &&
-                                    state.verificationStatus.lowercase() != "pending",
+                            onClick = {
+                                capturedBitmap = null
+                                currentStep = 1
+                            },
+                            enabled = !state.verificationStatus.equals("verified", ignoreCase = true) &&
+                                    !state.verificationStatus.equals("pending", ignoreCase = true),
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp)
                         ) {
@@ -274,16 +289,19 @@ fun IdentityVerificationScreen(
                     SectionCard {
                         DocumentItem("National ID") {
                             viewModel.selectDocument("National ID")
+                            capturedBitmap = null
                             currentStep = 2
                         }
 
                         DocumentItem("Passport") {
                             viewModel.selectDocument("Passport")
+                            capturedBitmap = null
                             currentStep = 2
                         }
 
                         DocumentItem("Driver's License") {
                             viewModel.selectDocument("Driver's License")
+                            capturedBitmap = null
                             currentStep = 2
                         }
                     }
@@ -321,10 +339,30 @@ fun IdentityVerificationScreen(
                                 contentScale = ContentScale.Crop
                             )
                         } else {
-                            Text(
-                                text = "No image captured",
-                                color = Color.Gray
-                            )
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.padding(16.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.VerifiedUser,
+                                    contentDescription = null,
+                                    tint = Color.Gray,
+                                    modifier = Modifier.size(44.dp)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "No image captured",
+                                    color = Color.Gray,
+                                    fontSize = 14.sp
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Take a clear photo of the selected document",
+                                    color = Color.Gray,
+                                    fontSize = 12.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
                     }
 
@@ -341,7 +379,7 @@ fun IdentityVerificationScreen(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("TAKE PHOTO")
+                        Text(if (capturedBitmap == null) "TAKE PHOTO" else "RETAKE PHOTO")
                     }
 
                     if (!hasCameraPermission) {
@@ -360,7 +398,7 @@ fun IdentityVerificationScreen(
                         enabled = capturedBitmap != null,
                         modifier = Modifier.align(Alignment.End)
                     ) {
-                        Text("Retake / Clear")
+                        Text("Clear")
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -400,7 +438,26 @@ fun IdentityVerificationScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    if (capturedBitmap != null) {
+                        Card(
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Image(
+                                bitmap = capturedBitmap!!.asImageBitmap(),
+                                contentDescription = "Document preview",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(220.dp),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+                    }
 
                     Button(
                         onClick = {
@@ -423,13 +480,37 @@ fun IdentityVerificationScreen(
                                 capturedBitmap != null &&
                                 !state.isSubmitting,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF0A9AD8)
+                        )
                     ) {
                         if (state.isSubmitting) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color.White
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text("SUBMITTING...")
+                            }
                         } else {
                             Text("SUBMIT")
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    TextButton(
+                        onClick = { currentStep = 2 },
+                        enabled = !state.isSubmitting,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    ) {
+                        Text("Go Back")
                     }
                 }
             }

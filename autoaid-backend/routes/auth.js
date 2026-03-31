@@ -1,8 +1,9 @@
 import express from "express";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import OTP from "../models/OTP.js";
-import sendEmailOTP from "../utils/sendEmailOTP.js";
+import sendEmailOTP, { sendResetEmail } from "../utils/sendEmailOTP.js";
 
 const router = express.Router();
 
@@ -175,7 +176,7 @@ router.post("/resend-otp", async (req, res) => {
 });
 
 /* =====================================================
-   STEP 2 → VERIFY OTP (Create User + Return Token + Cookie)
+   STEP 2 → VERIFY OTP
 ====================================================== */
 router.post("/verify-otp", async (req, res) => {
   try {
@@ -260,7 +261,7 @@ router.post("/verify-otp", async (req, res) => {
 });
 
 /* =====================================================
-   LOGIN (RETURN TOKEN + COOKIE) + updates lastLoginFrom
+   LOGIN
 ====================================================== */
 router.post("/login", async (req, res) => {
   try {
@@ -295,6 +296,7 @@ router.post("/login", async (req, res) => {
     res.cookie("token", token, cookieOptions);
 
     return res.json({
+      message: "Login successful",
       token,
       user: buildUserResponse(user),
     });
@@ -305,7 +307,7 @@ router.post("/login", async (req, res) => {
 });
 
 /* =====================================================
-   ME (COOKIE OR BEARER)
+   ME
 ====================================================== */
 router.get("/me", async (req, res) => {
   try {
@@ -341,6 +343,80 @@ router.post("/logout", (req, res) => {
   });
 
   return res.json({ message: "Logged out" });
+});
+
+/* =====================================================
+   FORGOT PASSWORD
+====================================================== */
+router.post("/forgot-password", async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body?.email);
+
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(200).json({
+        message: "If that email exists, a reset link has been sent.",
+      });
+    }
+
+    const resetToken = jwt.sign(
+      { id: user._id, email: user.email, type: "password_reset" },
+      JWT_SECRET,
+      { expiresIn: "30m" }
+    );
+
+    const resetLink = `${process.env.FRONTEND_RESET_URL}?token=${resetToken}`;
+
+    await sendResetEmail(user.email, resetLink);
+
+    return res.status(200).json({
+      message: "Reset link sent to your email.",
+    });
+  } catch (error) {
+    console.error("forgotPassword error:", error);
+    return res.status(500).json({ message: "Failed to send reset link" });
+  }
+});
+
+/* =====================================================
+   RESET PASSWORD
+====================================================== */
+router.post("/reset-password", async (req, res) => {
+  try {
+    const { token, newPassword } = req.body || {};
+
+    if (!token || !newPassword) {
+      return res.status(400).json({
+        message: "Token and new password are required",
+      });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    if (decoded.type !== "password_reset") {
+      return res.status(400).json({ message: "Invalid reset token" });
+    }
+
+    const user = await User.findById(decoded.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+
+    return res.status(200).json({
+      message: "Password reset successful",
+    });
+  } catch (error) {
+    console.error("resetPassword error:", error);
+    return res.status(400).json({ message: "Reset link is invalid or expired" });
+  }
 });
 
 export default router;

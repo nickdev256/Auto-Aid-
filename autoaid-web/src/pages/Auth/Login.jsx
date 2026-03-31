@@ -12,12 +12,47 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  const handleChange = (e) =>
-    setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    setForm((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  };
+
+  const goToProviderDashboard = (user) => {
+    const type = (user?.businessType || "").toLowerCase().trim();
+
+    if (type === "garage") {
+      navigate("/provider/garage");
+      return;
+    }
+
+    if (type === "fuel") {
+      navigate("/provider/fuel");
+      return;
+    }
+
+    if (type === "towing") {
+      navigate("/provider/towing");
+      return;
+    }
+
+    if (type === "ambulance") {
+      navigate("/provider/ambulance");
+      return;
+    }
+
+    // fallback if businessType is missing or unknown
+    navigate("/provider/dashboard");
+  };
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!role) return alert("Please choose account type");
+
+    if (!role) {
+      alert("Please choose account type");
+      return;
+    }
 
     setErrorMsg("");
     setLoading(true);
@@ -25,49 +60,53 @@ export default function Login() {
     try {
       const user = await login(form.email, form.password);
 
-      // Admin login
-      if (user.role === "admin") {
+      // ADMIN LOGIN
+      if (user?.role === "admin") {
         navigate("/admin");
         return;
       }
 
-      // Provider login rules
-      if (user.role === "provider") {
+      // PROVIDER LOGIN
+      if (user?.role === "provider") {
         if (role !== "provider") {
           setErrorMsg("This is a provider account. Select Provider login.");
-          setLoading(false);
           return;
         }
 
-        if (user.status === "pending") navigate("/provider/pending");
-        else if (user.status === "approved") navigate("/provider/dashboard");
-        else navigate("/provider/rejected");
+        const status = (user?.status || "").toLowerCase().trim();
+
+        if (status === "pending") {
+          navigate("/provider/pending");
+          return;
+        }
+
+        if (status === "approved") {
+          goToProviderDashboard(user);
+          return;
+        }
+
+        navigate("/provider/rejected");
         return;
       }
 
-      // User login (normal user)
-      if (role === "user" && user.role === "user") {
+      // NORMAL USER LOGIN
+      if (role === "user" && user?.role === "user") {
         navigate("/dashboard");
         return;
       }
 
       setErrorMsg("Role does not match this account.");
     } catch (err) {
-      setErrorMsg(err.message || "Login failed");
+      setErrorMsg(err?.message || "Login failed");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
-  /* ------------------------------
-     STEP 1 → ROLE SELECTION
-  ------------------------------- */
   if (!role) {
     return (
       <div className="login-bg">
         <div className="role-select-card">
-
-          {/* BRAND */}
           <div className="auth-brand">
             <img src="/images/logo.jpg" className="auth-logo" alt="logo" />
             <div className="auth-title">
@@ -85,20 +124,14 @@ export default function Login() {
           <button className="role-btn" onClick={() => setRole("provider")}>
             🛠 Provider Login
           </button>
-
         </div>
       </div>
     );
   }
 
-  /* ------------------------------
-     STEP 2 → LOGIN FORM
-  ------------------------------- */
   return (
     <div className="login-bg">
       <div className="login-card">
-
-        {/* BRAND */}
         <div className="auth-brand">
           <img src="/images/logo.jpg" className="auth-logo" alt="logo" />
           <div className="auth-title">
@@ -140,9 +173,16 @@ export default function Login() {
           <a href="/reset">Forgot Password?</a>
           <br />
           Don’t have an account?{" "}
-          <a onClick={() => navigate("/signup")}>Create one</a>
+          <a
+            href="#signup"
+            onClick={(e) => {
+              e.preventDefault();
+              navigate("/signup");
+            }}
+          >
+            Create one
+          </a>
         </div>
-
       </div>
     </div>
   );

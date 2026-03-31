@@ -10,6 +10,22 @@ const SystemWalletSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    totalAirtelCollections: {
+      type: Number,
+      default: 0,
+    },
+    totalWalletCollections: {
+      type: Number,
+      default: 0,
+    },
+    totalCashSettlements: {
+      type: Number,
+      default: 0,
+    },
+    totalRefunds: {
+      type: Number,
+      default: 0,
+    },
     totalRevenue: {
       type: Number,
       default: 0,

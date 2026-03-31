@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.project.auto_aid.data.local.TokenStore
 import com.project.auto_aid.data.network.RetrofitClient
+import com.project.auto_aid.screens.tracking.LiveTrackingMap
 import io.socket.client.IO
 import io.socket.client.Socket
 import kotlinx.coroutines.delay
@@ -74,6 +75,9 @@ fun GarageActiveScreen(
     var providerName by remember { mutableStateOf<String?>(null) }
     var providerPhone by remember { mutableStateOf<String?>(null) }
     var providerRating by remember { mutableStateOf<Double?>(null) }
+
+    var userLat by remember { mutableStateOf(0.0) }
+    var userLng by remember { mutableStateOf(0.0) }
 
     var chatExpanded by remember { mutableStateOf(false) }
     var input by remember { mutableStateOf("") }
@@ -147,6 +151,8 @@ fun GarageActiveScreen(
                         providerName = body.assignedProviderName
                         providerPhone = body.assignedProviderPhone
                         providerRating = body.assignedProviderRating
+                        userLat = body.userLocation?.lat ?: 0.0
+                        userLng = body.userLocation?.lng ?: 0.0
                         error = null
                     } else {
                         error = "Request not found"
@@ -277,15 +283,31 @@ fun GarageActiveScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(20.dp)
+            .padding(16.dp)
     ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(250.dp),
+            elevation = CardDefaults.cardElevation(4.dp),
+            shape = RoundedCornerShape(18.dp)
+        ) {
+            LiveTrackingMap(
+                requestId = requestId,
+                userLat = userLat,
+                userLng = userLng
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
         Text(
             text = "Garage Status",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(12.dp))
 
         if (loading && status.lowercase() == "pending") {
             CircularProgressIndicator()
@@ -294,7 +316,7 @@ fun GarageActiveScreen(
 
         error?.let {
             Text(it, color = MaterialTheme.colorScheme.error)
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
         }
 
         Text(
@@ -302,19 +324,19 @@ fun GarageActiveScreen(
             style = MaterialTheme.typography.bodyLarge
         )
 
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(12.dp))
 
         if (garageShouldShowProviderCard(status)) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 elevation = CardDefaults.cardElevation(4.dp)
             ) {
-                Column(Modifier.padding(16.dp)) {
+                Column(Modifier.padding(12.dp)) {
                     Text("Mechanic: ${providerName ?: "Unknown"}")
                     Text("Phone: ${providerPhone ?: "Unknown"}")
                     Text("Rating: ⭐ ${providerRating ?: 0.0}")
 
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(8.dp))
 
                     Button(
                         onClick = { openDialer(providerPhone) },
@@ -328,7 +350,7 @@ fun GarageActiveScreen(
             }
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(10.dp))
 
         if (canChat) {
             Card(
@@ -336,7 +358,7 @@ fun GarageActiveScreen(
                 shape = RoundedCornerShape(16.dp),
                 elevation = CardDefaults.cardElevation(2.dp)
             ) {
-                Column(Modifier.padding(12.dp)) {
+                Column(Modifier.padding(10.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -345,8 +367,7 @@ fun GarageActiveScreen(
                             Text("Chat with Mechanic", fontWeight = FontWeight.Bold)
                             Text(
                                 text = if (chatConnected) "Connected" else "Connecting…",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                style = MaterialTheme.typography.bodySmall
                             )
                         }
 
@@ -369,7 +390,7 @@ fun GarageActiveScreen(
                         LazyColumn(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = 140.dp, max = 280.dp)
+                                .heightIn(min = 120.dp, max = 220.dp)
                         ) {
                             items(
                                 items = messages,
@@ -380,7 +401,7 @@ fun GarageActiveScreen(
                             }
                         }
 
-                        Spacer(Modifier.height(10.dp))
+                        Spacer(Modifier.height(8.dp))
 
                         OutlinedTextField(
                             value = input,
@@ -390,7 +411,7 @@ fun GarageActiveScreen(
                             singleLine = true
                         )
 
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(6.dp))
 
                         Button(
                             onClick = {
@@ -435,7 +456,8 @@ private fun garageDisplayStatusText(status: String): String {
     return when (status.lowercase()) {
         "pending", "request_sent" -> "Request sent. Waiting for mechanic…"
         "assigned", "mechanic_assigned" -> "Mechanic assigned ✅"
-        "driver_on_the_way", "mechanic_on_the_way" -> "Mechanic is on the way 🔧"
+        "driver_on_the_way", "mechanic_on_the_way", "provider_on_the_way", "on_the_way" ->
+            "Mechanic is on the way 🔧"
         "arrived" -> "Mechanic arrived ✅"
         "in_progress" -> "Repair in progress…"
         "vehicle_towed", "repaired" -> "Vehicle repaired / stabilized ✅"
@@ -451,6 +473,8 @@ private fun garageCanChatForStatus(status: String): Boolean {
         "mechanic_assigned",
         "driver_on_the_way",
         "mechanic_on_the_way",
+        "provider_on_the_way",
+        "on_the_way",
         "arrived",
         "in_progress",
         "vehicle_towed",
@@ -465,6 +489,8 @@ private fun garageShouldShowProviderCard(status: String): Boolean {
         "mechanic_assigned",
         "driver_on_the_way",
         "mechanic_on_the_way",
+        "provider_on_the_way",
+        "on_the_way",
         "arrived",
         "in_progress",
         "vehicle_towed",

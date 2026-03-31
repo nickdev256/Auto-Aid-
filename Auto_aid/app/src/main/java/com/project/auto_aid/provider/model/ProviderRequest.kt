@@ -12,11 +12,32 @@ data class ProviderRequest(
     val assignedProviderPhone: String = "",
     val assignedProviderRating: Double = 0.0,
 
-    // ✅ ADD BACK (so provider can view details)
+    // Customer info
+    val customerName: String = "",
+    val customerPhone: String = "",
+
+    // Request details
     val service: String = "",
     val vehicleInfo: String = "",
     val problem: String = "",
     val towType: String = "",
+    val note: String = "",
+    val urgency: String = "",
 
+    // Time
+    val createdAt: String = "",
+
+    // Money / payment
+    val totalAmount: Double = 0.0,
+    val amount: Double = 0.0,
+    val price: Double = 0.0,
+    val paymentStatus: String = "",
+    val paymentConfirmedByProvider: Boolean = false,
+
+    // Completion flags
+    val providerCompleted: Boolean = false,
+    val userCompleted: Boolean = false,
+
+    // Location
     val userLocation: Map<String, Double> = emptyMap()
 )

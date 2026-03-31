@@ -1,13 +1,41 @@
 package com.project.auto_aid.screens.towing
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Send
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -16,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.project.auto_aid.data.local.TokenStore
 import com.project.auto_aid.data.network.RetrofitClient
+import com.project.auto_aid.screens.tracking.LiveTrackingMap
 import io.socket.client.IO
 import io.socket.client.Socket
 import kotlinx.coroutines.delay
@@ -43,6 +72,9 @@ fun TowingActiveScreen(
     var providerName by remember { mutableStateOf<String?>(null) }
     var providerPhone by remember { mutableStateOf<String?>(null) }
     var providerRating by remember { mutableStateOf<Double?>(null) }
+
+    var userLat by remember { mutableStateOf(0.0) }
+    var userLng by remember { mutableStateOf(0.0) }
 
     var chatExpanded by remember { mutableStateOf(false) }
     var input by remember { mutableStateOf("") }
@@ -101,6 +133,8 @@ fun TowingActiveScreen(
                         providerName = body.assignedProviderName
                         providerPhone = body.assignedProviderPhone
                         providerRating = body.assignedProviderRating
+                        userLat = body.userLocation?.lat ?: 0.0
+                        userLng = body.userLocation?.lng ?: 0.0
                         error = null
                     } else {
                         error = "Request not found"
@@ -141,7 +175,7 @@ fun TowingActiveScreen(
                     val s = IO.socket(socketBaseUrl, opts)
                     socket = s
 
-                    s.on(Socket.EVENT_CONNECT) {
+                    s.on(Socket.EVENT_CONNECT) { _: Array<Any> ->
                         scope.launch {
                             chatConnected = true
                             error = null
@@ -150,31 +184,31 @@ fun TowingActiveScreen(
                         }
                     }
 
-                    s.on(Socket.EVENT_DISCONNECT) {
+                    s.on(Socket.EVENT_DISCONNECT) { _: Array<Any> ->
                         scope.launch {
                             chatConnected = false
                         }
                     }
 
-                    s.on(Socket.EVENT_CONNECT_ERROR) { args ->
+                    s.on(Socket.EVENT_CONNECT_ERROR) { args: Array<Any> ->
                         val reason = args.firstOrNull()?.toString() ?: "unknown"
                         setErrorSafe("Chat connect error: $reason")
                     }
 
-                    s.on("chat_error") { args ->
+                    s.on("chat_error") { args: Array<Any> ->
                         val payload = args.firstOrNull() as? JSONObject
                         val msg = payload?.optString("message").orEmpty()
                         setErrorSafe(if (msg.isBlank()) "Chat error" else msg)
                     }
 
-                    s.on("chat_joined") {
+                    s.on("chat_joined") { _: Array<Any> ->
                         scope.launch {
                             joinedOnce = true
                             error = null
                         }
                     }
 
-                    s.on("chat_history") { args ->
+                    s.on("chat_history") { args: Array<Any> ->
                         runCatching {
                             val payload = args.firstOrNull() as? JSONObject ?: return@runCatching
                             val arr = payload.optJSONArray("messages") ?: JSONArray()
@@ -194,7 +228,7 @@ fun TowingActiveScreen(
                         }
                     }
 
-                    s.on("new_message") { args ->
+                    s.on("new_message") { args: Array<Any> ->
                         runCatching {
                             val payload = args.firstOrNull() as? JSONObject ?: return@runCatching
                             val m = payload.optJSONObject("message") ?: return@runCatching
@@ -233,15 +267,31 @@ fun TowingActiveScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(20.dp)
+            .padding(16.dp)
     ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(250.dp),
+            elevation = CardDefaults.cardElevation(4.dp),
+            shape = RoundedCornerShape(18.dp)
+        ) {
+            LiveTrackingMap(
+                requestId = requestId,
+                userLat = userLat,
+                userLng = userLng
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
         Text(
             text = "Towing Status",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(12.dp))
 
         if (loading && status.lowercase() == "pending") {
             CircularProgressIndicator()
@@ -341,7 +391,10 @@ fun TowingActiveScreen(
 
                                 val payload = JSONObject()
                                     .put("requestId", requestId)
+                                    .put("type", "text")
                                     .put("text", clean)
+                                    .put("audioUrl", "")
+                                    .put("durationSec", 0)
 
                                 s.emit("sendMessage", payload)
                                 input = ""
@@ -378,7 +431,7 @@ private fun displayStatusText(status: String): String {
     return when (status.lowercase()) {
         "pending", "request_sent" -> "Request sent. Waiting for provider…"
         "assigned", "driver_assigned" -> "Provider accepted ✅"
-        "driver_on_the_way" -> "Driver is on the way 🚚"
+        "driver_on_the_way", "provider_on_the_way", "on_the_way" -> "Driver is on the way 🚚"
         "arrived" -> "Provider arrived ✅"
         "in_progress" -> "Job in progress…"
         "vehicle_towed" -> "Vehicle has been towed ✅"
@@ -393,6 +446,8 @@ private fun canChatForStatus(status: String): Boolean {
         "assigned",
         "driver_assigned",
         "driver_on_the_way",
+        "provider_on_the_way",
+        "on_the_way",
         "arrived",
         "in_progress",
         "vehicle_towed",
@@ -405,6 +460,8 @@ private fun shouldShowProviderCard(status: String): Boolean {
         "assigned",
         "driver_assigned",
         "driver_on_the_way",
+        "provider_on_the_way",
+        "on_the_way",
         "arrived",
         "in_progress",
         "vehicle_towed",

@@ -4,9 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project.auto_aid.data.network.ApiService
 import com.project.auto_aid.data.network.dto.CreateRequestBody
-import com.project.auto_aid.data.network.dto.RequestDto
-import com.project.auto_aid.data.network.dto.UpdateStatusBody
 import com.project.auto_aid.data.network.dto.LocationBody
+import com.project.auto_aid.data.network.dto.RequestDto
+import com.project.auto_aid.data.network.dto.StatusUpdateResponse
+import com.project.auto_aid.data.network.dto.UpdateStatusBody
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,11 +30,13 @@ class AmbulanceViewModel(
         pollingJob?.cancel()
         pollingJob = viewModelScope.launch {
             while (isActive) {
-                runCatching<RequestDto> {
+                runCatching {
                     val response = api.getRequestById(requestId)
-                    if (!response.isSuccessful) throw Exception("HTTP ${response.code()}")
+                    if (!response.isSuccessful) {
+                        throw Exception("HTTP ${response.code()}")
+                    }
                     response.body() ?: throw Exception("Empty body")
-                }.onSuccess { dto: RequestDto ->
+                }.onSuccess { dto ->
                     _request.value = dto.toAmbulanceRequest()
 
                     val s = _request.value.status
@@ -56,7 +59,7 @@ class AmbulanceViewModel(
         targetProviderId: String? = null
     ) {
         viewModelScope.launch {
-            runCatching<RequestDto> {
+            runCatching {
                 val response = api.createRequest(
                     CreateRequestBody(
                         service = "ambulance",
@@ -74,9 +77,13 @@ class AmbulanceViewModel(
                         targetProviderId = targetProviderId
                     )
                 )
-                if (!response.isSuccessful) throw Exception("HTTP ${response.code()}")
+
+                if (!response.isSuccessful) {
+                    throw Exception("HTTP ${response.code()}")
+                }
+
                 response.body() ?: throw Exception("Empty body")
-            }.onSuccess { created: RequestDto ->
+            }.onSuccess { created ->
                 val id = created.resolvedId()
                 if (id.isBlank()) return@onSuccess
 
@@ -91,15 +98,22 @@ class AmbulanceViewModel(
         if (id.isBlank()) return
 
         viewModelScope.launch {
-            runCatching<RequestDto> {
+            runCatching {
                 val response = api.updateRequestStatus(
                     id,
                     UpdateStatusBody(status = "cancelled")
                 )
-                if (!response.isSuccessful) throw Exception("HTTP ${response.code()}")
-                response.body() ?: throw Exception("Empty body")
-            }.onSuccess { updated: RequestDto ->
-                _request.value = updated.toAmbulanceRequest()
+
+                if (!response.isSuccessful) {
+                    throw Exception("HTTP ${response.code()}")
+                }
+
+                val body: StatusUpdateResponse =
+                    response.body() ?: throw Exception("Empty body")
+
+                body.request ?: throw Exception("Missing request in response")
+            }.onSuccess { updatedRequest: RequestDto ->
+                _request.value = updatedRequest.toAmbulanceRequest()
             }
         }
     }
@@ -116,7 +130,8 @@ private fun RequestDto.toAmbulanceRequest(): AmbulanceRequest {
     val mapped = when (backendStatus) {
         "PENDING", "REQUEST_SENT" -> AmbulanceStatus.REQUEST_SENT
         "ASSIGNED", "DRIVER_ASSIGNED" -> AmbulanceStatus.DRIVER_ASSIGNED
-        "DRIVER_ON_THE_WAY", "AMBULANCE_ON_THE_WAY" -> AmbulanceStatus.AMBULANCE_ON_THE_WAY
+        "EN_ROUTE", "ON_THE_WAY", "PROVIDER_ON_THE_WAY", "DRIVER_ON_THE_WAY", "AMBULANCE_ON_THE_WAY" ->
+            AmbulanceStatus.AMBULANCE_ON_THE_WAY
         "ARRIVED" -> AmbulanceStatus.ARRIVED
         "IN_PROGRESS", "PATIENT_PICKED" -> AmbulanceStatus.PATIENT_PICKED
         "AT_HOSPITAL" -> AmbulanceStatus.AT_HOSPITAL
@@ -152,5 +167,5 @@ private fun RequestDto.toAmbulanceRequest(): AmbulanceRequest {
 }
 
 private fun RequestDto.resolvedId(): String {
-    return this._id ?: this.id ?: ""
+    return this.requestId ?: this._id ?: this.id ?: ""
 }

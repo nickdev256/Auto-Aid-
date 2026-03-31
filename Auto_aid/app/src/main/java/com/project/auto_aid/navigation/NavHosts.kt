@@ -1,42 +1,42 @@
 package com.project.auto_aid.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
-
-/* ---------- Splash & Onboard ---------- */
 import com.project.auto_aid.model.OnBoardScreen
 import com.project.auto_aid.model.SplashScreen
-import com.project.auto_aid.settings.ConsentScreen
-
-/* ---------- Auth ---------- */
+import com.project.auto_aid.provider.ProviderViewModel
+import com.project.auto_aid.provider.ui.EditProviderProfileScreen
+import com.project.auto_aid.provider.ui.ProviderActiveJobScreen
+import com.project.auto_aid.provider.ui.ProviderChatListScreen
+import com.project.auto_aid.provider.ui.ProviderChatThreadScreen
+import com.project.auto_aid.provider.ui.ProviderDashboardScreen
+import com.project.auto_aid.provider.ui.ProviderMapHomeScreen
+import com.project.auto_aid.provider.ui.ProviderMapScreen
+import com.project.auto_aid.provider.ui.ProviderNotificationsScreen
+import com.project.auto_aid.provider.ui.ProviderPayoutInformationScreen
+import com.project.auto_aid.provider.ui.ProviderPayoutRequestsScreen
+import com.project.auto_aid.provider.ui.ProviderProfileScreen
+import com.project.auto_aid.provider.ui.ProviderRequestDetailsScreen
+import com.project.auto_aid.provider.ui.ProviderVerificationRequiredScreen
+import com.project.auto_aid.provider.ui.ProviderVerificationScreen
+import com.project.auto_aid.provider.ui.ProviderWalletScreen
+import com.project.auto_aid.screens.AiAssistScreen
 import com.project.auto_aid.screens.ForgotPasswordScreen
+import com.project.auto_aid.screens.HomeScreen
 import com.project.auto_aid.screens.LoginScreen
+import com.project.auto_aid.screens.MaintenanceScreen
+import com.project.auto_aid.screens.NotificationScreen
 import com.project.auto_aid.screens.ProviderSelectionScreen
+import com.project.auto_aid.screens.RequestDetailsScreen
 import com.project.auto_aid.screens.ResetPasswordScreen
 import com.project.auto_aid.screens.SignupScreen
 import com.project.auto_aid.screens.VerifyCodeScreen
-import com.project.auto_aid.settings.TermsAndConditionsScreen
-
-/* ---------- Main ---------- */
-import com.project.auto_aid.screens.HomeScreen
-import com.project.auto_aid.screens.MaintenanceScreen
-import com.project.auto_aid.screens.NotificationScreen
-import com.project.auto_aid.screens.RequestDetailsScreen
-
-/* ---------- Settings ---------- */
-import com.project.auto_aid.settings.AboutUsScreen
-import com.project.auto_aid.settings.IdentityVerificationRoute
-import com.project.auto_aid.settings.PayoutInformationScreen
-import com.project.auto_aid.settings.PrivacyPolicyScreen
-import com.project.auto_aid.settings.PromotionScreen
-import com.project.auto_aid.settings.SettingsScreen
-
-/* ---------- User Features ---------- */
 import com.project.auto_aid.screens.ambulance.AmbulanceActiveScreen
 import com.project.auto_aid.screens.ambulance.AmbulanceHistoryScreen
 import com.project.auto_aid.screens.ambulance.AmbulanceRequestScreen
@@ -56,22 +56,15 @@ import com.project.auto_aid.screens.towing.TowingActiveScreen
 import com.project.auto_aid.screens.towing.TowingHistoryScreen
 import com.project.auto_aid.screens.towing.TowingRequestScreen
 import com.project.auto_aid.screens.towing.TowingScreen
-
-/* ---------- Provider ---------- */
-import com.project.auto_aid.provider.ui.EditProviderProfileScreen
-import com.project.auto_aid.provider.ui.ProviderActiveJobScreen
-import com.project.auto_aid.provider.ui.ProviderChatListScreen
-import com.project.auto_aid.provider.ui.ProviderChatThreadScreen
-import com.project.auto_aid.provider.ui.ProviderDashboardScreen
-import com.project.auto_aid.provider.ui.ProviderMapHomeScreen
-import com.project.auto_aid.provider.ui.ProviderMapScreen
-import com.project.auto_aid.provider.ui.ProviderNotificationsScreen
-import com.project.auto_aid.provider.ui.ProviderPayoutInformationScreen
-import com.project.auto_aid.provider.ui.ProviderPayoutRequestsScreen
-import com.project.auto_aid.provider.ui.ProviderProfileScreen
-import com.project.auto_aid.provider.ui.ProviderRequestDetailsScreen
-import com.project.auto_aid.provider.ui.ProviderWalletScreen
-import com.project.auto_aid.provider.ui.ProviderVerificationRequiredScreen
+import com.project.auto_aid.settings.AboutUsScreen
+import com.project.auto_aid.settings.ConsentScreen
+import com.project.auto_aid.settings.IdentityVerificationRoute
+import com.project.auto_aid.settings.PaymentHistoryScreen
+import com.project.auto_aid.settings.PayoutInformationScreen
+import com.project.auto_aid.settings.PrivacyPolicyScreen
+import com.project.auto_aid.settings.PromotionScreen
+import com.project.auto_aid.settings.SettingsScreen
+import com.project.auto_aid.settings.TermsAndConditionsScreen
 
 @Composable
 fun AppNavigation(navController: NavHostController) {
@@ -145,8 +138,24 @@ fun AppNavigation(navController: NavHostController) {
             HomeScreen(navController)
         }
 
+        composable(Routes.AiAssistantScreen.route) {
+            AiAssistScreen(navController)
+        }
+
         composable(Routes.NotificationScreen.route) {
             NotificationScreen(navController)
+        }
+
+        composable(Routes.IdentityVerification.route) {
+            IdentityVerificationRoute(navController = navController)
+        }
+
+        composable(Routes.ProviderVerificationRequired.route) {
+            ProviderVerificationRequiredScreen(navController = navController)
+        }
+
+        composable(Routes.ProviderVerification.route) {
+            ProviderVerificationScreen(navController = navController)
         }
 
         composable(
@@ -253,6 +262,10 @@ fun AppNavigation(navController: NavHostController) {
 
         composable(Routes.UserInfoScreen.route) {
             IdentityVerificationRoute(navController)
+        }
+
+        composable(Routes.PaymentHistoryScreen.route) {
+            PaymentHistoryScreen(navController)
         }
 
         /* ---------- Garage ---------- */
@@ -427,7 +440,7 @@ fun AppNavigation(navController: NavHostController) {
             AmbulanceHistoryScreen(navController)
         }
 
-        /* ---------- Legal ---------- */
+        /* ---------- Legal / Info ---------- */
         composable(Routes.AboutUsScreen.route) {
             AboutUsScreen(navController)
         }
@@ -440,8 +453,39 @@ fun AppNavigation(navController: NavHostController) {
             PromotionScreen(navController)
         }
 
-        composable(Routes.PayoutInformationScreen.route) {
-            PayoutInformationScreen(navController)
+        composable(
+            route = Routes.PayoutInformationScreen.route,
+            arguments = listOf(
+                navArgument("requestId") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+                navArgument("providerName") {
+                    type = NavType.StringType
+                    defaultValue = "Service Provider"
+                },
+                navArgument("serviceName") {
+                    type = NavType.StringType
+                    defaultValue = "Completed Job"
+                },
+                navArgument("amount") {
+                    type = NavType.StringType
+                    defaultValue = "0.0"
+                }
+            )
+        ) { entry ->
+            val requestId = entry.arguments?.getString("requestId") ?: ""
+            val providerName = entry.arguments?.getString("providerName") ?: "Service Provider"
+            val serviceName = entry.arguments?.getString("serviceName") ?: "Completed Job"
+            val amount = entry.arguments?.getString("amount")?.toDoubleOrNull() ?: 0.0
+
+            PayoutInformationScreen(
+                navController = navController,
+                requestId = requestId,
+                providerName = providerName,
+                serviceName = serviceName,
+                amount = amount
+            )
         }
 
         composable(
@@ -469,14 +513,6 @@ fun AppNavigation(navController: NavHostController) {
             EditProviderProfileScreen(navController)
         }
 
-        composable(Routes.ProviderVerificationRequired.route) {
-            ProviderVerificationRequiredScreen(navController)
-        }
-
-        composable(Routes.ProviderVerification.route) {
-            EditProviderProfileScreen(navController)
-        }
-
         composable(Routes.ProviderNotifications.route) {
             ProviderNotificationsScreen(navController)
         }
@@ -486,7 +522,29 @@ fun AppNavigation(navController: NavHostController) {
         }
 
         composable(Routes.ProviderChatList.route) {
-            ProviderChatListScreen(navController)
+            val providerViewModel: ProviderViewModel = viewModel()
+
+            ProviderChatListScreen(
+                providerViewModel = providerViewModel,
+                onOpenChat = { requestId ->
+                    navController.navigate(
+                        Routes.ProviderChatThread.route.replace("{requestId}", requestId)
+                    )
+                }
+            )
+        }
+
+        composable(
+            route = Routes.ProviderChatThread.route,
+            arguments = listOf(
+                navArgument("requestId") { type = NavType.StringType }
+            )
+        ) { entry ->
+            val requestId = entry.arguments?.getString("requestId") ?: ""
+            ProviderChatThreadScreen(
+                navController = navController,
+                requestId = requestId
+            )
         }
 
         composable(Routes.ProviderProfile.route) {

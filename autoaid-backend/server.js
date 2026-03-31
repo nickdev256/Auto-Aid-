@@ -2,7 +2,9 @@
 import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
+import compression from "compression";
 import { fileURLToPath, pathToFileURL } from "url";
+import navigationRoutes from "./routes/navigation.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,6 +35,13 @@ import paymentsRoutes from "./routes/payments.js";
 import requestsRoutes from "./routes/requests.js";
 import verificationRoutes from "./routes/verification.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
+import aiRoutes from "./routes/aiAssist.js";
+import userWalletRoutes from "./routes/userWallet.js";
+import extraChargesRoutes from "./routes/extraCharges.js";
+import referralRoutes from "./routes/referralRoutes.js";
+import subscriptionRoutes from "./routes/subscriptions.js";
+import userVerificationRoutes from "./routes/userVerification.js";
+import providerVerificationRoutes from "./routes/providerVerification.js";
 
 // MODELS
 import User from "./models/User.js";
@@ -44,6 +53,37 @@ const app = express();
 const server = http.createServer(app);
 
 console.log("ENV FILE LOADED. MONGO_URI exists =", !!process.env.MONGO_URI);
+
+const IS_DEV = process.env.NODE_ENV !== "production";
+
+/* =================================================
+   SETTINGS CACHE
+================================================= */
+let cachedSettings = null;
+let lastSettingsFetch = 0;
+const SETTINGS_CACHE_TTL_MS = 10_000;
+
+async function getCachedSettings(force = false) {
+  if (!isDbReady()) return cachedSettings;
+
+  const now = Date.now();
+  const shouldRefresh =
+    force ||
+    !cachedSettings ||
+    now - lastSettingsFetch > SETTINGS_CACHE_TTL_MS;
+
+  if (shouldRefresh) {
+    cachedSettings = await Settings.findOne().lean();
+    lastSettingsFetch = now;
+  }
+
+  return cachedSettings;
+}
+
+function invalidateSettingsCache() {
+  cachedSettings = null;
+  lastSettingsFetch = 0;
+}
 
 /* =================================================
    ENSURE UPLOAD DIRECTORIES EXIST
@@ -168,13 +208,15 @@ app.use((req, res, next) => {
   );
 
   if (req.method === "OPTIONS") {
-    console.log(
-      "PREFLIGHT:",
-      req.method,
-      req.originalUrl,
-      "Origin:",
-      origin || "none"
-    );
+    if (IS_DEV) {
+      console.log(
+        "PREFLIGHT:",
+        req.method,
+        req.originalUrl,
+        "Origin:",
+        origin || "none"
+      );
+    }
     return res.sendStatus(204);
   }
 
@@ -182,6 +224,19 @@ app.use((req, res, next) => {
 });
 
 app.use(cors(corsOptions));
+
+/* =================================================
+   BASIC RESPONSE HEADERS + COMPRESSION
+================================================= */
+app.disable("x-powered-by");
+
+app.use((req, res, next) => {
+  res.setHeader("X-Powered-By", "AutoAid");
+  res.setHeader("Cache-Control", "no-store");
+  next();
+});
+
+app.use(compression());
 
 /* =================================================
    SECURITY
@@ -249,24 +304,34 @@ app.use(express.json({ limit: "20mb" }));
 app.use(express.urlencoded({ extended: true, limit: "20mb" }));
 
 /* =================================================
-   REQUEST LOGGER
+   REQUEST LOGGER (DEV ONLY)
 ================================================= */
-app.use((req, res, next) => {
-  console.log(
-    "HIT:",
-    req.method,
-    req.originalUrl,
-    "| origin:",
-    req.headers.origin || "none",
-    "| client:",
-    req.headers["x-client"] || "none"
-  );
-  next();
-});
+if (IS_DEV) {
+  app.use((req, res, next) => {
+    console.log(
+      "HIT:",
+      req.method,
+      req.originalUrl,
+      "| origin:",
+      req.headers.origin || "none",
+      "| client:",
+      req.headers["x-client"] || "none"
+    );
+    next();
+  });
+
+  app.use((req, res, next) => {
+    const start = Date.now();
+    res.on("finish", () => {
+      const ms = Date.now() - start;
+      console.log(`${req.method} ${req.originalUrl} - ${ms}ms`);
+    });
+    next();
+  });
+}
 
 /* =================================================
    STATIC FILES
-   IMPORTANT FOR ADMIN TO VIEW UPLOADED DOCUMENTS
 ================================================= */
 app.use(
   "/uploads",
@@ -292,12 +357,11 @@ app.use(async (req, res, next) => {
     if (alwaysAllow) return next();
 
     if (!isDbReady()) {
-      console.warn("DB not ready, skipping maintenance check");
+      if (IS_DEV) console.warn("DB not ready, skipping maintenance check");
       return next();
     }
 
-    const settings = await Settings.findOne().lean();
-
+    const settings = await getCachedSettings();
     const maintenanceMode = !!settings?.maintenanceMode;
     const maintenanceMessage =
       settings?.maintenanceMessage ||
@@ -306,7 +370,17 @@ app.use(async (req, res, next) => {
     if (!maintenanceMode) return next();
 
     if (requestPath.startsWith("/api/admin")) return next();
-    if (requestPath === "/api/auth/login") return next();
+
+    const allowedAuthRoutesDuringMaintenance = [
+      "/api/auth/login",
+      "/api/auth/logout",
+      "/api/auth/forgot-password",
+      "/api/auth/reset-password",
+    ];
+
+    if (allowedAuthRoutesDuringMaintenance.includes(requestPath)) {
+      return next();
+    }
 
     const authHeader = req.headers.authorization || "";
     const bearer = authHeader.startsWith("Bearer ")
@@ -330,13 +404,14 @@ app.use(async (req, res, next) => {
       }
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await User.findById(decoded.id).select("role");
+      const user = await User.findById(decoded.id).select("role").lean();
 
       const isAdmin = String(user?.role || "").toLowerCase() === "admin";
-
       if (isAdmin) return next();
     } catch (tokenErr) {
-      console.warn("Maintenance token check failed:", tokenErr.message);
+      if (IS_DEV) {
+        console.warn("Maintenance token check failed:", tokenErr.message);
+      }
     }
 
     return res.status(503).json({
@@ -421,11 +496,11 @@ io.use(async (socket, next) => {
     if (!process.env.JWT_SECRET) return next(new Error("JWT_SECRET missing"));
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).select("-password");
+    const user = await User.findById(decoded.id).select("-password").lean();
 
     if (!user) return next(new Error("User not found"));
 
-    const settings = await Settings.findOne().lean();
+    const settings = await getCachedSettings();
     if (
       settings?.maintenanceMode &&
       String(user.role || "").toLowerCase() !== "admin"
@@ -485,6 +560,24 @@ function getNotificationBody({ type, text, senderName, service, requestId }) {
   }
 
   return `${prefix}${text || ""}`;
+}
+
+function getActiveTrackableStatuses() {
+  return [
+    "assigned",
+    "driver_assigned",
+    "mechanic_assigned",
+    "vendor_assigned",
+    "accepted",
+    "confirmed",
+    "on_the_way",
+    "provider_on_the_way",
+    "driver_on_the_way",
+    "mechanic_on_the_way",
+    "vendor_on_the_way",
+    "arrived",
+    "in_progress",
+  ];
 }
 
 async function assertParticipant(socket, requestId) {
@@ -552,6 +645,26 @@ function emitRequestLifecycle(ioInstance, requestDoc, eventName = "request_updat
   }
 }
 
+function emitProviderLiveLocation(ioInstance, requestDoc, payload) {
+  const requestId = String(requestDoc?._id || "");
+  const userId = String(requestDoc?.userId || "");
+  const assignedProviderId = String(requestDoc?.assignedProviderId || "");
+
+  if (requestId) {
+    ioInstance.to(`request:${requestId}`).emit("provider_live_location", payload);
+  }
+
+  if (userId) {
+    ioInstance.to(`user:${userId}`).emit("provider_live_location", payload);
+  }
+
+  if (assignedProviderId) {
+    ioInstance
+      .to(`provider:${assignedProviderId}`)
+      .emit("provider_live_location", payload);
+  }
+}
+
 async function markProviderSocketOnline(userId, socketId) {
   const provider = await User.findById(userId);
   if (!provider) return null;
@@ -600,9 +713,9 @@ async function getEligibleProvidersForBroadcast(requestDoc) {
     filter._id = requestDoc.targetProviderId;
   }
 
-  return User.find(filter).select(
-    "_id name businessType lat lng isAvailable isOnline socketId rating phone"
-  );
+  return User.find(filter)
+    .select("_id name businessType lat lng isAvailable isOnline socketId rating phone")
+    .lean();
 }
 
 async function broadcastRequestToEligibleProviders(ioInstance, requestDoc) {
@@ -646,7 +759,9 @@ async function broadcastRequestToEligibleProviders(ioInstance, requestDoc) {
    SOCKET CHAT + NOTIFICATIONS + PROVIDER PRESENCE
 ================================================= */
 io.on("connection", async (socket) => {
-  console.log("Secure socket connected:", socket.id, "role:", socket.user?.role);
+  if (IS_DEV) {
+    console.log("Secure socket connected:", socket.id, "role:", socket.user?.role);
+  }
 
   const myId = String(socket.user?._id || "");
   const myRole = String(socket.user?.role || "").toLowerCase();
@@ -656,13 +771,16 @@ io.on("connection", async (socket) => {
     if (myId) {
       socket.join(`user:${myId}`);
       socket.join(`provider:${myId}`);
-      console.log(
-        "Joined personal rooms:",
-        `user:${myId}`,
-        `provider:${myId}`,
-        "role:",
-        myRole
-      );
+
+      if (IS_DEV) {
+        console.log(
+          "Joined personal rooms:",
+          `user:${myId}`,
+          `provider:${myId}`,
+          "role:",
+          myRole
+        );
+      }
     }
 
     if (myRole === "provider") {
@@ -673,7 +791,9 @@ io.on("connection", async (socket) => {
 
         if (providerType) {
           socket.join(`type:${providerType}`);
-          console.log(`Provider ${myId} joined service room type:${providerType}`);
+          if (IS_DEV) {
+            console.log(`Provider ${myId} joined service room type:${providerType}`);
+          }
         }
 
         socket.emit("provider_presence", {
@@ -687,6 +807,35 @@ io.on("connection", async (socket) => {
   } catch (presenceErr) {
     console.error("Provider presence init error:", presenceErr.message);
   }
+
+  socket.on("join_request_room", async ({ requestId } = {}) => {
+    try {
+      if (!isDbReady()) {
+        socket.emit("request_room_error", {
+          requestId,
+          message: "Database temporarily unavailable",
+        });
+        return;
+      }
+
+      if (!requestId || !mongoose.Types.ObjectId.isValid(requestId)) {
+        socket.emit("request_room_error", {
+          requestId,
+          message: "Valid requestId is required",
+        });
+        return;
+      }
+
+      await assertParticipant(socket, requestId);
+      socket.join(`request:${requestId}`);
+      socket.emit("request_room_joined", { requestId });
+    } catch (e) {
+      socket.emit("request_room_error", {
+        requestId,
+        message: e.message || "Failed to join request room",
+      });
+    }
+  });
 
   socket.on("provider_register_service_room", async ({ businessType }) => {
     try {
@@ -754,7 +903,9 @@ io.on("connection", async (socket) => {
         myId,
         { $set: update },
         { new: true }
-      ).select("-password");
+      )
+        .select("-password")
+        .lean();
 
       socket.emit("provider_presence", {
         isOnline: !!updated?.isOnline,
@@ -770,7 +921,7 @@ io.on("connection", async (socket) => {
     }
   });
 
-  socket.on("provider_update_location", async ({ lat, lng }) => {
+  socket.on("provider_update_location", async ({ lat, lng } = {}) => {
     try {
       if (!isDbReady()) {
         socket.emit("provider_error", { message: "Database temporarily unavailable" });
@@ -800,10 +951,32 @@ io.on("connection", async (socket) => {
         },
       });
 
-      socket.emit("provider_location_updated", {
+      const livePayload = {
+        providerId: myId,
         lat: safeLat,
         lng: safeLng,
-      });
+        updatedAt: new Date().toISOString(),
+      };
+
+      socket.emit("provider_location_updated", livePayload);
+
+      const activeRequests = await Request.find({
+        assignedProviderId: myId,
+        status: { $in: getActiveTrackableStatuses() },
+      })
+        .select("_id userId assignedProviderId status service providerType userLocation")
+        .limit(5)
+        .lean();
+
+      for (const requestDoc of activeRequests) {
+        emitProviderLiveLocation(io, requestDoc, {
+          ...livePayload,
+          requestId: String(requestDoc._id),
+          status: requestDoc.status || "",
+          service: requestDoc.service || requestDoc.providerType || "",
+          userLocation: requestDoc.userLocation || null,
+        });
+      }
     } catch (e) {
       socket.emit("provider_error", {
         message: e.message || "Failed to update location",
@@ -881,7 +1054,7 @@ io.on("connection", async (socket) => {
 
       if (!requestId) return;
 
-      const settings = await Settings.findOne().lean();
+      const settings = await getCachedSettings();
       if (
         settings?.maintenanceMode &&
         String(socket.user?.role).toLowerCase() !== "admin"
@@ -904,7 +1077,8 @@ io.on("connection", async (socket) => {
 
       const messages = await ChatMessage.find({ requestId: rid })
         .sort({ createdAt: 1 })
-        .limit(200);
+        .limit(200)
+        .lean();
 
       socket.emit("chat_history", { requestId, messages });
       socket.emit("chat_joined", { requestId });
@@ -942,7 +1116,7 @@ io.on("connection", async (socket) => {
         return;
       }
 
-      const settings = await Settings.findOne().lean();
+      const settings = await getCachedSettings();
       if (
         settings?.maintenanceMode &&
         String(socket.user?.role).toLowerCase() !== "admin"
@@ -977,9 +1151,9 @@ io.on("connection", async (socket) => {
         "completed",
       ].includes(status);
 
-      const isAdmin = String(socket.user?.role || "").toLowerCase() === "admin";
+      const isAdminRole = String(socket.user?.role || "").toLowerCase() === "admin";
 
-      if (!canChat && !isAdmin) {
+      if (!canChat && !isAdminRole) {
         socket.emit("chat_error", {
           requestId,
           message: "Chat is only available after a provider is assigned.",
@@ -1071,7 +1245,7 @@ io.on("connection", async (socket) => {
         return;
       }
 
-      const settings = await Settings.findOne().lean();
+      const settings = await getCachedSettings();
       if (
         settings?.maintenanceMode &&
         String(socket.user?.role).toLowerCase() !== "admin"
@@ -1127,7 +1301,7 @@ io.on("connection", async (socket) => {
         return;
       }
 
-      const settings = await Settings.findOne().lean();
+      const settings = await getCachedSettings();
       if (
         settings?.maintenanceMode &&
         String(socket.user?.role).toLowerCase() !== "admin"
@@ -1182,7 +1356,7 @@ io.on("connection", async (socket) => {
         return;
       }
 
-      const settings = await Settings.findOne().lean();
+      const settings = await getCachedSettings();
       if (
         settings?.maintenanceMode &&
         String(socket.user?.role).toLowerCase() !== "admin"
@@ -1228,7 +1402,7 @@ io.on("connection", async (socket) => {
         return;
       }
 
-      const settings = await Settings.findOne().lean();
+      const settings = await getCachedSettings();
       if (
         settings?.maintenanceMode &&
         String(socket.user?.role).toLowerCase() !== "admin"
@@ -1272,7 +1446,7 @@ io.on("connection", async (socket) => {
         return;
       }
 
-      const settings = await Settings.findOne().lean();
+      const settings = await getCachedSettings();
       if (
         settings?.maintenanceMode &&
         String(socket.user?.role).toLowerCase() !== "admin"
@@ -1321,7 +1495,7 @@ io.on("connection", async (socket) => {
         return;
       }
 
-      const settings = await Settings.findOne().lean();
+      const settings = await getCachedSettings();
       if (
         settings?.maintenanceMode &&
         String(socket.user?.role).toLowerCase() !== "admin"
@@ -1365,7 +1539,7 @@ io.on("connection", async (socket) => {
         return;
       }
 
-      const settings = await Settings.findOne().lean();
+      const settings = await getCachedSettings();
       if (
         settings?.maintenanceMode &&
         String(socket.user?.role).toLowerCase() !== "admin"
@@ -1391,7 +1565,8 @@ io.on("connection", async (socket) => {
       const myRequests = await Request.find(requestFilter)
         .select("_id createdAt status")
         .sort({ createdAt: -1 })
-        .limit(50);
+        .limit(50)
+        .lean();
 
       const requestIds = myRequests.map((r) => r._id);
 
@@ -1464,7 +1639,9 @@ io.on("connection", async (socket) => {
   });
 
   socket.on("disconnect", async () => {
-    console.log("Socket disconnected:", socket.id);
+    if (IS_DEV) {
+      console.log("Socket disconnected:", socket.id);
+    }
 
     try {
       if (!isDbReady()) return;
@@ -1504,6 +1681,7 @@ async function ensureDefaultSettings() {
         allowProviderRegistration: true,
         autoApproveProviders: false,
       });
+      invalidateSettingsCache();
       console.log("Default settings created");
     } else {
       let changed = false;
@@ -1539,6 +1717,7 @@ async function ensureDefaultSettings() {
 
       if (changed) {
         await settings.save();
+        invalidateSettingsCache();
         console.log("Settings schema backfilled with new defaults");
       }
     }
@@ -1553,6 +1732,8 @@ async function connectDb() {
       console.error("MONGO_URI missing in .env");
       process.exit(1);
     }
+
+    mongoose.set("strictQuery", true);
 
     console.log("Connecting to MongoDB Atlas...");
     console.log(
@@ -1577,6 +1758,7 @@ async function connectDb() {
     });
 
     await ensureDefaultSettings();
+    await getCachedSettings(true);
   } catch (err) {
     console.error("DB connection failed:", err.message || err);
 
@@ -1615,7 +1797,7 @@ async function checkAndExpireSubscriptions() {
       role: "provider",
       "subscription.active": true,
       "subscription.expiryDate": { $ne: null },
-    });
+    }).select("_id subscription");
 
     for (const p of providers) {
       if (p.subscription?.expiryDate && p.subscription.expiryDate < now) {
@@ -1640,12 +1822,14 @@ setInterval(checkAndExpireSubscriptions, 60 * 1000);
   const voiceUploadRoutes = await loadOptionalRoute("./routes/voiceUpload.js", "voice upload");
 
   /* =================================================
-     ROUTES
+     CORE ROUTES
   ================================================= */
+  app.use("/api/navigation", navigationRoutes);
   app.use("/api/auth", authLimiter, authRoutes);
   app.use("/api/admin", adminLimiter, adminRoutes);
   app.use("/api/admin", adminLimiter, settingsRoutes);
   app.use("/api/payments", paymentsRoutes);
+  app.use("/api/user-wallet", userWalletRoutes);
   app.use("/api/providers", providersRoutes);
   app.use("/api/fuel", fuelRoutes);
   app.use("/api/towing", towingRoutes);
@@ -1653,6 +1837,12 @@ setInterval(checkAndExpireSubscriptions, 60 * 1000);
   app.use("/api/garage", garageRoutes);
   app.use("/api/requests", requestsRoutes);
   app.use("/api/chat", chatRoutes);
+  app.use("/api/ai", aiRoutes);
+  app.use("/api/extra-charges", extraChargesRoutes);
+  app.use("/api/referrals", referralRoutes);
+  app.use("/api/subscriptions", subscriptionRoutes);
+  app.use("/api/user-verification", userVerificationRoutes);
+app.use("/api/provider-verification", providerVerificationRoutes);
 
   // verification routes
   app.use("/api/verification", verificationRoutes);
@@ -1713,7 +1903,7 @@ setInterval(checkAndExpireSubscriptions, 60 * 1000);
 
   try {
     const adminEmail = "admin@autoaid.com";
-    const exists = await User.findOne({ email: adminEmail });
+    const exists = await User.findOne({ email: adminEmail }).lean();
 
     if (!exists) {
       if (!process.env.ADMIN_PASSWORD) {

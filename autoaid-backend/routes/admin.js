@@ -1,9 +1,7 @@
-// ✅ FILE NAME: routes/admin.js
-// ✅ Path: /routes/admin.js
-
 import express from "express";
 import User from "../models/User.js";
 import Request from "../models/Request.js";
+import Referral from "../models/Referral.js";
 import Settings from "../models/Settings.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 
@@ -11,14 +9,8 @@ const router = express.Router();
 
 console.log("✅ admin routes file loaded");
 
-/* =================================================
-   🔒 ADMIN SECURITY (APPLIES TO ALL ROUTES BELOW)
-================================================= */
 router.use(protect, authorize("admin"));
 
-/* =================================================
-   HELPERS
-================================================= */
 const toNumber = (value, fallback = 0) => {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
@@ -35,15 +27,6 @@ const buildAbsoluteFileUrl = (req, filePath = "") => {
   return `${req.protocol}://${req.get("host")}/${normalized}`;
 };
 
-/* -----------------------------------------
-   GET ALL USERS (admin)
-   full list (not paginated)
-   optional filters:
-   - /users?from=android
-   - /users?from=web
-   - /users?role=provider
-   - /users?verification=pending
------------------------------------------- */
 router.get("/users", async (req, res) => {
   try {
     const from = String(req.query.from || "").toLowerCase();
@@ -66,17 +49,21 @@ router.get("/users", async (req, res) => {
         registeredFrom
         lastLoginFrom
         createdAt
-
         verificationStatus
         verificationDocumentType
         verificationDocumentUrl
         verificationSubmittedAt
         verificationReviewedAt
         verificationRejectionReason
-
         workLicenseDocumentUrl
         businessRegistrationDocumentUrl
+        nationalIdFrontUrl
+        nationalIdBackUrl
         profileImage
+        referralCode
+        referredBy
+        hasUsedReferralDiscount
+        nextReferralDiscountAmount
       `)
       .sort({ createdAt: -1 });
 
@@ -87,9 +74,6 @@ router.get("/users", async (req, res) => {
   }
 });
 
-/* -----------------------------------------
-   GET PENDING PROVIDERS
------------------------------------------- */
 router.get("/providers/pending", async (req, res) => {
   try {
     const pending = await User.find({
@@ -106,9 +90,6 @@ router.get("/providers/pending", async (req, res) => {
   }
 });
 
-/* -----------------------------------------
-   APPROVE PROVIDER
------------------------------------------- */
 router.put("/approve/:id", async (req, res) => {
   try {
     const provider = await User.findById(req.params.id);
@@ -118,6 +99,7 @@ router.put("/approve/:id", async (req, res) => {
     }
 
     provider.status = "approved";
+    provider.isApprovedProvider = true;
 
     if (!provider.subscription) {
       provider.subscription = {
@@ -143,9 +125,6 @@ router.put("/approve/:id", async (req, res) => {
   }
 });
 
-/* -----------------------------------------
-   REJECT / SUSPEND PROVIDER
------------------------------------------- */
 router.put("/providers/:id/status", async (req, res) => {
   try {
     const nextStatus = String(req.body.status || "").trim().toLowerCase();
@@ -154,9 +133,14 @@ router.put("/providers/:id/status", async (req, res) => {
       return res.status(400).json({ message: "Invalid provider status" });
     }
 
+    const update = {
+      status: nextStatus,
+      isApprovedProvider: nextStatus === "approved",
+    };
+
     const provider = await User.findOneAndUpdate(
       { _id: req.params.id, role: "provider" },
-      { status: nextStatus },
+      update,
       { new: true }
     ).select("-password");
 
@@ -174,9 +158,6 @@ router.put("/providers/:id/status", async (req, res) => {
   }
 });
 
-/* -----------------------------------------
-   ADMIN-ACTIVATED SUBSCRIPTION
------------------------------------------- */
 router.put("/subscribe/:id", async (req, res) => {
   try {
     let { plan } = req.body;
@@ -229,9 +210,6 @@ router.put("/subscribe/:id", async (req, res) => {
   }
 });
 
-/* -----------------------------------------
-   GET PROVIDERS (PAGINATED + FILTERED)
------------------------------------------- */
 router.get("/providers", async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page || "1", 10));
@@ -272,16 +250,24 @@ router.get("/providers", async (req, res) => {
 
     const results = providers.map((p) => ({
       id: p._id,
+      _id: p._id,
       name: p.name,
       businessName: p.businessName || p.name || "",
       email: p.email,
       phone: p.phone,
       status: p.status,
+      isApprovedProvider: p.isApprovedProvider === true,
       registeredFrom: p.registeredFrom || "web",
       subscriptionActive: !!(p.subscription && p.subscription.active),
       subscriptionPlan: p.subscription?.plan || "None",
       subscriptionExpiry: p.subscription?.expiryDate || null,
+      subscription: p.subscription || {
+        active: false,
+        plan: "",
+        expiryDate: null,
+      },
       businessType: p.businessType || null,
+      providerType: p.providerType || p.businessType || null,
       address: p.address || null,
       createdAt: p.createdAt,
       providerVerification: {
@@ -291,6 +277,8 @@ router.get("/providers", async (req, res) => {
           req,
           p.businessRegistrationDocumentUrl
         ),
+        nationalIdFrontUrl: buildAbsoluteFileUrl(req, p.nationalIdFrontUrl),
+        nationalIdBackUrl: buildAbsoluteFileUrl(req, p.nationalIdBackUrl),
         profileImageUrl: buildAbsoluteFileUrl(req, p.profileImage),
         rejectionReason: p.verificationRejectionReason || "",
         submittedAt: p.verificationSubmittedAt || null,
@@ -311,9 +299,6 @@ router.get("/providers", async (req, res) => {
   }
 });
 
-/* -----------------------------------------
-   GET SINGLE PROVIDER
------------------------------------------- */
 router.get("/providers/:id", async (req, res) => {
   try {
     const p = await User.findById(req.params.id).select("-password");
@@ -324,14 +309,17 @@ router.get("/providers/:id", async (req, res) => {
 
     res.json({
       id: p._id,
+      _id: p._id,
       name: p.name,
       businessName: p.businessName || p.name || "",
       email: p.email,
       phone: p.phone,
       status: p.status,
+      isApprovedProvider: p.isApprovedProvider === true,
       registeredFrom: p.registeredFrom || "web",
       subscription: p.subscription || null,
       businessType: p.businessType || null,
+      providerType: p.providerType || p.businessType || null,
       address: p.address || null,
       createdAt: p.createdAt,
       providerVerification: {
@@ -341,6 +329,8 @@ router.get("/providers/:id", async (req, res) => {
           req,
           p.businessRegistrationDocumentUrl
         ),
+        nationalIdFrontUrl: buildAbsoluteFileUrl(req, p.nationalIdFrontUrl),
+        nationalIdBackUrl: buildAbsoluteFileUrl(req, p.nationalIdBackUrl),
         profileImageUrl: buildAbsoluteFileUrl(req, p.profileImage),
         rejectionReason: p.verificationRejectionReason || "",
         submittedAt: p.verificationSubmittedAt || null,
@@ -353,9 +343,6 @@ router.get("/providers/:id", async (req, res) => {
   }
 });
 
-/* -----------------------------------------
-   APPROVE PROVIDER VERIFICATION
------------------------------------------- */
 router.patch("/providers/:id/verify", async (req, res) => {
   try {
     const provider = await User.findById(req.params.id);
@@ -366,7 +353,12 @@ router.patch("/providers/:id/verify", async (req, res) => {
 
     provider.verificationStatus = "verified";
     provider.verificationReviewedAt = new Date();
-    provider.verificationRejectionReason = null;
+    provider.verificationRejectionReason = "";
+    provider.isApprovedProvider = true;
+
+    if (provider.status !== "approved") {
+      provider.status = "approved";
+    }
 
     await provider.save();
 
@@ -380,12 +372,9 @@ router.patch("/providers/:id/verify", async (req, res) => {
   }
 });
 
-/* -----------------------------------------
-   REJECT PROVIDER VERIFICATION
------------------------------------------- */
 router.patch("/providers/:id/reject", async (req, res) => {
   try {
-    const { reason } = req.body;
+    const reason = String(req.body.reason || "").trim();
 
     if (!reason) {
       return res.status(400).json({ message: "Rejection reason required" });
@@ -400,6 +389,8 @@ router.patch("/providers/:id/reject", async (req, res) => {
     provider.verificationStatus = "rejected";
     provider.verificationReviewedAt = new Date();
     provider.verificationRejectionReason = reason;
+    provider.isApprovedProvider = false;
+    provider.isAvailable = false;
 
     await provider.save();
 
@@ -413,9 +404,6 @@ router.patch("/providers/:id/reject", async (req, res) => {
   }
 });
 
-/* -----------------------------------------
-   GET ALL REQUESTS
------------------------------------------- */
 router.get("/service-requests", async (req, res) => {
   try {
     const from = String(req.query.from || "").toLowerCase();
@@ -435,9 +423,6 @@ router.get("/service-requests", async (req, res) => {
   }
 });
 
-/* -----------------------------------------
-   GET SINGLE REQUEST
------------------------------------------- */
 router.get("/service-requests/:id", async (req, res) => {
   try {
     const request = await Request.findById(req.params.id);
@@ -453,9 +438,6 @@ router.get("/service-requests/:id", async (req, res) => {
   }
 });
 
-/* -----------------------------------------
-   UPDATE REQUEST STATUS
------------------------------------------- */
 router.patch("/service-requests/:id", async (req, res) => {
   try {
     const nextStatus = String(req.body.status || "").trim().toLowerCase();
@@ -484,9 +466,6 @@ router.patch("/service-requests/:id", async (req, res) => {
   }
 });
 
-/* -----------------------------------------
-   ADMIN REVENUE DASHBOARD
------------------------------------------- */
 router.get("/revenue-dashboard", async (req, res) => {
   console.log("✅ /api/admin/revenue-dashboard route hit");
 
@@ -555,6 +534,9 @@ router.get("/revenue-dashboard", async (req, res) => {
         createdAt: r.createdAt || null,
         providerCompleted,
         userCompleted,
+        discountAmountApplied: toNumber(r.discountAmountApplied || 0, 0),
+        discountTypeApplied: r.discountTypeApplied || null,
+        finalQuoteAmount: toNumber(r.finalQuoteAmount || 0, 0),
       };
     });
 
@@ -584,9 +566,6 @@ router.get("/revenue-dashboard", async (req, res) => {
   }
 });
 
-/* -----------------------------------------
-   ADMIN STATS
------------------------------------------- */
 router.get("/stats", async (req, res) => {
   try {
     const totalUsers = await User.countDocuments({ role: "user" });
@@ -640,6 +619,10 @@ router.get("/stats", async (req, res) => {
       verificationStatus: "rejected",
     });
 
+    const totalReferrals = await Referral.countDocuments({});
+    const rewardedReferrals = await Referral.countDocuments({ status: "rewarded" });
+    const signedUpReferrals = await Referral.countDocuments({ status: "signed_up" });
+
     res.json({
       totalUsers,
       totalProviders,
@@ -655,6 +638,9 @@ router.get("/stats", async (req, res) => {
       pendingVerificationUsers,
       verifiedUsers,
       rejectedVerificationUsers,
+      totalReferrals,
+      rewardedReferrals,
+      signedUpReferrals,
     });
   } catch (err) {
     console.error("Admin stats error:", err);
@@ -662,9 +648,46 @@ router.get("/stats", async (req, res) => {
   }
 });
 
-/* -----------------------------------------
-   SETTINGS GET
------------------------------------------- */
+router.get("/referrals", async (req, res) => {
+  try {
+    const referrals = await Referral.find({})
+      .populate("referrerUserId", "name email")
+      .populate("referredUserId", "name email")
+      .sort({ createdAt: -1 });
+
+    res.json({
+      total: referrals.length,
+      data: referrals.map((r) => ({
+        _id: r._id,
+        referrer: r.referrerUserId
+          ? {
+              _id: r.referrerUserId._id,
+              name: r.referrerUserId.name,
+              email: r.referrerUserId.email,
+            }
+          : null,
+        referredUser: r.referredUserId
+          ? {
+              _id: r.referredUserId._id,
+              name: r.referredUserId.name,
+              email: r.referredUserId.email,
+            }
+          : null,
+        referralCode: r.referralCode,
+        status: r.status,
+        friendDiscountAmount: r.friendDiscountAmount,
+        referrerRewardAmount: r.referrerRewardAmount,
+        qualifyingRequestId: r.qualifyingRequestId,
+        rewardedAt: r.rewardedAt,
+        createdAt: r.createdAt,
+      })),
+    });
+  } catch (err) {
+    console.error("Admin referrals error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 router.get("/settings", async (req, res) => {
   try {
     let data = await Settings.findOne();
@@ -687,9 +710,6 @@ router.get("/settings", async (req, res) => {
   }
 });
 
-/* -----------------------------------------
-   SETTINGS PUT
------------------------------------------- */
 router.put("/settings", async (req, res) => {
   try {
     let data = await Settings.findOne();
@@ -738,9 +758,6 @@ router.put("/settings", async (req, res) => {
   }
 });
 
-/* -----------------------------------------
-   QUICK MAINTENANCE TOGGLE
------------------------------------------- */
 router.patch("/settings/maintenance", async (req, res) => {
   try {
     let data = await Settings.findOne();
@@ -778,9 +795,6 @@ router.patch("/settings/maintenance", async (req, res) => {
   }
 });
 
-/* -----------------------------------------
-   DUPLICATE LEGACY ROUTE
------------------------------------------- */
 router.get("/pending-providers", async (req, res) => {
   try {
     const pending = await User.find({

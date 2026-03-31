@@ -8,6 +8,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
+import com.google.android.libraries.places.api.Places
 import com.project.auto_aid.navigation.AppNavigation
 import com.project.auto_aid.ui.theme.AutoAidTheme
 
@@ -15,6 +16,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        if (!Places.isInitialized()) {
+            Places.initialize(applicationContext, "PASTE_YOUR_PLACES_API_KEY_HERE")
+        }
 
         setContent {
             AutoAidTheme {

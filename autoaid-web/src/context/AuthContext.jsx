@@ -5,12 +5,21 @@ const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
 
 const API = (import.meta.env.VITE_API_URL || "http://localhost:5001") + "/api/auth";
+const USER_STORAGE_KEY = "auth_user";
+const TOKEN_STORAGE_KEY = "token";
 
-// allow cookies globally
 axios.defaults.withCredentials = true;
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem(USER_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
   const [authLoading, setAuthLoading] = useState(true);
 
   const saveAuthData = (data) => {
@@ -24,32 +33,38 @@ export const AuthProvider = ({ children }) => {
     const resolvedUser = data?.user || null;
 
     if (token) {
-      localStorage.setItem("token", token);
+      localStorage.setItem(TOKEN_STORAGE_KEY, token);
     }
 
     if (resolvedUser) {
-      localStorage.setItem("auth_user", JSON.stringify(resolvedUser));
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(resolvedUser));
     }
   };
 
   const clearAuthData = () => {
-    localStorage.removeItem("token");
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
     localStorage.removeItem("adminToken");
     localStorage.removeItem("autoaid_token");
-    localStorage.removeItem("auth_user");
+    localStorage.removeItem(USER_STORAGE_KEY);
+    localStorage.removeItem("autoaid_user");
   };
 
-  // ✅ Optional: check session on reload
   const checkAuth = async () => {
     try {
       const res = await axios.get(`${API}/me`, { withCredentials: true });
-      const me = res.data.user || null;
+      const me = res.data?.user || null;
+
+      console.log("AUTH /me RESPONSE USER:", me);
+
       setUser(me);
 
       if (me) {
-        localStorage.setItem("auth_user", JSON.stringify(me));
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(me));
+      } else {
+        localStorage.removeItem(USER_STORAGE_KEY);
       }
-    } catch {
+    } catch (err) {
+      console.log("AUTH CHECK FAILED:", err?.response?.data || err?.message);
       setUser(null);
       clearAuthData();
     } finally {
@@ -72,10 +87,12 @@ export const AuthProvider = ({ children }) => {
         { withCredentials: true }
       );
 
-      saveAuthData(res.data);
-      setUser(res.data.user || null);
+      console.log("LOGIN RESPONSE USER:", res.data?.user);
 
-      return res.data.user;
+      saveAuthData(res.data);
+      setUser(res.data?.user || null);
+
+      return res.data?.user;
     } catch (err) {
       const msg =
         err?.response?.data?.message ||
@@ -109,7 +126,16 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, login, signup, logout, authLoading }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        setUser,
+        login,
+        signup,
+        logout,
+        authLoading,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

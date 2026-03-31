@@ -59,7 +59,7 @@ fun ProviderVerificationRequiredScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "Your account cannot receive jobs until your work license and required provider documents are submitted and approved."
+                        text = "Your account cannot receive jobs until your work license, national ID and required provider documents are submitted and approved."
                     )
                 }
             }
@@ -68,7 +68,7 @@ fun ProviderVerificationRequiredScreen(
 
             Button(
                 onClick = {
-                    navController.navigate(Routes.EditProviderProfile.route)
+                    navController.navigate(Routes.ProviderVerification.route)
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {

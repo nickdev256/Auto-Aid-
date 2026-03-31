@@ -29,10 +29,21 @@ export function initSocket(server, allowOrigin) {
     return `chat_${requestId}`;
   }
 
-  function normalizeBusinessType(value) {
+  function normalizeBusinessType(value = "") {
     const v = String(value || "").trim().toLowerCase();
-    if (["garage", "fuel", "towing", "ambulance"].includes(v)) return v;
+
+    if (["garage", "mechanic", "repair"].includes(v)) return "garage";
+    if (["fuel", "fuel delivery", "petrol", "diesel"].includes(v)) return "fuel";
+    if (["towing", "tow", "towing track", "towing truck"].includes(v)) return "towing";
+    if (["ambulance", "medical", "emergency"].includes(v)) return "ambulance";
+
     return "";
+  }
+
+  function isSupportedBusinessType(value = "") {
+    return ["garage", "fuel", "towing", "ambulance"].includes(
+      normalizeBusinessType(value)
+    );
   }
 
   function getSenderRoleFromSocket(socket) {
@@ -105,7 +116,7 @@ export function initSocket(server, allowOrigin) {
   }
 
   function emitRequestLifecycle(ioInstance, requestDoc, eventName = "request_updated") {
-    const providerType = normalizeBusinessType(requestDoc.providerType);
+    const providerType = normalizeBusinessType(requestDoc.providerType || requestDoc.service);
     const requestId = String(requestDoc._id || "");
 
     if (providerType) {
@@ -144,6 +155,11 @@ export function initSocket(server, allowOrigin) {
     if (!provider) return null;
 
     if (String(provider.role || "").toLowerCase() === "provider") {
+      const normalizedType = normalizeBusinessType(
+        provider.businessType || provider.providerType || provider.serviceType || ""
+      );
+
+      provider.businessType = normalizedType || provider.businessType || "";
       provider.isOnline = true;
       provider.socketId = socketId;
       provider.lastSeenAt = new Date();
@@ -171,36 +187,48 @@ export function initSocket(server, allowOrigin) {
   }
 
   async function getEligibleProvidersForBroadcast(requestDoc) {
-    const providerType = normalizeBusinessType(requestDoc.providerType);
+    const providerType = normalizeBusinessType(requestDoc.providerType || requestDoc.service);
     if (!providerType) return [];
 
-    const filter = {
+    const baseProviders = await User.find({
       role: "provider",
       status: { $in: ["approved", "active"] },
       isApprovedProvider: true,
       isAvailable: true,
       isOnline: true,
-      businessType: providerType,
-    };
+    }).select("_id name businessType providerType serviceType lat lng isAvailable isOnline socketId rating phone");
 
-    if (requestDoc.targetProviderId) {
-      filter._id = requestDoc.targetProviderId;
-    }
+    const matchingProviders = baseProviders.filter((provider) => {
+      const providerBusinessType = normalizeBusinessType(
+        provider.businessType || provider.providerType || provider.serviceType || ""
+      );
 
-    return User.find(filter).select(
-      "_id name businessType lat lng isAvailable isOnline socketId rating phone"
-    );
+      if (!providerBusinessType) return false;
+      if (providerBusinessType !== providerType) return false;
+
+      if (requestDoc.targetProviderId) {
+        return String(provider._id) === String(requestDoc.targetProviderId);
+      }
+
+      return true;
+    });
+
+    return matchingProviders;
   }
 
   async function broadcastRequestToEligibleProviders(ioInstance, requestDoc) {
     const providers = await getEligibleProvidersForBroadcast(requestDoc);
     if (!providers.length) return { count: 0, providerIds: [] };
 
+    const normalizedService = normalizeBusinessType(
+      requestDoc.service || requestDoc.providerType
+    );
+
     const payload = {
       requestId: String(requestDoc._id),
       request: requestDoc,
-      service: requestDoc.service,
-      providerType: requestDoc.providerType,
+      service: normalizedService,
+      providerType: normalizedService,
       userLocation: requestDoc.userLocation || { lat: 0, lng: 0 },
       createdAt: requestDoc.createdAt || new Date(),
     };
@@ -218,7 +246,7 @@ export function initSocket(server, allowOrigin) {
         title: getNotificationTitle("request"),
         body: getNotificationBody({
           type: "request",
-          service: requestDoc.service || requestDoc.providerType,
+          service: normalizedService,
           requestId: requestDoc._id,
         }),
         requestId: String(requestDoc._id),
@@ -299,7 +327,9 @@ export function initSocket(server, allowOrigin) {
 
     const myId = String(socket.user?._id || "");
     const myRole = String(socket.user?.role || "").toLowerCase();
-    const myBusinessType = normalizeBusinessType(socket.user?.businessType);
+    const myBusinessType = normalizeBusinessType(
+      socket.user?.businessType || socket.user?.providerType || socket.user?.serviceType || ""
+    );
 
     try {
       if (myId) {
@@ -318,7 +348,9 @@ export function initSocket(server, allowOrigin) {
         const provider = await markProviderSocketOnline(myId, socket.id);
 
         if (provider) {
-          const providerType = normalizeBusinessType(provider.businessType);
+          const providerType = normalizeBusinessType(
+            provider.businessType || provider.providerType || provider.serviceType || ""
+          );
 
           if (providerType) {
             socket.join(`type:${providerType}`);
@@ -353,7 +385,7 @@ export function initSocket(server, allowOrigin) {
         }
 
         const cleanType = normalizeBusinessType(businessType || myBusinessType);
-        if (!cleanType) {
+        if (!cleanType || !isSupportedBusinessType(cleanType)) {
           socket.emit("provider_error", { message: "Invalid business type" });
           return;
         }
@@ -399,6 +431,10 @@ export function initSocket(server, allowOrigin) {
           lastSeenAt: new Date(),
         };
 
+        if (myBusinessType) {
+          update.businessType = myBusinessType;
+        }
+
         if (typeof lat === "number" && Number.isFinite(lat)) update.lat = lat;
         if (typeof lng === "number" && Number.isFinite(lng)) update.lng = lng;
 
@@ -411,7 +447,9 @@ export function initSocket(server, allowOrigin) {
           isAvailable: !!updated?.isAvailable,
           lat: updated?.lat ?? 0,
           lng: updated?.lng ?? 0,
-          businessType: normalizeBusinessType(updated?.businessType),
+          businessType: normalizeBusinessType(
+            updated?.businessType || updated?.providerType || updated?.serviceType || ""
+          ),
         });
       } catch (e) {
         socket.emit("provider_error", {
@@ -627,17 +665,18 @@ export function initSocket(server, allowOrigin) {
 
         const status = String(reqDoc.status || "").toLowerCase();
         const canChat = [
-          "assigned",
+          "accepted",
+          "started",
           "arrived",
-          "quoted",
-          "awaiting_payment",
-          "in_progress",
+          "quotation_sent",
+          "paid",
+          "provider_done",
           "completed",
         ].includes(status);
 
-        const isAdmin = String(socket.user?.role || "").toLowerCase() === "admin";
+        const isAdminUser = String(socket.user?.role || "").toLowerCase() === "admin";
 
-        if (!canChat && !isAdmin) {
+        if (!canChat && !isAdminUser) {
           socket.emit("chat_error", {
             requestId,
             message: "Chat is only available after a provider is assigned.",

@@ -2,37 +2,15 @@ package com.project.auto_aid.screens.towing
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -100,10 +78,7 @@ fun TowingScreen(navController: NavHostController) {
                 },
                 label = { Text("Choose service location") },
                 leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.LocationOn,
-                        contentDescription = null
-                    )
+                    Icon(Icons.Default.LocationOn, contentDescription = null)
                 }
             )
         }
@@ -111,20 +86,13 @@ fun TowingScreen(navController: NavHostController) {
         Spacer(modifier = Modifier.height(20.dp))
 
         error?.let {
-            Text(
-                text = it,
-                color = MaterialTheme.colorScheme.error
-            )
+            Text(it, color = MaterialTheme.colorScheme.error)
             Spacer(modifier = Modifier.height(10.dp))
         }
 
         ServiceCard(
             icon = {
-                Icon(
-                    Icons.Default.LocalShipping,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
+                Icon(Icons.Default.LocalShipping, contentDescription = null)
             },
             title = "Request Tow",
             subtitle = "Choose the closest available towing provider"
@@ -154,12 +122,7 @@ fun TowingScreen(navController: NavHostController) {
                     providerType = "towing",
                     lat = pickedLat,
                     lng = pickedLng,
-                    pickedLabel = pickedLabel,
-                    vehicleInfo = "",
-                    problem = "",
-                    note = "",
-                    urgency = "normal",
-                    towType = ""
+                    pickedLabel = pickedLabel
                 )
             )
         }
@@ -168,21 +131,19 @@ fun TowingScreen(navController: NavHostController) {
 
         ServiceCard(
             icon = {
-                Icon(
-                    Icons.Default.PlayArrow,
-                    contentDescription = null,
-                    tint = Color(0xFF16A34A)
-                )
+                Icon(Icons.Default.PlayArrow, contentDescription = null)
             },
             title = "Active Request",
             subtitle = "Track your ongoing tow"
         ) {
             scope.launch {
                 val rid = tokenStore.getLastTowingRequestId()
+
                 if (rid.isNullOrBlank()) {
                     error = "No active towing request yet. Please request towing first."
                     return@launch
                 }
+
                 error = null
                 navController.navigate(Routes.TowingActiveScreen.createRoute(rid))
             }
@@ -192,16 +153,11 @@ fun TowingScreen(navController: NavHostController) {
 
         ServiceCard(
             icon = {
-                Icon(
-                    Icons.Default.History,
-                    contentDescription = null,
-                    tint = Color(0xFF0284C7)
-                )
+                Icon(Icons.Default.History, contentDescription = null)
             },
             title = "Towing History",
             subtitle = "View past towing requests"
         ) {
-            error = null
             navController.navigate(Routes.TowingHistoryScreen.route)
         }
 
@@ -244,12 +200,9 @@ private fun ServiceCard(
             Spacer(modifier = Modifier.width(16.dp))
 
             Column {
+                Text(title, fontWeight = FontWeight.SemiBold)
                 Text(
-                    text = title,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = subtitle,
+                    subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.Gray
                 )

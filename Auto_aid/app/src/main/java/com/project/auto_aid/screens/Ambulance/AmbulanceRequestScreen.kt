@@ -1,41 +1,13 @@
 package com.project.auto_aid.screens.ambulance
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -75,9 +47,18 @@ fun AmbulanceRequestScreen(
     val finalLat = pickedLocationLatState?.value ?: userLat
     val finalLng = pickedLocationLngState?.value ?: userLng
 
+    // 🔥 AI SUPPORT
+    val prev = navController.previousBackStackEntry
+    val aiState = prev?.savedStateHandle ?: savedStateHandle
+
+    val aiProblem = aiState?.get<String>("ai_problem").orEmpty()
+    val aiUrgency = aiState?.get<String>("ai_urgency").orEmpty()
+    val aiNote = aiState?.get<String>("ai_note").orEmpty()
+    val selectedProviderId = providerId ?: aiState?.get<String>("selected_provider_id")
+
     var emergencyType by remember { mutableStateOf("Medical Emergency") }
-    var patientCondition by remember { mutableStateOf("") }
-    var notes by remember { mutableStateOf("") }
+    var patientCondition by remember { mutableStateOf(aiProblem) }
+    var notes by remember { mutableStateOf(aiNote) }
     var submitting by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -90,7 +71,7 @@ fun AmbulanceRequestScreen(
                 title = { Text("Request Ambulance") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, null)
                     }
                 }
             )
@@ -106,40 +87,41 @@ fun AmbulanceRequestScreen(
                 .verticalScroll(scrollState)
                 .padding(20.dp)
         ) {
-            if (providerId != null) {
-                AssistChip(
-                    onClick = {},
-                    label = { Text("Target provider selected") }
-                )
+
+            if (selectedProviderId != null) {
+                AssistChip(onClick = {}, label = { Text("Target provider selected") })
             } else {
-                AssistChip(
-                    onClick = {},
-                    label = { Text("Broadcast to all online ambulance providers") }
-                )
+                AssistChip(onClick = {}, label = { Text("Broadcast to all ambulance providers") })
             }
 
             if (pickedLabel.isNotBlank()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                AssistChip(
-                    onClick = {},
-                    label = { Text("Location: $pickedLabel") }
-                )
+                Spacer(Modifier.height(8.dp))
+                AssistChip(onClick = {}, label = { Text("Location: $pickedLabel") })
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            // 🔥 AI SUMMARY
+            if (aiProblem.isNotBlank()) {
+                Spacer(Modifier.height(10.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Column(Modifier.padding(12.dp)) {
+                        Text("AutoAid AI Suggestion", fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(6.dp))
+                        Text(aiProblem)
 
-            Text(
-                text = "Coordinates: $finalLat, $finalLng",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+                        if (aiUrgency.isNotBlank()) {
+                            Spacer(Modifier.height(6.dp))
+                            Text("Urgency: $aiUrgency")
+                        }
+                    }
+                }
+            }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(Modifier.height(12.dp))
 
-            Text(
-                text = "Emergency Type",
-                fontWeight = FontWeight.SemiBold
-            )
+            Text("Emergency Type", fontWeight = FontWeight.SemiBold)
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 FilterChip(
@@ -154,7 +136,7 @@ fun AmbulanceRequestScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(Modifier.height(10.dp))
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 FilterChip(
@@ -169,7 +151,7 @@ fun AmbulanceRequestScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(Modifier.height(10.dp))
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 FilterChip(
@@ -184,47 +166,41 @@ fun AmbulanceRequestScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(Modifier.height(16.dp))
 
             OutlinedTextField(
                 value = patientCondition,
                 onValueChange = { patientCondition = it },
                 label = { Text("Patient Condition") },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                placeholder = { Text("e.g. unconscious, bleeding, severe pain") }
+                shape = RoundedCornerShape(12.dp)
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(Modifier.height(12.dp))
 
             OutlinedTextField(
                 value = notes,
                 onValueChange = { notes = it },
-                label = { Text("Additional Notes (Optional)") },
+                label = { Text("Additional Notes") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(120.dp),
-                shape = RoundedCornerShape(12.dp),
-                placeholder = { Text("e.g. number of patients, landmark, age, urgent details") }
+                shape = RoundedCornerShape(12.dp)
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(Modifier.height(12.dp))
 
             Text(
-                text = "Current location will be used to help the nearest ambulance find you quickly.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                "Your current location will be used to dispatch the nearest ambulance quickly.",
+                style = MaterialTheme.typography.bodySmall
             )
 
             error?.let {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = it,
-                    color = MaterialTheme.colorScheme.error
-                )
+                Spacer(Modifier.height(10.dp))
+                Text(it, color = MaterialTheme.colorScheme.error)
             }
 
-            Spacer(modifier = Modifier.height(22.dp))
+            Spacer(Modifier.height(22.dp))
 
             Button(
                 onClick = {
@@ -232,17 +208,16 @@ fun AmbulanceRequestScreen(
 
                     val token = tokenStore.getToken()
                     if (token.isNullOrBlank()) {
-                        error = "Please login first."
+                        error = "Login first"
                         return@Button
                     }
 
                     if (patientCondition.isBlank()) {
-                        error = "Please describe the patient condition."
+                        error = "Describe patient condition"
                         return@Button
                     }
 
                     submitting = true
-                    error = null
 
                     scope.launch {
                         try {
@@ -250,63 +225,49 @@ fun AmbulanceRequestScreen(
                                 CreateRequestBody(
                                     service = "ambulance",
                                     providerType = "ambulance",
-                                    vehicleInfo = emergencyType.trim(),
+                                    vehicleInfo = emergencyType,
                                     problem = buildString {
-                                        append(patientCondition.trim())
+                                        append(patientCondition)
                                         if (notes.isNotBlank()) {
-                                            append(" | Notes: ")
-                                            append(notes.trim())
+                                            append(" | Notes: $notes")
+                                        }
+                                        if (aiUrgency.isNotBlank()) {
+                                            append(" | Urgency: $aiUrgency")
                                         }
                                     },
-                                    towType = emergencyType.trim(),
-                                    userLocation = LocationBody(
-                                        lat = finalLat,
-                                        lng = finalLng
-                                    ),
-                                    targetProviderId = providerId
+                                    towType = emergencyType,
+                                    userLocation = LocationBody(finalLat, finalLng),
+                                    targetProviderId = selectedProviderId
                                 )
                             )
 
-                            if (!response.isSuccessful) {
-                                throw Exception("Request failed (HTTP ${response.code()})")
-                            }
-
-                            val created: RequestDto =
-                                response.body() ?: throw Exception("Empty response body")
-
-                            val rid = created._id ?: created.id ?: ""
-                            if (rid.isBlank()) throw Exception("Missing request ID")
+                            val data: RequestDto = response.body()!!
+                            val rid = data._id ?: data.id ?: ""
 
                             tokenStore.saveLastAmbulanceRequestId(rid)
+
+                            // 🔥 CLEAR AI STATE
+                            aiState?.remove<String>("ai_problem")
+                            aiState?.remove<String>("ai_urgency")
+                            aiState?.remove<String>("ai_note")
+                            aiState?.remove<String>("selected_provider_id")
+
                             navController.navigate(Routes.AmbulanceActiveScreen.createRoute(rid))
-                        } catch (e: Throwable) {
-                            error = e.message ?: "Failed to submit."
+
+                        } catch (e: Exception) {
+                            error = e.message
                         } finally {
                             submitting = false
                         }
                     }
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp),
-                enabled = !submitting,
-                shape = RoundedCornerShape(14.dp)
+                modifier = Modifier.fillMaxWidth()
             ) {
-                if (submitting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(22.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text(
-                        text = "Request Ambulance",
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                if (submitting) CircularProgressIndicator()
+                else Text("Request Ambulance")
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(Modifier.height(10.dp))
 
             OutlinedButton(
                 onClick = { navController.popBackStack() },
@@ -314,8 +275,6 @@ fun AmbulanceRequestScreen(
             ) {
                 Text("Cancel")
             }
-
-            Spacer(modifier = Modifier.height(14.dp))
         }
     }
 }

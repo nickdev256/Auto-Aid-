@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -12,7 +12,6 @@ export default function ProviderGarageDashboard() {
 
   const providerId = user?._id || user?.id || null;
 
-  /* ================= STATE ================= */
   const [pending, setPending] = useState([]);
   const [ongoing, setOngoing] = useState([]);
   const [completed, setCompleted] = useState([]);
@@ -21,20 +20,21 @@ export default function ProviderGarageDashboard() {
   const [toast, setToast] = useState(null);
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("newest");
+  const [showLogout, setShowLogout] = useState(false);
 
   const prevPendingRef = useRef(0);
   const soundRef = useRef(null);
   const intervalRef = useRef(null);
 
-  const [showLogout, setShowLogout] = useState(false);
+  const api = useMemo(
+    () =>
+      axios.create({
+        baseURL: BASE,
+        withCredentials: true,
+      }),
+    []
+  );
 
-  /* ================= SAFE AXIOS ================= */
-  const api = axios.create({
-    baseURL: BASE,
-    withCredentials: true,
-  });
-
-  /* ================= ACCESS CONTROL ================= */
   useEffect(() => {
     if (!user) {
       navigate("/login");
@@ -46,13 +46,11 @@ export default function ProviderGarageDashboard() {
       return;
     }
 
-    if (user.businessType !== "garage") {
-      alert("This dashboard is for garage providers.");
+    if ((user.businessType || "").toLowerCase() !== "garage") {
       navigate("/provider/dashboard");
     }
-  }, [user]);
+  }, [user, navigate]);
 
-  /* ================= REFRESH USER ================= */
   const refreshMe = async () => {
     try {
       const res = await api.get("/api/auth/me");
@@ -62,7 +60,6 @@ export default function ProviderGarageDashboard() {
     }
   };
 
-  /* ================= LOAD REQUESTS ================= */
   const loadRequests = async () => {
     if (!providerId) return;
 
@@ -76,16 +73,13 @@ export default function ProviderGarageDashboard() {
       const pendingList = Array.isArray(pendingRes.data) ? pendingRes.data : [];
 
       setPending(pendingList);
-
       setOngoing(
         assigned.filter((r) => (r.status || "").toLowerCase() !== "completed")
       );
-
       setCompleted(
         assigned.filter((r) => (r.status || "").toLowerCase() === "completed")
       );
 
-      /* 🔔 NEW REQUEST SOUND */
       if (pendingList.length > prevPendingRef.current) {
         setToast({ type: "new", text: "New garage request" });
 
@@ -93,7 +87,9 @@ export default function ProviderGarageDashboard() {
           try {
             soundRef.current.currentTime = 0;
             soundRef.current.play();
-          } catch {}
+          } catch {
+            // ignore autoplay errors
+          }
         }
 
         setTimeout(() => setToast(null), 2000);
@@ -107,7 +103,6 @@ export default function ProviderGarageDashboard() {
     }
   };
 
-  /* ================= INTERVAL ================= */
   useEffect(() => {
     if (!providerId) return;
 
@@ -119,15 +114,18 @@ export default function ProviderGarageDashboard() {
       loadRequests();
     }, 8000);
 
-    return () => clearInterval(intervalRef.current);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, [providerId]);
 
   const isSubscribed = user?.subscription?.active === true;
 
-  /* ================= ACTIONS ================= */
-
   const acceptRequest = async (id) => {
-    if (!isSubscribed) return navigate("/provider/subscription");
+    if (!isSubscribed) {
+      navigate("/provider/subscription");
+      return;
+    }
 
     try {
       await api.post(`/api/garage/${id}/assign`, { providerId });
@@ -150,7 +148,6 @@ export default function ProviderGarageDashboard() {
     }
   };
 
-  /* ================= FILTER ================= */
   const matchSearch = (r) => {
     if (!search) return true;
     const q = search.toLowerCase();
@@ -177,22 +174,20 @@ export default function ProviderGarageDashboard() {
   const visibleOngoing = sortList(ongoing.filter(matchSearch));
   const visibleCompleted = sortList(completed.filter(matchSearch));
 
-  /* ================= LOADING ================= */
   if (loading) return <p className="pg-loading">Loading dashboard...</p>;
 
-  /* ================= UI ================= */
   return (
     <div className="provider-garage-upgraded">
-
       <audio ref={soundRef} src="/sounds/notification.mp3" preload="auto" />
 
       {toast && <div className={`pg-toast ${toast.type}`}>{toast.text}</div>}
 
-      {/* HEADER */}
       <header className="pg-top">
         <div>
           <h1>Garage Dashboard</h1>
-          <p>Welcome back, <strong>{user?.name}</strong></p>
+          <p>
+            Welcome back, <strong>{user?.name}</strong>
+          </p>
         </div>
 
         <div className="pg-controls">
@@ -212,7 +207,6 @@ export default function ProviderGarageDashboard() {
         </div>
       </header>
 
-      {/* SUB WARNING */}
       {!isSubscribed && (
         <div className="subscription-warning">
           Subscription inactive
@@ -222,19 +216,16 @@ export default function ProviderGarageDashboard() {
         </div>
       )}
 
-      {/* COUNTERS */}
       <div className="badges">
         <div>Pending: {pending.length}</div>
         <div>Ongoing: {ongoing.length}</div>
         <div>Completed: {completed.length}</div>
       </div>
 
-      {/* LIST */}
       <main className="pg-main">
-
-        {/* PENDING */}
         <section>
           <h2>Pending Requests</h2>
+          {visiblePending.length === 0 && <p>No pending requests</p>}
           {visiblePending.map((r) => {
             const id = r._id || r.requestId;
             return (
@@ -252,9 +243,9 @@ export default function ProviderGarageDashboard() {
           })}
         </section>
 
-        {/* ONGOING */}
         <section>
           <h2>Ongoing</h2>
+          {visibleOngoing.length === 0 && <p>No ongoing requests</p>}
           {visibleOngoing.map((r) => {
             const id = r._id || r.requestId;
             return (
@@ -272,9 +263,9 @@ export default function ProviderGarageDashboard() {
           })}
         </section>
 
-        {/* COMPLETED */}
         <section>
           <h2>Completed</h2>
+          {visibleCompleted.length === 0 && <p>No completed requests</p>}
           {visibleCompleted.map((r) => {
             const id = r._id || r.requestId;
             return (
@@ -284,10 +275,8 @@ export default function ProviderGarageDashboard() {
             );
           })}
         </section>
-
       </main>
 
-      {/* LOGOUT MODAL */}
       {showLogout && (
         <div className="modal-overlay" onClick={() => setShowLogout(false)}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>

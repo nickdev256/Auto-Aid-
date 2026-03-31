@@ -11,7 +11,6 @@ import {
   FiShield,
   FiUserCheck,
   FiUsers,
-  FiXCircle,
   FiFileText,
 } from "react-icons/fi";
 import {
@@ -76,6 +75,16 @@ export default function ProviderManagement() {
       provider.businessRegistrationDocumentUrl ||
       "";
 
+    const nationalIdFrontUrl =
+      provider.providerVerification?.nationalIdFrontUrl ||
+      provider.nationalIdFrontUrl ||
+      "";
+
+    const nationalIdBackUrl =
+      provider.providerVerification?.nationalIdBackUrl ||
+      provider.nationalIdBackUrl ||
+      "";
+
     const profileImageUrl =
       provider.providerVerification?.profileImageUrl ||
       provider.profileImage ||
@@ -108,6 +117,8 @@ export default function ProviderManagement() {
         status: verificationStatus,
         licenseDocumentUrl,
         businessDocumentUrl,
+        nationalIdFrontUrl,
+        nationalIdBackUrl,
         profileImageUrl,
         rejectionReason,
         submittedAt,
@@ -888,6 +899,42 @@ export default function ProviderManagement() {
                       {selectedProvider.providerVerification?.businessDocumentUrl ? (
                         <a
                           href={selectedProvider.providerVerification.businessDocumentUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          View Document
+                        </a>
+                      ) : (
+                        <em>Not uploaded</em>
+                      )}
+                    </div>
+
+                    <div className="pm-document-item">
+                      <div className="pm-doc-label">
+                        <FiFileText />
+                        <span>National ID Front</span>
+                      </div>
+                      {selectedProvider.providerVerification?.nationalIdFrontUrl ? (
+                        <a
+                          href={selectedProvider.providerVerification.nationalIdFrontUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          View Document
+                        </a>
+                      ) : (
+                        <em>Not uploaded</em>
+                      )}
+                    </div>
+
+                    <div className="pm-document-item">
+                      <div className="pm-doc-label">
+                        <FiFileText />
+                        <span>National ID Back</span>
+                      </div>
+                      {selectedProvider.providerVerification?.nationalIdBackUrl ? (
+                        <a
+                          href={selectedProvider.providerVerification.nationalIdBackUrl}
                           target="_blank"
                           rel="noreferrer"
                         >

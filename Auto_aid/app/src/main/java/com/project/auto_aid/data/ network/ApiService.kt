@@ -1,33 +1,37 @@
 package com.project.auto_aid.data.network
 
+import com.project.auto_aid.data.network.dto.AiAnalyzeRequest
+import com.project.auto_aid.data.network.dto.AiAnalyzeResponse
+import com.project.auto_aid.data.network.dto.AiEscalateRequest
+import com.project.auto_aid.data.network.dto.AiEscalateResponse
 import com.project.auto_aid.data.network.dto.AuthResponse
 import com.project.auto_aid.data.network.dto.AvailabilityResponse
 import com.project.auto_aid.data.network.dto.CreatePaymentBody
-import com.project.auto_aid.data.network.dto.CreatePayoutRequestBody
 import com.project.auto_aid.data.network.dto.CreateRequestBody
 import com.project.auto_aid.data.network.dto.ForgotPasswordRequest
 import com.project.auto_aid.data.network.dto.GetMyProviderVerificationResponse
+import com.project.auto_aid.data.network.dto.GetMyUserVerificationResponse
 import com.project.auto_aid.data.network.dto.LocationResponse
 import com.project.auto_aid.data.network.dto.LoginRequest
 import com.project.auto_aid.data.network.dto.MeResponse
 import com.project.auto_aid.data.network.dto.MessageResponse
+import com.project.auto_aid.data.network.dto.NavigationRouteRequest
+import com.project.auto_aid.data.network.dto.PaymentHistoryDto
 import com.project.auto_aid.data.network.dto.PaymentResponse
-import com.project.auto_aid.data.network.dto.PayoutInfoDto
-import com.project.auto_aid.data.network.dto.PayoutInfoResponse
-import com.project.auto_aid.data.network.dto.PayoutRequestDto
 import com.project.auto_aid.data.network.dto.ProviderBucketsResponse
 import com.project.auto_aid.data.network.dto.ProviderDto
 import com.project.auto_aid.data.network.dto.ProviderLiteDto
-import com.project.auto_aid.data.network.dto.ProviderWalletDto
+import com.project.auto_aid.data.network.dto.ReferralSummaryDto
 import com.project.auto_aid.data.network.dto.RequestDto
 import com.project.auto_aid.data.network.dto.RequestQuoteDto
 import com.project.auto_aid.data.network.dto.ResendOtpRequest
+import com.project.auto_aid.data.network.dto.RouteResponseDto
 import com.project.auto_aid.data.network.dto.SetRequestPriceBody
 import com.project.auto_aid.data.network.dto.SetRequestPriceResponse
 import com.project.auto_aid.data.network.dto.SignupInitResponse
 import com.project.auto_aid.data.network.dto.SignupRequest
+import com.project.auto_aid.data.network.dto.StatusUpdateResponse
 import com.project.auto_aid.data.network.dto.UpdateAvailabilityBody
-import com.project.auto_aid.data.network.dto.UpdatePayoutInfoBody
 import com.project.auto_aid.data.network.dto.UpdateProfileRequest
 import com.project.auto_aid.data.network.dto.UpdateStatusBody
 import com.project.auto_aid.data.network.dto.UploadResponse
@@ -46,6 +50,8 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface ApiService {
+
+    /* ---------- Auth ---------- */
 
     @POST("api/auth/login")
     suspend fun login(
@@ -75,6 +81,8 @@ interface ApiService {
     @GET("api/auth/me")
     suspend fun getMe(): Response<MeResponse>
 
+    /* ---------- Provider Profile ---------- */
+
     @GET("api/providers/me")
     suspend fun getProviderMe(): Response<ProviderDto>
 
@@ -93,8 +101,11 @@ interface ApiService {
         @Query("providerType") providerType: String,
         @Query("lat") lat: Double? = null,
         @Query("lng") lng: Double? = null,
-        @Query("onlineOnly") onlineOnly: Boolean = true
+        @Query("onlineOnly") onlineOnly: Boolean = true,
+        @Query("limit") limit: Int = 6
     ): Response<List<ProviderLiteDto>>
+
+    /* ---------- Requests ---------- */
 
     @POST("api/requests")
     suspend fun createRequest(
@@ -102,11 +113,15 @@ interface ApiService {
     ): Response<RequestDto>
 
     @GET("api/requests/my")
-    suspend fun getMyRequests(): Response<List<RequestDto>>
+    suspend fun getMyRequests(
+        @Query("limit") limit: Int = 10,
+        @Query("page") page: Int = 1
+    ): Response<List<RequestDto>>
 
     @GET("api/requests/provider")
     suspend fun getProviderBuckets(
-        @Query("providerType") providerType: String
+        @Query("providerType") providerType: String,
+        @Query("limit") limit: Int = 20
     ): Response<ProviderBucketsResponse>
 
     @POST("api/requests/{id}/assign")
@@ -123,13 +138,18 @@ interface ApiService {
     suspend fun updateRequestStatus(
         @Path("id") requestId: String,
         @Body body: UpdateStatusBody
-    ): Response<RequestDto>
+    ): Response<StatusUpdateResponse>
 
     @PATCH("api/requests/{id}/set-price")
     suspend fun setRequestPrice(
         @Path("id") requestId: String,
         @Body body: SetRequestPriceBody
     ): Response<SetRequestPriceResponse>
+
+    @PATCH("api/requests/{id}/accept-quotation")
+    suspend fun acceptQuotation(
+        @Path("id") requestId: String
+    ): Response<MessageResponse>
 
     @GET("api/requests/{id}/quote")
     suspend fun getRequestQuote(
@@ -146,57 +166,35 @@ interface ApiService {
         @Path("id") requestId: String
     ): Response<LocationResponse>
 
+    @GET("api/requests/{id}/full")
+    suspend fun getFullRequest(
+        @Path("id") requestId: String
+    ): Response<RequestDto>
+
     @POST("api/requests/{id}/provider-complete")
     suspend fun markProviderComplete(
         @Path("id") requestId: String
-    ): Response<MessageResponse>
+    ): Response<StatusUpdateResponse>
 
     @POST("api/requests/{id}/user-confirm-complete")
     suspend fun confirmUserComplete(
         @Path("id") requestId: String
-    ): Response<MessageResponse>
+    ): Response<StatusUpdateResponse>
+
+    /* ---------- Payments ---------- */
 
     @POST("api/payments")
-    suspend fun makePayment(
+    suspend fun createPayment(
         @Body body: CreatePaymentBody
     ): Response<PaymentResponse>
 
-    @GET("api/providers/payout-info")
-    suspend fun getPayoutInfo(): Response<PayoutInfoDto>
+    @GET("api/payments/history")
+    suspend fun getPaymentHistory(
+        @Query("limit") limit: Int = 20,
+        @Query("page") page: Int = 1
+    ): Response<List<PaymentHistoryDto>>
 
-    @PATCH("api/providers/payout-info")
-    suspend fun updatePayoutInfo(
-        @Body body: UpdatePayoutInfoBody
-    ): Response<PayoutInfoResponse>
-
-    @GET("api/providers/wallet")
-    suspend fun getProviderWallet(): Response<ProviderWalletDto>
-
-    @POST("api/providers/payout-requests")
-    suspend fun createPayoutRequest(
-        @Body body: CreatePayoutRequestBody
-    ): Response<PayoutRequestDto>
-
-    @GET("api/providers/payout-requests")
-    suspend fun getProviderPayoutRequests(): Response<List<PayoutRequestDto>>
-
-    @GET("api/providers/admin/payout-requests")
-    suspend fun getAdminPayoutRequests(): Response<List<PayoutRequestDto>>
-
-    @PATCH("api/providers/admin/payout-requests/{id}/approve")
-    suspend fun approvePayoutRequest(
-        @Path("id") payoutId: String
-    ): Response<PayoutRequestDto>
-
-    @PATCH("api/providers/admin/payout-requests/{id}/reject")
-    suspend fun rejectPayoutRequest(
-        @Path("id") payoutId: String
-    ): Response<PayoutRequestDto>
-
-    @PATCH("api/providers/admin/payout-requests/{id}/paid")
-    suspend fun markPayoutRequestPaid(
-        @Path("id") payoutId: String
-    ): Response<PayoutRequestDto>
+    /* ---------- Uploads ---------- */
 
     @Multipart
     @POST("api/uploads/profile-image")
@@ -210,6 +208,8 @@ interface ApiService {
         @Part audio: MultipartBody.Part
     ): Response<VoiceUploadResponse>
 
+    /* ---------- Provider Verification ---------- */
+
     @Multipart
     @POST("api/provider-verification/submit")
     suspend fun submitProviderVerification(
@@ -219,12 +219,46 @@ interface ApiService {
         @Part nationalIdBack: MultipartBody.Part? = null,
         @Part profileImage: MultipartBody.Part? = null,
         @Part("businessName") businessName: RequestBody? = null,
-        @Part("phone") phone: RequestBody? = null
+        @Part("phone") phone: RequestBody? = null,
+        @Part("businessType") businessType: RequestBody? = null
     ): Response<MessageResponse>
 
     @GET("api/provider-verification/me")
     suspend fun getMyProviderVerification(): Response<GetMyProviderVerificationResponse>
 
+    /* ---------- User Verification ---------- */
+
+    @Multipart
+    @POST("api/user-verification/submit")
+    suspend fun submitUserVerification(
+        @Part("documentType") documentType: RequestBody,
+        @Part verificationDocument: MultipartBody.Part,
+        @Part profileImage: MultipartBody.Part? = null
+    ): Response<MessageResponse>
+
+    @GET("api/user-verification/me")
+    suspend fun getMyUserVerification(): Response<GetMyUserVerificationResponse>
+
+    /* ---------- Utility ---------- */
+
     @GET("api/ping")
     suspend fun ping(): Response<Map<String, Any>>
+
+    @POST("api/ai/analyze")
+    suspend fun analyzeProblem(
+        @Body body: AiAnalyzeRequest
+    ): Response<AiAnalyzeResponse>
+
+    @POST("api/ai/escalate")
+    suspend fun escalateAfterSelfSolveFailure(
+        @Body body: AiEscalateRequest
+    ): Response<AiEscalateResponse>
+
+    @GET("api/referrals/me")
+    suspend fun getMyReferralSummary(): ReferralSummaryDto
+
+    @POST("api/navigation/route")
+    suspend fun getNavigationRoute(
+        @Body body: NavigationRouteRequest
+    ): Response<RouteResponseDto>
 }

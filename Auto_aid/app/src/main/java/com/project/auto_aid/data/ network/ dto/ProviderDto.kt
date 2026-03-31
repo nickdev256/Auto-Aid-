@@ -19,7 +19,8 @@ data class ProviderDto(
     val profileImageUrl: String? = null,
     val logoUrl: String? = null,
 
-    val isOnline: Boolean? = null
+    val isOnline: Boolean? = null,
+    val isAvailable: Boolean? = null
 ) {
     fun resolvedId(): String = _id ?: id ?: ""
 

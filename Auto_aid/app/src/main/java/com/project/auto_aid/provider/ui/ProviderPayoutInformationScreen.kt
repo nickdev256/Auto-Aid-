@@ -1,303 +1,347 @@
 package com.project.auto_aid.provider.ui
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Route
+import androidx.compose.material.icons.filled.Work
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.project.auto_aid.data.local.TokenStore
-import com.project.auto_aid.data.network.RetrofitClient
-import com.project.auto_aid.data.network.dto.UpdatePayoutInfoBody
-import kotlinx.coroutines.launch
+import com.project.auto_aid.navigation.Routes
+
+private val AutoAidBlue = Color(0xFF1DA1F2)
+private val AutoAidDark = Color(0xFF114B5F)
+private val ScreenBg = Color(0xFFF5F9FC)
+private val CardBg = Color.White
+private val SoftBlue = Color(0xFFEAF6FF)
+private val SuccessGreen = Color(0xFF20B26B)
+private val SuccessGreenBg = Color(0xFFEAF8F1)
+private val MutedText = Color(0xFF6B7280)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProviderPayoutInformationScreen(navController: NavHostController) {
-    val context = LocalContext.current
-    val tokenStore = remember(context) { TokenStore(context) }
-    val api = remember(tokenStore) { RetrofitClient.create(tokenStore) }
-    val scope = rememberCoroutineScope()
-
-    var paymentMethod by remember { mutableStateOf("mobile_money") }
-    var accountName by remember { mutableStateOf("") }
-    var phoneNumber by remember { mutableStateOf("") }
-    var bankName by remember { mutableStateOf("") }
-    var accountNumber by remember { mutableStateOf("") }
-    var isVerified by remember { mutableStateOf(false) }
-
-    var loading by remember { mutableStateOf(true) }
-    var saving by remember { mutableStateOf(false) }
-    var successMessage by remember { mutableStateOf<String?>(null) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(Unit) {
-        loading = true
-        errorMessage = null
-        successMessage = null
-
-        runCatching {
-            val response = api.getPayoutInfo()
-            if (!response.isSuccessful) {
-                throw Exception("Failed to load payout info (HTTP ${response.code()})")
-            }
-
-            val body = response.body()
-            paymentMethod = body?.method?.ifBlank { "mobile_money" } ?: "mobile_money"
-            accountName = body?.accountName.orEmpty()
-            phoneNumber = body?.phoneNumber.orEmpty()
-            bankName = body?.bankName.orEmpty()
-            accountNumber = body?.accountNumber.orEmpty()
-            isVerified = body?.isVerified == true
-        }.onFailure {
-            errorMessage = it.message ?: "Failed to load payout info"
-        }
-
-        loading = false
-    }
-
-    fun validateInputs(): String? {
-        if (accountName.trim().isEmpty()) return "Account name is required."
-
-        return if (paymentMethod == "mobile_money") {
-            if (phoneNumber.trim().isEmpty()) "Mobile money number is required." else null
-        } else {
-            when {
-                bankName.trim().isEmpty() -> "Bank name is required."
-                accountNumber.trim().isEmpty() -> "Account number is required."
-                else -> null
-            }
-        }
-    }
-
-    fun savePayoutInfo() {
-        val validationError = validateInputs()
-        if (validationError != null) {
-            errorMessage = validationError
-            successMessage = null
-            return
-        }
-
-        scope.launch {
-            saving = true
-            errorMessage = null
-            successMessage = null
-
-            runCatching {
-                val response = api.updatePayoutInfo(
-                    UpdatePayoutInfoBody(
-                        method = paymentMethod,
-                        accountName = accountName.trim(),
-                        phoneNumber = if (paymentMethod == "mobile_money") phoneNumber.trim() else "",
-                        bankName = if (paymentMethod == "bank") bankName.trim() else "",
-                        accountNumber = if (paymentMethod == "bank") accountNumber.trim() else ""
-                    )
-                )
-
-                if (!response.isSuccessful) {
-                    throw Exception("Failed to save payout info (HTTP ${response.code()})")
-                }
-
-                val body = response.body()
-                val payoutInfo = body?.payoutInfo
-
-                paymentMethod = payoutInfo?.method?.ifBlank { "mobile_money" } ?: "mobile_money"
-                accountName = payoutInfo?.accountName.orEmpty()
-                phoneNumber = payoutInfo?.phoneNumber.orEmpty()
-                bankName = payoutInfo?.bankName.orEmpty()
-                accountNumber = payoutInfo?.accountNumber.orEmpty()
-                isVerified = payoutInfo?.isVerified == true
-
-                successMessage = body?.message ?: "Payout information saved successfully."
-            }.onFailure {
-                errorMessage = it.message ?: "Failed to save payout information"
-            }
-
-            saving = false
-        }
-    }
-
+fun ProviderPayoutInformationScreen(
+    navController: NavHostController
+) {
     Scaffold(
+        containerColor = ScreenBg,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        text = "Provider Payout Information",
-                        fontWeight = FontWeight.SemiBold
+                        text = "Provider Information",
+                        color = AutoAidDark,
+                        fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = "Back",
+                            tint = AutoAidBlue
                         )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = CardBg
+                )
             )
-        }
-    ) { padding ->
-        if (loading) {
-            Box(
-                modifier = Modifier
-                    .padding(padding)
-                    .fillMaxSize(),
-                contentAlignment = androidx.compose.ui.Alignment.Center
+        },
+        bottomBar = {
+            Surface(
+                color = CardBg,
+                shadowElevation = 10.dp
             ) {
-                CircularProgressIndicator()
-            }
-        } else {
-            Column(
-                modifier = Modifier
-                    .padding(padding)
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Text(
-                    text = "Add your payout details to receive payments from completed jobs.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-
-                AssistChip(
-                    onClick = {},
-                    label = {
-                        Text(
-                            if (isVerified) "Payout Info Verified" else "Payout Info Not Verified"
-                        )
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = "Payout Method",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    FilterChip(
-                        selected = paymentMethod == "mobile_money",
-                        onClick = {
-                            paymentMethod = "mobile_money"
-                            successMessage = null
-                            errorMessage = null
-                        },
-                        label = { Text("Mobile Money") }
-                    )
-
-                    FilterChip(
-                        selected = paymentMethod == "bank",
-                        onClick = {
-                            paymentMethod = "bank"
-                            successMessage = null
-                            errorMessage = null
-                        },
-                        label = { Text("Bank") }
-                    )
-                }
-
-                OutlinedTextField(
-                    value = accountName,
-                    onValueChange = {
-                        accountName = it
-                        successMessage = null
-                    },
-                    label = { Text("Account Name") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-
-                if (paymentMethod == "mobile_money") {
-                    OutlinedTextField(
-                        value = phoneNumber,
-                        onValueChange = {
-                            phoneNumber = it
-                            successMessage = null
-                        },
-                        label = { Text("Mobile Money Number") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
-                    )
-                } else {
-                    OutlinedTextField(
-                        value = bankName,
-                        onValueChange = {
-                            bankName = it
-                            successMessage = null
-                        },
-                        label = { Text("Bank Name") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-
-                    OutlinedTextField(
-                        value = accountNumber,
-                        onValueChange = {
-                            accountNumber = it
-                            successMessage = null
-                        },
-                        label = { Text("Account Number") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                    )
-                }
-
-                errorMessage?.let {
-                    Text(
-                        text = it,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-
-                successMessage?.let {
-                    Text(
-                        text = it,
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Button(
-                    onClick = { savePayoutInfo() },
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp),
-                    enabled = !saving
+                        .padding(16.dp)
+                        .navigationBarsPadding(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    if (saving) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary
+                    Button(
+                        onClick = {
+                            navController.navigate(Routes.ProviderMapHome.route) {
+                                launchSingleTop = true
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(54.dp),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = AutoAidBlue)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Route,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
                         )
-                    } else {
-                        Text("Save Payout Details")
+                        Spacer(modifier = Modifier.height(0.dp))
+                        Text(
+                            text = "Open Map",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Button(
+                        onClick = { navController.popBackStack() },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(54.dp),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen)
+                    ) {
+                        Text(
+                            text = "Back to Dashboard",
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
-
-                OutlinedButton(
-                    onClick = { navController.popBackStack() },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Cancel")
-                }
             }
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            StatusBanner(
+                title = "Simplified Flow Active",
+                body = "Payout information is not used in your new Auto Aid flow. This screen is now kept only as a clean information page so the app compiles without the old payout API.",
+                background = SuccessGreenBg,
+                foreground = SuccessGreen
+            )
+
+            InfoCard(
+                title = "Current Provider Flow",
+                iconTint = AutoAidBlue
+            ) {
+                StepText("1. Provider sees request")
+                StepText("2. Provider accepts request")
+                StepText("3. Provider clicks Start Job")
+                StepText("4. Provider clicks Arrived")
+                StepText("5. Provider sends quotation")
+                StepText("6. User views quotation")
+                StepText("7. User accepts quotation")
+                StepText("8. User enters phone number")
+                StepText("9. User pays quoted amount")
+                StepText("10. Provider clicks Job Done")
+                StepText("11. User clicks Job Done")
+            }
+
+            InfoCard(
+                title = "What Was Removed",
+                iconTint = AutoAidBlue
+            ) {
+                BulletText("Payout API")
+                BulletText("Wallet balance flow")
+                BulletText("Escrow release flow")
+                BulletText("Extra charge flow")
+                BulletText("Payout requests")
+            }
+
+            InfoCard(
+                title = "Recommended Quick Actions",
+                iconTint = AutoAidBlue
+            ) {
+                ActionMiniCard(
+                    title = "Map",
+                    subtitle = "Use the provider map to navigate to the customer."
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                ActionMiniCard(
+                    title = "Active Jobs",
+                    subtitle = "Continue jobs from the dashboard and provider active job screen."
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                ActionMiniCard(
+                    title = "Notifications",
+                    subtitle = "Monitor request updates and payment progress."
+                )
+            }
+
+            InfoCard(
+                title = "Important Note",
+                iconTint = AutoAidBlue
+            ) {
+                Text(
+                    text = "This screen no longer loads payout details from the backend because your simplified system does not use payout endpoints anymore.",
+                    color = AutoAidDark,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatusBanner(
+    title: String,
+    body: String,
+    background: Color,
+    foreground: Color
+) {
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = background)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.8f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null,
+                    tint = foreground
+                )
+            }
+
+            Text(
+                text = title,
+                color = AutoAidDark,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            Text(
+                text = body,
+                color = AutoAidDark,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    }
+}
+
+@Composable
+private fun InfoCard(
+    title: String,
+    iconTint: Color,
+    content: @Composable () -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = CardBg),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(SoftBlue),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Work,
+                    contentDescription = null,
+                    tint = iconTint
+                )
+            }
+
+            Text(
+                text = title,
+                color = AutoAidDark,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            content()
+        }
+    }
+}
+
+@Composable
+private fun StepText(text: String) {
+    Text(
+        text = text,
+        color = AutoAidDark,
+        style = MaterialTheme.typography.bodyMedium
+    )
+}
+
+@Composable
+private fun BulletText(text: String) {
+    Text(
+        text = "• $text",
+        color = MutedText,
+        style = MaterialTheme.typography.bodyMedium
+    )
+}
+
+@Composable
+private fun ActionMiniCard(
+    title: String,
+    subtitle: String
+) {
+    Card(
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = SoftBlue)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = title,
+                color = AutoAidDark,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = subtitle,
+                color = MutedText
+            )
         }
     }
 }

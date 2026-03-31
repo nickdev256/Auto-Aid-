@@ -5,6 +5,29 @@ import { encrypt, decrypt } from "../utils/crypto.js";
 const { Schema } = mongoose;
 
 /* =================================================
+   HELPERS
+================================================= */
+function normalizeBusinessType(value = "") {
+  const v = String(value || "").trim().toLowerCase();
+
+  if (["garage", "mechanic", "repair"].includes(v)) return "garage";
+  if (["fuel", "fuel delivery", "petrol", "diesel"].includes(v)) return "fuel";
+  if (["towing", "tow", "towing track", "towing truck"].includes(v)) return "towing";
+  if (["ambulance", "medical", "emergency"].includes(v)) return "ambulance";
+
+  return "";
+}
+
+function normalizeServicesOffered(values = []) {
+  if (!Array.isArray(values)) return [];
+  const normalized = values
+    .map((item) => normalizeBusinessType(item))
+    .filter(Boolean);
+
+  return [...new Set(normalized)];
+}
+
+/* =================================================
    SUBSCRIPTION SCHEMA
 ================================================= */
 const SubscriptionSchema = new Schema(
@@ -16,7 +39,7 @@ const SubscriptionSchema = new Schema(
     },
     active: { type: Boolean, default: false },
     startDate: { type: Date, default: null },
-    expiryDate: { type: Date, default: null },
+    expiryDate: { type: Date, default: null, index: false },
     paymentMethod: { type: String, default: null },
     price: { type: Number, default: 0, min: 0 },
   },
@@ -30,7 +53,7 @@ const PayoutInfoSchema = new Schema(
   {
     method: {
       type: String,
-      enum: ["mobile_money", "bank"],
+      enum: ["mobile_money", "bank", "airtel_money"],
       default: "mobile_money",
     },
     accountName: { type: String, default: "" },
@@ -94,7 +117,7 @@ const UserSchema = new Schema(
 
     status: {
       type: String,
-      enum: ["active", "inactive", "pending", "approved", "rejected"],
+      enum: ["active", "inactive", "pending", "approved", "rejected", "suspended"],
       default: "active",
       index: true,
     },
@@ -106,7 +129,6 @@ const UserSchema = new Schema(
       index: true,
     },
 
-    // Normalized backend values only
     verificationDocumentType: {
       type: String,
       enum: ["", "national_id", "passport", "drivers_license"],
@@ -133,9 +155,6 @@ const UserSchema = new Schema(
       default: "",
     },
 
-    /* =================================================
-       PROVIDER VERIFICATION FILES
-    ================================================= */
     workLicenseDocumentUrl: {
       type: String,
       default: "",
@@ -165,6 +184,7 @@ const UserSchema = new Schema(
       type: String,
       enum: ["android", "web"],
       default: "web",
+      index: true,
     },
 
     lastLoginFrom: {
@@ -215,6 +235,7 @@ const UserSchema = new Schema(
       default: 0,
       min: 0,
       max: 5,
+      index: false,
     },
 
     isApprovedProvider: {
@@ -244,6 +265,7 @@ const UserSchema = new Schema(
     lastSeenAt: {
       type: Date,
       default: null,
+      index: true,
     },
 
     currentRequestId: {
@@ -285,6 +307,41 @@ const UserSchema = new Schema(
         totalPaidOut: 0,
       }),
     },
+
+    referralCode: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+      uppercase: true,
+      index: true,
+    },
+
+    referredBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
+    },
+
+    referralCodeUsedAtSignup: {
+      type: String,
+      default: null,
+      trim: true,
+      uppercase: true,
+    },
+
+    hasUsedReferralDiscount: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    nextReferralDiscountAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
   { timestamps: true }
 );
@@ -297,7 +354,6 @@ UserSchema.pre("validate", function (next) {
     this.servicesOffered = [];
   }
 
-  // Normalize document type aliases
   const docMap = {
     "National ID": "national_id",
     "national id": "national_id",
@@ -314,11 +370,28 @@ UserSchema.pre("validate", function (next) {
       docMap[this.verificationDocumentType] || this.verificationDocumentType;
   }
 
+  if (this.role === "provider") {
+    this.businessType = normalizeBusinessType(this.businessType);
+    this.servicesOffered = normalizeServicesOffered(
+      this.servicesOffered.length ? this.servicesOffered : [this.businessType]
+    );
+
+    if (!this.businessType && this.servicesOffered.length > 0) {
+      this.businessType = this.servicesOffered[0];
+    }
+
+    if (this.businessType && !this.servicesOffered.includes(this.businessType)) {
+      this.servicesOffered = [...new Set([this.businessType, ...this.servicesOffered])];
+    }
+  }
+
   if (this.role !== "provider") {
     this.businessType = "";
     this.servicesOffered = [];
     this.isApprovedProvider = false;
     this.isAvailable = false;
+    this.isOnline = false;
+    this.socketId = "";
     this.currentRequestId = null;
   }
 
@@ -326,8 +399,24 @@ UserSchema.pre("validate", function (next) {
     this.isApprovedProvider = true;
   }
 
-  if (this.status === "pending" || this.status === "rejected") {
+  if (
+    this.status === "pending" ||
+    this.status === "rejected" ||
+    this.status === "suspended" ||
+    this.status === "inactive"
+  ) {
     this.isApprovedProvider = false;
+    this.isAvailable = false;
+  }
+
+  if (this.referralCode) {
+    this.referralCode = String(this.referralCode).trim().toUpperCase();
+  }
+
+  if (this.referralCodeUsedAtSignup) {
+    this.referralCodeUsedAtSignup = String(this.referralCodeUsedAtSignup)
+      .trim()
+      .toUpperCase();
   }
 
   next();
@@ -407,6 +496,9 @@ UserSchema.methods.getDecrypted = function () {
   return obj;
 };
 
+/* =================================================
+   INDEXES
+================================================= */
 UserSchema.index({ role: 1, status: 1 });
 UserSchema.index({
   role: 1,
@@ -415,7 +507,15 @@ UserSchema.index({
   isAvailable: 1,
   isOnline: 1,
 });
+UserSchema.index({ role: 1, businessType: 1, rating: -1 });
 UserSchema.index({ businessType: 1, lat: 1, lng: 1 });
 UserSchema.index({ verificationStatus: 1 });
+UserSchema.index({ role: 1, lastSeenAt: -1 });
+UserSchema.index({ role: 1, isOnline: 1, isAvailable: 1, businessType: 1 });
+UserSchema.index({ "subscription.active": 1, role: 1, businessType: 1 });
+UserSchema.index({ "subscription.expiryDate": 1, role: 1 });
+UserSchema.index({ referralCode: 1 });
+UserSchema.index({ referredBy: 1 });
+UserSchema.index({ hasUsedReferralDiscount: 1 });
 
 export default mongoose.models.User || mongoose.model("User", UserSchema);

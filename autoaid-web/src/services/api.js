@@ -4,6 +4,7 @@
 // ✅ Still cookie-based auth: credentials: "include"
 // ✅ INCLUDES ADMIN VERIFICATION ACTIONS
 // ✅ NOW ALSO INCLUDES PROVIDER VERIFICATION ACTIONS
+// ✅ FIXED SUBSCRIPTION ROUTES
 
 const BASE = (import.meta.env.VITE_API_URL || "http://localhost:5001").replace(/\/$/, "");
 
@@ -188,7 +189,7 @@ export const rejectVerification = (id, reason = "") =>
   });
 
 // -----------------------------
-// Provider Verification (ADMIN) ✅ FIXED
+// Provider Verification (ADMIN)
 // -----------------------------
 export const approveProviderVerification = (id) =>
   request(`/api/admin/providers/${id}/verify`, {
@@ -235,7 +236,7 @@ export const updateProviderBusiness = (id, data) =>
   });
 
 export const getProviderSubscriptionStatus = (providerId) =>
-  request(`/api/providers/${providerId}/subscription`);
+  request(`/api/subscriptions/provider/${providerId}`);
 
 export const getPublicProviderProfile = (id) =>
   request(`/api/providers/public/${id}`, { method: "GET" });
@@ -252,7 +253,7 @@ export const updateProviderProfile = (payload) =>
 export const getSubscriptionPlans = () => request("/api/subscriptions/plans");
 
 export const getProviderSubscription = (providerId) =>
-  request(`/api/subscriptions/${providerId}`);
+  request(`/api/subscriptions/provider/${providerId}`);
 
 export const subscribeProvider = (providerId, planId, paymentMethod) =>
   request("/api/subscriptions/subscribe", {
@@ -260,13 +261,24 @@ export const subscribeProvider = (providerId, planId, paymentMethod) =>
     body: JSON.stringify({ providerId, planId, paymentMethod }),
   });
 
+export const startSubscriptionPayment = ({ providerId, planId, phone, network }) =>
+  request("/api/subscriptions/subscribe", {
+    method: "POST",
+    body: JSON.stringify({ providerId, planId, phone, network }),
+  });
+
 // -----------------------------
 // Payments
 // -----------------------------
-export const startSubscriptionPayment = ({ providerId, planId, phone, network }) =>
-  request("/api/payments/subscribe", {
+export const createPayment = ({ requestId, amount, method = "mobile_money", phoneNumber }) =>
+  request("/api/payments", {
     method: "POST",
-    body: JSON.stringify({ providerId, planId, phone, network }),
+    body: JSON.stringify({ requestId, amount, method, phoneNumber }),
+  });
+
+export const getPaymentHistory = () =>
+  request("/api/payments/history", {
+    method: "GET",
   });
 
 export const getPesapalPaymentStatus = (orderTrackingId) =>

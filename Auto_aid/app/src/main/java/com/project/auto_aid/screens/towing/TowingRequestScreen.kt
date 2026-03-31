@@ -58,8 +58,18 @@ fun TowingRequestScreen(
     val finalLat = pickedLocationLatState?.value ?: userLat
     val finalLng = pickedLocationLngState?.value ?: userLng
 
-    var vehicleInfo by remember { mutableStateOf("") }
-    var problem by remember { mutableStateOf("") }
+    // 🔥 AI + Direct Flow Support
+    val prev = navController.previousBackStackEntry
+    val aiState = prev?.savedStateHandle ?: savedStateHandle
+
+    val aiProblem = aiState?.get<String>("ai_problem").orEmpty()
+    val aiUrgency = aiState?.get<String>("ai_urgency").orEmpty()
+    val aiNote = aiState?.get<String>("ai_note").orEmpty()
+    val aiVehicleInfo = aiState?.get<String>("ai_vehicle_info").orEmpty()
+    val selectedProviderId = providerId ?: aiState?.get<String>("selected_provider_id")
+
+    var vehicleInfo by remember { mutableStateOf(aiVehicleInfo) }
+    var problem by remember { mutableStateOf(aiProblem) }
     var towType by remember { mutableStateOf("Standard") }
     var submitting by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -73,14 +83,14 @@ fun TowingRequestScreen(
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
-        if (!granted) error = "Camera permission denied. Enable it in Settings."
+        if (!granted) error = "Camera permission denied."
     }
 
     val takePictureLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
         if (!success) {
-            error = "Photo capture cancelled."
+            error = "Photo cancelled."
             photoUri = null
         } else {
             error = null
@@ -104,7 +114,7 @@ fun TowingRequestScreen(
                 title = { Text("Request Towing") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, null)
                     }
                 }
             )
@@ -120,39 +130,45 @@ fun TowingRequestScreen(
                 .verticalScroll(scrollState)
                 .padding(20.dp)
         ) {
-            if (providerId != null) {
+
+            if (selectedProviderId != null) {
                 AssistChip(onClick = {}, label = { Text("Target provider selected") })
             } else {
-                AssistChip(
-                    onClick = {},
-                    label = { Text("Broadcast to all online towing providers") }
-                )
+                AssistChip(onClick = {}, label = { Text("Broadcast to all providers") })
             }
 
             if (pickedLabel.isNotBlank()) {
                 Spacer(Modifier.height(8.dp))
-                AssistChip(
-                    onClick = {},
-                    label = { Text("Location: $pickedLabel") }
-                )
+                AssistChip(onClick = {}, label = { Text("Location: $pickedLabel") })
             }
 
-            Spacer(Modifier.height(10.dp))
+            // 🔥 AI Summary
+            if (aiProblem.isNotBlank()) {
+                Spacer(Modifier.height(10.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Column(Modifier.padding(12.dp)) {
+                        Text("AutoAid AI Suggestion", fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(6.dp))
+                        Text(aiProblem)
 
-            Text(
-                text = "Coordinates: $finalLat, $finalLng",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+                        if (aiUrgency.isNotBlank()) {
+                            Spacer(Modifier.height(6.dp))
+                            Text("Urgency: $aiUrgency")
+                        }
+                    }
+                }
+            }
 
             Spacer(Modifier.height(12.dp))
 
             OutlinedTextField(
                 value = vehicleInfo,
                 onValueChange = { vehicleInfo = it },
-                label = { Text("Vehicle Information") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
+                label = { Text("Vehicle Info") },
+                modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(Modifier.height(12.dp))
@@ -160,23 +176,23 @@ fun TowingRequestScreen(
             OutlinedTextField(
                 value = problem,
                 onValueChange = { problem = it },
-                label = { Text("Problem Description") },
+                label = { Text("Problem") },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(120.dp),
-                shape = RoundedCornerShape(12.dp)
+                    .height(120.dp)
             )
 
             Spacer(Modifier.height(12.dp))
 
-            Text("Tow Type", fontWeight = FontWeight.SemiBold)
+            Text("Tow Type", fontWeight = FontWeight.Bold)
 
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row {
                 FilterChip(
                     selected = towType == "Standard",
                     onClick = { towType = "Standard" },
                     label = { Text("Standard") }
                 )
+                Spacer(Modifier.width(10.dp))
                 FilterChip(
                     selected = towType == "Flatbed",
                     onClick = { towType = "Flatbed" },
@@ -185,103 +201,26 @@ fun TowingRequestScreen(
             }
 
             Spacer(Modifier.height(16.dp))
-            Text("Vehicle / Incident Photo (Required)", fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(8.dp))
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                Column(Modifier.padding(14.dp)) {
-                    Text(
-                        "Take a clear photo of the vehicle or incident scene for safety verification.",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-
-                    Spacer(Modifier.height(10.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        OutlinedButton(
-                            onClick = {
-                                val hasPermission = ContextCompat.checkSelfPermission(
-                                    context,
-                                    Manifest.permission.CAMERA
-                                ) == PackageManager.PERMISSION_GRANTED
-
-                                if (!hasPermission) {
-                                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                                    return@OutlinedButton
-                                }
-
-                                val uri = createImageUri()
-                                photoUri = uri
-                                takePictureLauncher.launch(uri)
-                            }
-                        ) {
-                            Text(if (photoUri == null) "Take Photo" else "Retake Photo")
-                        }
-
-                        AssistChip(
-                            onClick = {},
-                            label = { Text(if (photoUri != null) "Photo added" else "No photo") }
-                        )
-                    }
-
-                    if (photoUri != null) {
-                        Spacer(Modifier.height(10.dp))
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Image(
-                                painter = rememberAsyncImagePainter(model = "${photoUri}?v=$photoRefreshKey"),
-                                contentDescription = "Photo preview",
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(220.dp)
-                            )
-                        }
-                    }
-                }
-            }
-
-            error?.let {
-                Spacer(Modifier.height(12.dp))
-                Text(it, color = MaterialTheme.colorScheme.error)
-            }
-
-            Spacer(Modifier.height(22.dp))
 
             Button(
                 onClick = {
-                    if (submitting) return@Button
-
                     val token = tokenStore.getToken()
                     if (token.isNullOrBlank()) {
-                        error = "Please login first."
+                        error = "Login first"
                         return@Button
                     }
 
-                    if (vehicleInfo.isBlank()) {
-                        error = "Please enter vehicle information."
-                        return@Button
-                    }
-
-                    if (problem.isBlank()) {
-                        error = "Please describe the problem."
+                    if (vehicleInfo.isBlank() || problem.isBlank()) {
+                        error = "Fill all fields"
                         return@Button
                     }
 
                     if (photoUri == null) {
-                        error = "Please take a photo before sending."
+                        error = "Take photo"
                         return@Button
                     }
 
                     submitting = true
-                    error = null
 
                     scope.launch {
                         try {
@@ -289,60 +228,49 @@ fun TowingRequestScreen(
                                 CreateRequestBody(
                                     service = "towing",
                                     providerType = "towing",
-                                    vehicleInfo = vehicleInfo.trim(),
-                                    problem = problem.trim(),
+                                    vehicleInfo = vehicleInfo,
+                                    problem = buildString {
+                                        append(problem)
+                                        if (aiUrgency.isNotBlank()) {
+                                            append("\nUrgency: $aiUrgency")
+                                        }
+                                    },
                                     towType = towType,
                                     userLocation = LocationBody(finalLat, finalLng),
-                                    targetProviderId = providerId
+                                    targetProviderId = selectedProviderId
                                 )
                             )
 
-                            if (!response.isSuccessful) {
-                                throw Exception("Request failed (HTTP ${response.code()})")
-                            }
+                            val data: RequestDto = response.body()!!
 
-                            val created: RequestDto =
-                                response.body() ?: throw Exception("Empty response body")
-
-                            val rid = created._id ?: created.id ?: ""
-                            if (rid.isBlank()) throw Exception("Missing request ID")
+                            val rid = data._id ?: data.id ?: ""
 
                             tokenStore.saveLastTowingRequestId(rid)
+
+                            // 🔥 CLEAR AI
+                            aiState?.remove<String>("ai_problem")
+                            aiState?.remove<String>("ai_urgency")
+                            aiState?.remove<String>("selected_provider_id")
+
                             navController.navigate(Routes.TowingActiveScreen.createRoute(rid))
-                        } catch (e: Throwable) {
-                            error = e.message ?: "Failed to submit."
+
+                        } catch (e: Exception) {
+                            error = e.message
                         } finally {
                             submitting = false
                         }
                     }
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                enabled = !submitting,
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                if (submitting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(22.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text("Send Request", fontWeight = FontWeight.Bold)
-                }
-            }
-
-            Spacer(Modifier.height(10.dp))
-
-            OutlinedButton(
-                onClick = { navController.popBackStack() },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Cancel")
+                if (submitting) CircularProgressIndicator()
+                else Text("Send Request")
             }
 
-            Spacer(Modifier.height(14.dp))
+            error?.let {
+                Spacer(Modifier.height(10.dp))
+                Text(it, color = MaterialTheme.colorScheme.error)
+            }
         }
     }
 }

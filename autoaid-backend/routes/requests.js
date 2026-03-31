@@ -1,443 +1,337 @@
 import express from "express";
 import mongoose from "mongoose";
 import Request from "../models/Request.js";
-import User from "../models/User.js";
-import ProviderWallet from "../models/ProviderWallet.js";
-import SystemWallet from "../models/SystemWallet.js";
 import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-/* -----------------------------
-   Helper: validate ObjectId
------------------------------ */
-function ensureObjectId(id) {
+function isValidObjectId(id) {
   return mongoose.Types.ObjectId.isValid(id);
 }
 
-/* -----------------------------
-   Detect platform from header
------------------------------ */
-function getClient(req) {
-  const x = (req.headers["x-client"] || "").toString().toLowerCase();
-  return x === "android" ? "android" : "web";
+function normalizeStatus(value = "") {
+  return String(value || "").trim().toLowerCase();
 }
 
-/* -----------------------------
-   System fee calculator
-   5% of total amount
------------------------------ */
-function calculateSystemFee(totalAmount) {
-  return Number((Number(totalAmount || 0) * 0.05).toFixed(2));
+function normalizeProviderType(value = "") {
+  const v = String(value || "").trim().toLowerCase();
+
+  if (["garage", "mechanic", "repair"].includes(v)) return "garage";
+  if (["fuel", "fuel delivery", "petrol", "diesel"].includes(v)) return "fuel";
+  if (["towing", "tow", "towing track", "towing truck"].includes(v)) return "towing";
+  if (["ambulance", "medical", "emergency"].includes(v)) return "ambulance";
+
+  return v;
 }
 
-/* -----------------------------
-   Emit request events
------------------------------ */
-function emitRequestEvent(req, eventName, requestDoc) {
-  const io = req.app.get("io");
-  if (!io) return;
-
-  const providerType = String(requestDoc.providerType || "").trim().toLowerCase();
-  const requestId = String(requestDoc._id || requestDoc.id || "");
-
-  if (providerType) {
-    io.to(`type:${providerType}`).emit(eventName, requestDoc);
-  }
-
-  if (requestDoc.targetProviderId) {
-    io.to(`provider:${String(requestDoc.targetProviderId)}`).emit(eventName, requestDoc);
-  }
-
-  if (requestDoc.assignedProviderId) {
-    io.to(`provider:${String(requestDoc.assignedProviderId)}`).emit(eventName, requestDoc);
-  }
-
-  if (requestDoc.userId) {
-    io.to(`user:${String(requestDoc.userId)}`).emit(eventName, requestDoc);
-  }
-
-  if (requestId) {
-    io.to(`request:${requestId}`).emit(eventName, requestDoc);
-  }
+function isSupportedProviderType(value = "") {
+  return ["garage", "fuel", "towing", "ambulance"].includes(
+    normalizeProviderType(value)
+  );
 }
 
-/* -----------------------------
-   Broadcast request to providers
------------------------------ */
-async function broadcastRequestToProviders(req, requestDoc) {
-  const io = req.app.get("io");
-  if (!io) return;
-
-  const providerType = String(requestDoc.providerType || "").trim().toLowerCase();
-  let providers = [];
-
-  if (requestDoc.targetProviderId) {
-    providers = await User.find({
-      _id: requestDoc.targetProviderId,
-      role: "provider",
-      isApprovedProvider: true,
-      isAvailable: true,
-      isOnline: true,
-      businessType: providerType,
-    }).select("_id name businessType socketId");
-  } else {
-    providers = await User.find({
-      role: "provider",
-      businessType: providerType,
-      isApprovedProvider: true,
-      isAvailable: true,
-      isOnline: true,
-      status: { $in: ["approved", "active"] },
-    }).select("_id name businessType socketId");
-  }
-
-  for (const provider of providers) {
-    io.to(`provider:${String(provider._id)}`).emit("new_request_broadcast", {
-      requestId: String(requestDoc._id),
-      request: requestDoc,
-      service: requestDoc.service,
-      providerType: requestDoc.providerType,
-      userLocation: requestDoc.userLocation || { lat: 0, lng: 0 },
-      createdAt: requestDoc.createdAt || new Date(),
-    });
-
-    io.to(`provider:${String(provider._id)}`).emit("notify", {
-      id: `req_${requestDoc._id}_${provider._id}`,
-      type: "request",
-      title: "New service request",
-      body: `${requestDoc.service || requestDoc.providerType} request`,
-      requestId: String(requestDoc._id),
-      createdAt: new Date().toISOString(),
-    });
-  }
-}
-
-/* -----------------------------
-   Status helpers
------------------------------ */
-const REQUEST_STATUSES = [
-  "pending",
-  "assigned",
-  "arrived",
-  "quoted",
-  "awaiting_payment",
-  "in_progress",
-  "awaiting_dual_confirmation",
-  "completed",
-  "cancelled",
-];
-
-function normalizeStatus(status) {
-  const value = String(status || "").trim().toLowerCase();
-
-  switch (value) {
-    case "request_sent":
-      return "pending";
-    case "provider_assigned":
-    case "driver_assigned":
-    case "mechanic_assigned":
-    case "vendor_assigned":
-      return "assigned";
-    case "ongoing":
-    case "on going":
-      return "in_progress";
-    case "canceled":
-      return "cancelled";
-    default:
-      return value;
-  }
-}
-
-function isValidStatus(status) {
-  return REQUEST_STATUSES.includes(normalizeStatus(status));
-}
-
-function canTransitionStatus(currentStatus, nextStatus) {
-  const current = normalizeStatus(currentStatus);
-  const next = normalizeStatus(nextStatus);
-
-  const transitions = {
-    pending: ["assigned", "cancelled"],
-    assigned: ["arrived", "cancelled", "awaiting_payment", "in_progress"],
-    arrived: ["quoted", "awaiting_payment", "in_progress", "cancelled"],
-    quoted: ["awaiting_payment", "in_progress", "cancelled"],
-    awaiting_payment: ["in_progress", "cancelled"],
-    in_progress: ["awaiting_dual_confirmation", "completed", "cancelled"],
-    awaiting_dual_confirmation: ["completed", "cancelled"],
-    completed: [],
-    cancelled: [],
-  };
-
-  return transitions[current]?.includes(next) || false;
-}
-
-function pushStatusHistory(request, status, changedBy, note = "") {
-  const normalized = normalizeStatus(status);
-
-  if (!Array.isArray(request.statusHistory)) {
-    request.statusHistory = [];
-  }
-
-  request.statusHistory.push({
-    status: normalized,
-    changedAt: new Date(),
-    changedBy: changedBy ? new mongoose.Types.ObjectId(changedBy) : undefined,
-    note,
-  });
-}
-
-/* -----------------------------
-   Role helpers
------------------------------ */
 function isAdmin(user) {
-  return String(user?.role || "").toLowerCase() === "admin";
+  return normalizeStatus(user?.role) === "admin";
 }
 
 function isProvider(user) {
-  const role = String(user?.role || "").toLowerCase();
-  return ["provider", "garage", "towing", "fuel", "ambulance", "mechanic"].includes(role);
+  return normalizeStatus(user?.role) === "provider";
 }
 
-function isRequestOwner(request, userId) {
-  return String(request.userId) === String(userId);
+function isUser(user) {
+  return normalizeStatus(user?.role) === "user";
 }
 
-function isAssignedProvider(request, userId) {
-  return String(request.assignedProviderId || "") === String(userId);
+function getCurrentProviderType(user) {
+  return normalizeProviderType(
+    user?.businessType ||
+      user?.providerType ||
+      user?.serviceType ||
+      ""
+  );
 }
 
-/* -----------------------------
-   Escrow release helper
------------------------------ */
-async function releaseEscrowPayment(request) {
-  if (!request) {
-    throw new Error("Request not found");
-  }
+function isProviderForRequest(user, requestDoc) {
+  const myId = String(user?._id || "");
+  const assignedProviderId = String(
+    requestDoc?.assignedProviderId || requestDoc?.assignedTo || ""
+  );
+  const targetProviderId = String(requestDoc?.targetProviderId || "");
 
-  if (request.paymentStatus === "released") {
-    return {
-      ok: false,
-      message: "Payment already released",
-      request,
-    };
-  }
-
-  if (request.paymentStatus !== "held_in_escrow") {
-    return {
-      ok: false,
-      message: "Payment is not held in escrow",
-      request,
-    };
-  }
-
-  if (!request.providerCompleted || !request.userCompleted) {
-    return {
-      ok: false,
-      message: "Both provider and user must complete first",
-      request,
-    };
-  }
-
-  const totalAmount = Number(request.totalAmount || 0);
-  if (totalAmount <= 0) {
-    throw new Error("Invalid total amount");
-  }
-
-  const systemFee = calculateSystemFee(totalAmount);
-  const providerAmount = Number((totalAmount - systemFee).toFixed(2));
-
-  let providerWallet = await ProviderWallet.findOne({
-    providerId: request.assignedProviderId,
-  });
-
-  if (!providerWallet) {
-    providerWallet = await ProviderWallet.create({
-      providerId: request.assignedProviderId,
-      availableBalance: 0,
-      pendingBalance: 0,
-      totalEarned: 0,
-      totalWithdrawn: 0,
-    });
-  }
-
-  let systemWallet = await SystemWallet.findOne();
-  if (!systemWallet) {
-    systemWallet = await SystemWallet.create({
-      totalSystemFees: 0,
-      totalSubscriptionRevenue: 0,
-      totalRevenue: 0,
-    });
-  }
-
-  providerWallet.availableBalance += providerAmount;
-  providerWallet.totalEarned += providerAmount;
-
-  systemWallet.totalSystemFees += systemFee;
-  systemWallet.totalRevenue =
-    Number(systemWallet.totalSystemFees || 0) +
-    Number(systemWallet.totalSubscriptionRevenue || 0);
-
-  request.providerAmount = providerAmount;
-  request.systemFee = systemFee;
-  request.paymentStatus = "released";
-  request.status = "completed";
-  request.completedAt = new Date();
-
-  await providerWallet.save();
-  await systemWallet.save();
-  await request.save();
-
-  if (request.assignedProviderId) {
-    await User.findByIdAndUpdate(request.assignedProviderId, {
-      $set: { currentRequestId: null },
-    });
-  }
-
-  return {
-    ok: true,
-    message: "Payment released successfully",
-    request,
-    providerWallet,
-    systemWallet,
-  };
+  return (
+    (!!assignedProviderId && myId === assignedProviderId) ||
+    (!!targetProviderId && myId === targetProviderId)
+  );
 }
 
-/**
- * POST /api/requests
- * Create request (user role)
- * body may include targetProviderId (optional)
- */
+function isUserForRequest(user, requestDoc) {
+  const myId = String(user?._id || "");
+  const userId = String(requestDoc?.userId || "");
+  return !!myId && !!userId && myId === userId;
+}
+
+function canProviderManageRequest(user, requestDoc) {
+  return isAdmin(user) || (isProvider(user) && isProviderForRequest(user, requestDoc));
+}
+
+function canUserManageRequest(user, requestDoc) {
+  return isAdmin(user) || isUserForRequest(user, requestDoc);
+}
+
+function getActorType(user, requestDoc) {
+  if (isAdmin(user)) return "admin";
+  if (isProvider(user) && isProviderForRequest(user, requestDoc)) return "provider";
+  if (isUserForRequest(user, requestDoc)) return "user";
+  return "unknown";
+}
+
+function isTerminalStatus(status) {
+  const s = normalizeStatus(status);
+  return s === "completed" || s === "cancelled";
+}
+
+function emitRequestUpdate(req, requestDoc) {
+  try {
+    const io = req.app.get("io");
+    if (!io || !requestDoc) return;
+
+    const requestId = String(requestDoc._id || "");
+    const assignedProviderId = String(requestDoc.assignedProviderId || requestDoc.assignedTo || "");
+    const targetProviderId = String(requestDoc.targetProviderId || "");
+    const userId = String(requestDoc.userId || "");
+    const providerType = normalizeProviderType(requestDoc.providerType || requestDoc.service);
+
+    if (requestId) {
+      io.to(`request:${requestId}`).emit("request_updated", requestDoc);
+      io.to(`chat_${requestId}`).emit("request_updated", requestDoc);
+    }
+
+    if (userId) {
+      io.to(`user:${userId}`).emit("request_updated", requestDoc);
+    }
+
+    if (assignedProviderId) {
+      io.to(`provider:${assignedProviderId}`).emit("request_updated", requestDoc);
+    }
+
+    if (targetProviderId) {
+      io.to(`provider:${targetProviderId}`).emit("request_updated", requestDoc);
+    }
+
+    if (providerType) {
+      io.to(`type:${providerType}`).emit("request_updated", requestDoc);
+    }
+  } catch (err) {
+    console.error("emitRequestUpdate error:", err.message);
+  }
+}
+
+function emitNotification(req, room, payload) {
+  try {
+    const io = req.app.get("io");
+    if (!io || !room) return;
+    io.to(room).emit("notify", payload);
+  } catch (err) {
+    console.error("emitNotification error:", err.message);
+  }
+}
+
+function applyStatusTimestamps(requestDoc, nextStatus) {
+  const status = normalizeStatus(nextStatus);
+  const now = new Date();
+
+  if (status === "accepted" && !requestDoc.assignedAt) requestDoc.assignedAt = now;
+  if (status === "started" && !requestDoc.tripStartedAt) requestDoc.tripStartedAt = now;
+  if (status === "arrived" && !requestDoc.arrivedAt) requestDoc.arrivedAt = now;
+  if (status === "quotation_sent" && !requestDoc.quoteSentAt) requestDoc.quoteSentAt = now;
+  if (status === "paid" && !requestDoc.paymentReadyAt) requestDoc.paymentReadyAt = now;
+  if (status === "provider_done" && !requestDoc.providerCompletedAt) requestDoc.providerCompletedAt = now;
+  if (status === "completed" && !requestDoc.completedAt) requestDoc.completedAt = now;
+  if (status === "cancelled" && !requestDoc.cancelledAt) requestDoc.cancelledAt = now;
+}
+
+function validateStatusTransition(requestDoc, nextStatus, actor) {
+  const currentStatus = normalizeStatus(requestDoc?.status || "pending");
+  const targetStatus = normalizeStatus(nextStatus);
+
+  if (!targetStatus) {
+    return { ok: false, message: "Target status is required" };
+  }
+
+  if (currentStatus === targetStatus) {
+    return { ok: true };
+  }
+
+  if (isTerminalStatus(currentStatus)) {
+    return { ok: false, message: `Request is already ${currentStatus} and cannot change` };
+  }
+
+  const paymentStatus = normalizeStatus(requestDoc?.paymentStatus || "unpaid");
+  const paymentConfirmedByProvider = !!requestDoc?.paymentConfirmedByProvider;
+  const providerCompleted = !!requestDoc?.providerCompleted;
+  const userCompleted = !!requestDoc?.userCompleted;
+
+  switch (targetStatus) {
+    case "accepted":
+      if (currentStatus !== "pending") {
+        return { ok: false, message: "Only pending requests can be accepted" };
+      }
+      if (!["provider", "admin"].includes(actor)) {
+        return { ok: false, message: "Only provider or admin can accept request" };
+      }
+      return { ok: true };
+
+    case "started":
+      if (currentStatus !== "accepted") {
+        return { ok: false, message: "Request must be accepted before starting" };
+      }
+      if (!["provider", "admin"].includes(actor)) {
+        return { ok: false, message: "Only provider or admin can start job" };
+      }
+      return { ok: true };
+
+    case "arrived":
+      if (currentStatus !== "started") {
+        return { ok: false, message: "Request must be started before arriving" };
+      }
+      if (!["provider", "admin"].includes(actor)) {
+        return { ok: false, message: "Only provider or admin can mark arrived" };
+      }
+      return { ok: true };
+
+    case "quotation_sent":
+      if (currentStatus !== "arrived") {
+        return { ok: false, message: "Provider must arrive before sending quotation" };
+      }
+      if (!["provider", "admin"].includes(actor)) {
+        return { ok: false, message: "Only provider or admin can send quotation" };
+      }
+      return { ok: true };
+
+    case "paid":
+      if (currentStatus !== "quotation_sent") {
+        return { ok: false, message: "Quotation must be sent before payment" };
+      }
+      return { ok: true };
+
+    case "provider_done":
+      if (currentStatus !== "paid") {
+        return { ok: false, message: "Payment must be completed before provider marks job done" };
+      }
+      if (!(paymentStatus === "paid" || paymentConfirmedByProvider)) {
+        return { ok: false, message: "Payment must be confirmed before provider marks job done" };
+      }
+      if (!["provider", "admin"].includes(actor)) {
+        return { ok: false, message: "Only provider or admin can mark job done" };
+      }
+      return { ok: true };
+
+    case "completed":
+      if (currentStatus !== "provider_done") {
+        return { ok: false, message: "Provider must mark job done first" };
+      }
+      if (!providerCompleted) {
+        return { ok: false, message: "Provider must mark job done first" };
+      }
+      if (!userCompleted) {
+        return { ok: false, message: "User must confirm completion" };
+      }
+      return { ok: true };
+
+    case "cancelled":
+      return { ok: true };
+
+    default:
+      return { ok: false, message: `Unsupported target status: ${targetStatus}` };
+  }
+}
+
+/* =================================================
+   POST /api/requests
+================================================= */
 router.post("/", protect, async (req, res) => {
   try {
-    const body = req.body || {};
+    const {
+      providerType,
+      service,
+      targetProviderId,
+      vehicleInfo = "",
+      problem = "",
+      towType = "",
+      note = "",
+      urgency = "normal",
+      userLocation = null,
+      amount = 0,
+      price = 0,
+    } = req.body || {};
 
-    if (!body.providerType) {
-      return res.status(400).json({ message: "providerType is required" });
+    const userId = req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
     }
 
-    if (!body.service) {
-      return res.status(400).json({ message: "service is required" });
+    const normalizedType = normalizeProviderType(providerType || service);
+
+    if (!normalizedType) {
+      return res.status(400).json({ message: "providerType or service is required" });
     }
 
-    body.providerType = String(body.providerType).trim().toLowerCase();
-    body.service = String(body.service).trim().toLowerCase();
-
-    const rawTarget = body.targetProviderId;
-    if (rawTarget === "" || rawTarget === null || rawTarget === undefined) {
-      delete body.targetProviderId;
-    } else {
-      const targetStr = String(rawTarget).trim();
-      if (!ensureObjectId(targetStr)) {
-        return res.status(400).json({ message: "Invalid targetProviderId" });
-      }
-      body.targetProviderId = targetStr;
+    if (!isSupportedProviderType(normalizedType)) {
+      return res.status(400).json({ message: "Invalid service type" });
     }
 
-    const requestedFrom = getClient(req);
-
-    const doc = new Request({
-      ...body,
-      userId: req.user._id,
+    const requestDoc = await Request.create({
+      userId,
+      userName: req.user?.name || req.user?.fullName || "",
+      userPhone: req.user?.phone || "",
+      providerType: normalizedType,
+      service: normalizedType,
+      targetProviderId: targetProviderId || null,
+      vehicleInfo,
+      problem,
+      towType,
+      note,
+      urgency,
+      userLocation,
+      amount,
+      price,
       status: "pending",
-      requestedFrom,
-      createdByRole: req.user?.role || "user",
-      providerAmount: 0,
-      systemFee: 0,
-      totalAmount: 0,
-      priceSetByProvider: false,
-      priceSetAt: null,
-      pricingStatus: "not_set",
       paymentStatus: "unpaid",
-      paymentMethod: "",
-      paymentReference: "",
-      paidAt: null,
+      paymentConfirmedByProvider: false,
       providerCompleted: false,
       userCompleted: false,
-      completedAt: null,
-      statusHistory: [],
+      quotationAccepted: false,
+      priceSetByProvider: false,
     });
 
-    pushStatusHistory(doc, "pending", req.user._id, "Request created");
-    await doc.save();
+    emitRequestUpdate(req, requestDoc);
 
-    emitRequestEvent(req, "request_created", doc);
-    await broadcastRequestToProviders(req, doc);
+    if (normalizedType) {
+      emitNotification(req, `type:${normalizedType}`, {
+        id: `new_request_${requestDoc._id}_${Date.now()}`,
+        type: "request",
+        title: "New request",
+        body: `A new ${normalizedType} request is available.`,
+        requestId: String(requestDoc._id),
+        createdAt: new Date().toISOString(),
+      });
+    }
 
-    return res.status(201).json(doc);
+    return res.status(201).json(requestDoc);
   } catch (err) {
     console.error("Create request error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
 
-/**
- * GET /api/requests/provider?providerType=towing
- */
-router.get("/provider", protect, async (req, res) => {
-  try {
-    const { providerType } = req.query;
-
-    if (!providerType) {
-      return res.status(400).json({ message: "providerType required" });
-    }
-
-    const pt = String(providerType).trim().toLowerCase();
-    const providerObjectId = new mongoose.Types.ObjectId(req.user._id);
-
-    const pendingFilter = {
-      providerType: pt,
-      status: "pending",
-      declinedBy: { $ne: providerObjectId },
-      $or: [
-        { targetProviderId: { $exists: false } },
-        { targetProviderId: null },
-        { targetProviderId: providerObjectId },
-      ],
-    };
-
-    const ongoingFilter = {
-      providerType: pt,
-      assignedProviderId: providerObjectId,
-      status: { $in: ["assigned", "arrived", "quoted", "awaiting_payment", "in_progress", "awaiting_dual_confirmation"] },
-    };
-
-    const completedFilter = {
-      providerType: pt,
-      assignedProviderId: providerObjectId,
-      status: { $in: ["completed", "cancelled"] },
-    };
-
-    const [pending, ongoing, completed] = await Promise.all([
-      Request.find(pendingFilter).sort({ createdAt: -1 }).limit(200),
-      Request.find(ongoingFilter).sort({ updatedAt: -1 }).limit(50),
-      Request.find(completedFilter).sort({ updatedAt: -1 }).limit(200),
-    ]);
-
-    return res.json({
-      pending,
-      ongoing,
-      completed,
-      requests: pending,
-    });
-  } catch (err) {
-    console.error("Get provider requests error:", err);
-    return res.status(500).json({ message: "Server error" });
-  }
-});
-
-/**
- * GET /api/requests/my
- * logged-in user's own requests
- */
+/* =================================================
+   GET /api/requests/my
+================================================= */
 router.get("/my", protect, async (req, res) => {
   try {
-    const userObjectId = new mongoose.Types.ObjectId(req.user._id);
-
-    const requests = await Request.find({ userId: userObjectId })
-      .sort({ createdAt: -1 })
-      .limit(50);
-
+    const userId = req.user?._id;
+    const requests = await Request.find({ userId }).sort({ createdAt: -1 });
     return res.json(requests);
   } catch (err) {
     console.error("Get my requests error:", err);
@@ -445,267 +339,300 @@ router.get("/my", protect, async (req, res) => {
   }
 });
 
-/**
- * POST /api/requests/:id/decline
- */
-router.post("/:id/decline", protect, async (req, res) => {
+/* =================================================
+   GET /api/requests/provider
+================================================= */
+router.get("/provider", protect, async (req, res) => {
   try {
-    const { id } = req.params;
+    const providerId = String(req.user?._id || "");
+    const providerType = getCurrentProviderType(req.user);
 
-    if (!ensureObjectId(id)) {
-      return res.status(400).json({ message: "Invalid request id" });
+    if (!providerId) {
+      return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const providerId = String(req.user._id);
-    const providerObjectId = new mongoose.Types.ObjectId(providerId);
-
-    const request = await Request.findById(id);
-    if (!request) {
-      return res.status(404).json({ message: "Request not found" });
+    if (!providerType || !isSupportedProviderType(providerType)) {
+      return res.status(400).json({ message: "Provider type is missing or invalid" });
     }
 
-    if (normalizeStatus(request.status) !== "pending") {
-      return res.status(400).json({ message: "Only pending requests can be declined" });
-    }
+    const query = {
+      $or: [
+        { assignedProviderId: providerId },
+        { targetProviderId: providerId },
+        {
+          $and: [
+            { assignedProviderId: null },
+            { targetProviderId: null },
+            { providerType: providerType },
+            { status: "pending" },
+          ],
+        },
+      ],
+    };
 
-    const target = request.targetProviderId ? String(request.targetProviderId) : null;
-    if (target && target !== providerId) {
-      return res.status(403).json({ message: "Not allowed to decline this request" });
-    }
+    const all = await Request.find(query).sort({ createdAt: -1 });
 
-    await Request.updateOne(
-      { _id: id },
-      { $addToSet: { declinedBy: providerObjectId } }
-    );
+    const buckets = {
+      pending: [],
+      ongoing: [],
+      completed: [],
+    };
 
-    const updated = await Request.findById(id);
-    emitRequestEvent(req, "request_updated", updated);
-
-    return res.json({ message: "Request declined" });
-  } catch (err) {
-    console.error("Decline request error:", err);
-    return res.status(500).json({ message: "Server error" });
-  }
-});
-
-/**
- * GET /api/requests/:id
- */
-router.get("/:id", protect, async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    if (!ensureObjectId(id)) {
-      return res.status(400).json({ message: "Invalid request id" });
-    }
-
-    const request = await Request.findById(id);
-    if (!request) {
-      return res.status(404).json({ message: "Request not found" });
-    }
-
-    return res.json(request);
-  } catch (err) {
-    console.error("Get request by id error:", err);
-    return res.status(500).json({ message: "Server error" });
-  }
-});
-
-/**
- * GET /api/requests/:id/quote
- */
-router.get("/:id/quote", protect, async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    if (!ensureObjectId(id)) {
-      return res.status(400).json({ message: "Invalid request id" });
-    }
-
-    const request = await Request.findById(id).lean();
-    if (!request) {
-      return res.status(404).json({ message: "Request not found" });
-    }
-
-    return res.json({
-      _id: request._id,
-      status: request.status,
-      pricingStatus: request.pricingStatus || "not_set",
-      paymentStatus: request.paymentStatus || "unpaid",
-      providerAmount: request.providerAmount || 0,
-      systemFee: request.systemFee || 0,
-      totalAmount: request.totalAmount || 0,
-      priceSetByProvider: request.priceSetByProvider || false,
-      priceSetAt: request.priceSetAt || null,
-      paymentMethod: request.paymentMethod || "",
-      paymentReference: request.paymentReference || "",
-      paidAt: request.paidAt || null,
-      providerCompleted: !!request.providerCompleted,
-      userCompleted: !!request.userCompleted,
-      completedAt: request.completedAt || null,
+    all.forEach((r) => {
+      const s = normalizeStatus(r.status);
+      if (s === "pending") buckets.pending.push(r);
+      else if (["completed", "cancelled"].includes(s)) buckets.completed.push(r);
+      else buckets.ongoing.push(r);
     });
+
+    return res.json(buckets);
   } catch (err) {
-    console.error("Get request quote error:", err);
+    console.error("Get provider buckets error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
 
-/**
- * POST /api/requests/:id/assign
- * provider accepts request
- */
+/* =================================================
+   POST /api/requests/:id/assign
+================================================= */
 router.post("/:id/assign", protect, async (req, res) => {
   try {
     const { id } = req.params;
 
-    if (!ensureObjectId(id)) {
+    if (!isValidObjectId(id)) {
       return res.status(400).json({ message: "Invalid request id" });
     }
 
-    const providerId = String(req.user._id);
-
-    const request = await Request.findById(id);
-    if (!request) {
+    const requestDoc = await Request.findById(id);
+    if (!requestDoc) {
       return res.status(404).json({ message: "Request not found" });
     }
 
-    if (normalizeStatus(request.status) !== "pending") {
-      return res.status(400).json({ message: "Request already taken" });
+    if (!isProvider(req.user) && !isAdmin(req.user)) {
+      return res.status(403).json({ message: "Only provider can accept requests" });
     }
 
-    const target = request.targetProviderId ? String(request.targetProviderId) : null;
-    if (target && target !== providerId) {
-      return res.status(403).json({
-        message: "This request is assigned to a different provider",
+    const actor = isAdmin(req.user) ? "admin" : "provider";
+    const validation = validateStatusTransition(requestDoc, "accepted", actor);
+    if (!validation.ok) {
+      return res.status(400).json({ message: validation.message });
+    }
+
+    const requestType = normalizeProviderType(
+      requestDoc.providerType || requestDoc.service
+    );
+    const myProviderType = getCurrentProviderType(req.user);
+
+    if (!isAdmin(req.user)) {
+      if (!myProviderType || !isSupportedProviderType(myProviderType)) {
+        return res.status(400).json({ message: "Provider account has no valid service type" });
+      }
+
+      if (requestType !== myProviderType) {
+        return res.status(403).json({
+          message: `This request is for ${requestType}, but your provider type is ${myProviderType}`,
+        });
+      }
+
+      if (
+        requestDoc.targetProviderId &&
+        String(requestDoc.targetProviderId) !== String(req.user?._id)
+      ) {
+        return res.status(403).json({
+          message: "This request is targeted to another provider",
+        });
+      }
+    }
+
+    requestDoc.assignedProviderId = req.user?._id;
+    requestDoc.assignedTo = req.user?._id;
+    requestDoc.assignedProviderName =
+      req.user?.businessName || req.user?.name || req.user?.fullName || "Provider";
+    requestDoc.assignedProviderPhone = req.user?.phone || "";
+    requestDoc.status = "accepted";
+    applyStatusTimestamps(requestDoc, "accepted");
+
+    await requestDoc.save();
+    emitRequestUpdate(req, requestDoc);
+
+    const userId = String(requestDoc.userId || "");
+    if (userId) {
+      emitNotification(req, `user:${userId}`, {
+        id: `request_accepted_${requestDoc._id}_${Date.now()}`,
+        type: "request",
+        title: "Provider accepted request",
+        body: "A provider accepted your request.",
+        requestId: String(requestDoc._id),
+        createdAt: new Date().toISOString(),
       });
     }
 
-    const provider = await User.findById(providerId).select("-password");
-    if (!provider) {
-      return res.status(404).json({ message: "Provider not found" });
-    }
-
-    if (String(provider.role || "").toLowerCase() !== "provider") {
-      return res.status(403).json({ message: "Only providers can accept requests" });
-    }
-
-    if (!provider.isApprovedProvider) {
-      return res.status(403).json({
-        message: "Your provider account is awaiting approval",
-      });
-    }
-
-    if (!provider.isAvailable) {
-      return res.status(403).json({
-        message: "You are currently unavailable. Turn availability on first.",
-      });
-    }
-
-    const providerRaw = provider.getDecrypted ? provider.getDecrypted() : provider.toObject();
-
-    request.status = "assigned";
-    request.assignedProviderId = new mongoose.Types.ObjectId(providerId);
-    request.assignedProviderName = providerRaw.name || "";
-    request.assignedProviderPhone = providerRaw.phone || "";
-    request.assignedProviderRating = provider.rating || 0.0;
-
-    pushStatusHistory(request, "assigned", providerId, "Request accepted by provider");
-    await request.save();
-
-    await User.findByIdAndUpdate(providerId, {
-      $set: { currentRequestId: request._id },
-    });
-
-    emitRequestEvent(req, "request_updated", request);
-    return res.json(request);
+    return res.json(requestDoc);
   } catch (err) {
     console.error("Assign request error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
 
-/**
- * PATCH /api/requests/:id/set-price
- * provider sets total amount user will pay
- */
+/* =================================================
+   PATCH /api/requests/:id/status
+================================================= */
+router.patch("/:id/status", protect, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const status = normalizeStatus(req.body?.status);
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ ok: false, message: "Invalid request id" });
+    }
+
+    if (!status) {
+      return res.status(400).json({ ok: false, message: "Status is required" });
+    }
+
+    const requestDoc = await Request.findById(id);
+    if (!requestDoc) {
+      return res.status(404).json({ ok: false, message: "Request not found" });
+    }
+
+    const actor = getActorType(req.user, requestDoc);
+    if (actor === "unknown") {
+      return res.status(403).json({ ok: false, message: "Access denied" });
+    }
+
+    const validation = validateStatusTransition(requestDoc, status, actor);
+    if (!validation.ok) {
+      return res.status(400).json({ ok: false, message: validation.message });
+    }
+
+    requestDoc.status = status;
+    applyStatusTimestamps(requestDoc, status);
+
+    await requestDoc.save();
+    emitRequestUpdate(req, requestDoc);
+
+    const requestId = String(requestDoc._id || "");
+    const userId = String(requestDoc.userId || "");
+    const providerId = String(requestDoc.assignedProviderId || requestDoc.assignedTo || "");
+
+    if (status === "started" && userId) {
+      emitNotification(req, `user:${userId}`, {
+        id: `job_started_${requestId}_${Date.now()}`,
+        type: "request",
+        title: "Provider started job",
+        body: "Your provider has started moving to your location.",
+        requestId,
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    if (status === "arrived" && userId) {
+      emitNotification(req, `user:${userId}`, {
+        id: `provider_arrived_${requestId}_${Date.now()}`,
+        type: "request",
+        title: "Provider arrived",
+        body: "Your provider has arrived.",
+        requestId,
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    if (status === "completed" && providerId) {
+      emitNotification(req, `provider:${providerId}`, {
+        id: `job_completed_${requestId}_${Date.now()}`,
+        type: "request",
+        title: "Job completed",
+        body: "The user confirmed the job is complete.",
+        requestId,
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    return res.json({
+      ok: true,
+      message: "Status updated successfully",
+      request: requestDoc,
+    });
+  } catch (err) {
+    console.error("STATUS UPDATE ERROR:", err);
+    return res.status(500).json({
+      ok: false,
+      message: "Server error",
+      error: err.message,
+    });
+  }
+});
+
+/* =================================================
+   PATCH /api/requests/:id/set-price
+================================================= */
 router.patch("/:id/set-price", protect, async (req, res) => {
   try {
     const { id } = req.params;
     const { providerAmount } = req.body || {};
 
-    if (!ensureObjectId(id)) {
+    if (!isValidObjectId(id)) {
       return res.status(400).json({ message: "Invalid request id" });
     }
 
-    if (providerAmount === undefined || providerAmount === null) {
-      return res.status(400).json({ message: "providerAmount is required" });
-    }
-
-    const amount = Number(providerAmount);
-
-    if (!Number.isFinite(amount) || amount <= 0) {
-      return res.status(400).json({
-        message: "providerAmount must be a valid number greater than 0",
-      });
-    }
-
-    const request = await Request.findById(id);
-    if (!request) {
+    const requestDoc = await Request.findById(id);
+    if (!requestDoc) {
       return res.status(404).json({ message: "Request not found" });
     }
 
-    if (!request.assignedProviderId) {
-      return res.status(400).json({ message: "No provider assigned to this request" });
+    if (!canProviderManageRequest(req.user, requestDoc)) {
+      return res.status(403).json({ message: "Only provider can set price" });
     }
 
-    if (!isAssignedProvider(request, req.user._id) && !isAdmin(req.user)) {
-      return res.status(403).json({
-        message: "You are not allowed to set price for this request",
-      });
+    const amount = Number(providerAmount || 0);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({ message: "Valid providerAmount is required" });
     }
 
-    const currentStatus = normalizeStatus(request.status);
-    if (!["assigned", "arrived"].includes(currentStatus)) {
-      return res.status(400).json({
-        message: `Price can only be set when request is assigned or arrived. Current status: ${request.status}`,
-      });
+    if (normalizeStatus(requestDoc.status) !== "arrived") {
+      return res.status(400).json({ message: "Provider must arrive before sending quotation" });
     }
 
+    const systemFee = Math.max(3000, Math.round(amount * 0.1));
     const totalAmount = amount;
-    const systemFee = calculateSystemFee(totalAmount);
-    const providerNetAmount = Number((totalAmount - systemFee).toFixed(2));
 
-    request.providerAmount = providerNetAmount;
-    request.systemFee = systemFee;
-    request.totalAmount = totalAmount;
-    request.priceSetByProvider = true;
-    request.priceSetAt = new Date();
-    request.pricingStatus = "quoted";
-    request.status = "awaiting_payment";
-    request.paymentStatus = "unpaid";
+    requestDoc.providerAmount = amount - systemFee > 0 ? amount - systemFee : amount;
+    requestDoc.systemFee = systemFee;
+    requestDoc.totalAmount = totalAmount;
+    requestDoc.quoteAmount = totalAmount;
+    requestDoc.quotedAmount = requestDoc.providerAmount;
+    requestDoc.priceSetByProvider = true;
+    requestDoc.priceSetAt = new Date();
+    requestDoc.pricingStatus = "quoted";
+    requestDoc.quotationAccepted = false;
+    requestDoc.status = "quotation_sent";
+    applyStatusTimestamps(requestDoc, "quotation_sent");
 
-    pushStatusHistory(
-      request,
-      "awaiting_payment",
-      req.user._id,
-      "Provider quoted service amount"
-    );
+    await requestDoc.save();
+    emitRequestUpdate(req, requestDoc);
 
-    await request.save();
-
-    emitRequestEvent(req, "request_updated", request);
+    const userId = String(requestDoc.userId || "");
+    if (userId) {
+      emitNotification(req, `user:${userId}`, {
+        id: `quote_ready_${requestDoc._id}_${Date.now()}`,
+        type: "payment",
+        title: "Quotation ready",
+        body: "Your provider has sent a quotation. You can now view and pay.",
+        requestId: String(requestDoc._id),
+        createdAt: new Date().toISOString(),
+      });
+    }
 
     return res.json({
-      message: "Price set successfully",
+      message: "Quotation sent successfully",
       request: {
-        _id: request._id,
-        status: request.status,
-        pricingStatus: request.pricingStatus,
-        paymentStatus: request.paymentStatus,
-        providerAmount: request.providerAmount,
-        systemFee: request.systemFee,
-        totalAmount: request.totalAmount,
-        priceSetAt: request.priceSetAt,
+        providerAmount: requestDoc.providerAmount,
+        systemFee: requestDoc.systemFee,
+        totalAmount: requestDoc.totalAmount,
+        pricingStatus: requestDoc.pricingStatus,
+        priceSetByProvider: true,
+        quotationAccepted: requestDoc.quotationAccepted,
+        status: requestDoc.status,
       },
     });
   } catch (err) {
@@ -714,154 +641,193 @@ router.patch("/:id/set-price", protect, async (req, res) => {
   }
 });
 
-/**
- * PATCH /api/requests/:id/status
- * controlled status update
- */
-router.patch("/:id/status", protect, async (req, res) => {
+/* =================================================
+   PATCH /api/requests/:id/accept-quotation
+================================================= */
+router.patch("/:id/accept-quotation", protect, async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, note } = req.body || {};
 
-    if (!ensureObjectId(id)) {
+    if (!isValidObjectId(id)) {
       return res.status(400).json({ message: "Invalid request id" });
     }
 
-    if (!status) {
-      return res.status(400).json({ message: "status required" });
-    }
-
-    const nextStatus = normalizeStatus(status);
-
-    if (!isValidStatus(nextStatus)) {
-      return res.status(400).json({ message: "Invalid status value" });
-    }
-
-    const request = await Request.findById(id);
-    if (!request) {
+    const requestDoc = await Request.findById(id);
+    if (!requestDoc) {
       return res.status(404).json({ message: "Request not found" });
     }
 
-    const currentStatus = normalizeStatus(request.status);
-
-    const requester = isRequestOwner(request, req.user._id);
-    const assignedProvider = isAssignedProvider(request, req.user._id);
-    const admin = isAdmin(req.user);
-
-    if (!requester && !assignedProvider && !admin) {
-      return res.status(403).json({ message: "Not allowed to update this request" });
+    if (!canUserManageRequest(req.user, requestDoc)) {
+      return res.status(403).json({ message: "Only user can accept quotation" });
     }
 
-    if (currentStatus === nextStatus) {
-      return res.json(request);
+    if (normalizeStatus(requestDoc.status) !== "quotation_sent") {
+      return res.status(400).json({ message: "Quotation is not available for acceptance" });
     }
 
-    if (!admin && !canTransitionStatus(currentStatus, nextStatus)) {
+    if (requestDoc.quotationAccepted) {
       return res.status(400).json({
-        message: `Invalid status transition from ${currentStatus} to ${nextStatus}`,
+        ok: false,
+        message: "Quotation already accepted",
       });
     }
 
-    if (!admin) {
-      if (nextStatus === "arrived" || nextStatus === "in_progress") {
-        if (!assignedProvider) {
-          return res.status(403).json({
-            message: "Only assigned provider can move request to this status",
-          });
-        }
-      }
+    requestDoc.quotationAccepted = true;
+    requestDoc.pricingStatus = "accepted";
 
-      if (nextStatus === "completed") {
-        if (!assignedProvider) {
-          return res.status(403).json({
-            message: "Only assigned provider can mark request as completed for now",
-          });
-        }
-      }
+    await requestDoc.save();
+    emitRequestUpdate(req, requestDoc);
 
-      if (nextStatus === "cancelled") {
-        const allowed = requester || assignedProvider;
-        if (!allowed) {
-          return res.status(403).json({
-            message: "You are not allowed to cancel this request",
-          });
-        }
-      }
+    const providerId = String(requestDoc.assignedProviderId || requestDoc.assignedTo || "");
+    if (providerId) {
+      emitNotification(req, `provider:${providerId}`, {
+        id: `quotation_accepted_${requestDoc._id}_${Date.now()}`,
+        type: "payment",
+        title: "Quotation accepted",
+        body: "The customer accepted the quotation and can proceed to payment.",
+        requestId: String(requestDoc._id),
+        createdAt: new Date().toISOString(),
+      });
     }
 
-    request.status = nextStatus;
-
-    if (nextStatus === "completed") {
-      request.completedAt = new Date();
-
-      if (request.assignedProviderId) {
-        await User.findByIdAndUpdate(request.assignedProviderId, {
-          $set: { currentRequestId: null },
-        });
-      }
-    }
-
-    pushStatusHistory(
-      request,
-      nextStatus,
-      req.user._id,
-      typeof note === "string" ? note : ""
-    );
-
-    await request.save();
-
-    emitRequestEvent(req, "request_updated", request);
-    return res.json(request);
+    return res.json({
+      ok: true,
+      message: "Quotation accepted successfully",
+      request: requestDoc,
+    });
   } catch (err) {
-    console.error("Update status error:", err);
+    console.error("Accept quotation error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
 
-/**
- * POST /api/requests/:id/provider-complete
- * provider marks their side complete
- */
+/* =================================================
+   GET /api/requests/:id/quote
+================================================= */
+router.get("/:id/quote", protect, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ message: "Invalid request id" });
+    }
+
+    const requestDoc = await Request.findById(id);
+    if (!requestDoc) {
+      return res.status(404).json({ message: "Request not found" });
+    }
+
+    const actor = getActorType(req.user, requestDoc);
+    if (actor === "unknown") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    return res.json({
+      providerAmount: Number(requestDoc.providerAmount || 0),
+      systemFee: Number(requestDoc.systemFee || 0),
+      totalAmount:
+        Number(requestDoc.totalAmount || 0) ||
+        Number(requestDoc.quoteAmount || 0) ||
+        Number(requestDoc.amount || 0) ||
+        Number(requestDoc.price || 0),
+      pricingStatus: requestDoc.pricingStatus || "not_set",
+      paymentStatus: requestDoc.paymentStatus || "unpaid",
+      paymentConfirmedByProvider: !!requestDoc.paymentConfirmedByProvider,
+      priceSetByProvider: !!requestDoc.priceSetByProvider,
+      quotationAccepted: !!requestDoc.quotationAccepted,
+      status: requestDoc.status || "pending",
+    });
+  } catch (err) {
+    console.error("Get request quote error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* =================================================
+   GET /api/requests/:id/location
+================================================= */
+router.get("/:id/location", protect, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ message: "Invalid request id" });
+    }
+
+    const requestDoc = await Request.findById(id);
+    if (!requestDoc) {
+      return res.status(404).json({ message: "Request not found" });
+    }
+
+    const actor = getActorType(req.user, requestDoc);
+    if (actor === "unknown") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    return res.json({
+      lat: requestDoc.userLocation?.lat || 0,
+      lng: requestDoc.userLocation?.lng || 0,
+    });
+  } catch (err) {
+    console.error("Get user location error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* =================================================
+   POST /api/requests/:id/provider-complete
+================================================= */
 router.post("/:id/provider-complete", protect, async (req, res) => {
   try {
     const { id } = req.params;
 
-    if (!ensureObjectId(id)) {
+    if (!isValidObjectId(id)) {
       return res.status(400).json({ message: "Invalid request id" });
     }
 
-    const request = await Request.findById(id);
-    if (!request) {
+    const requestDoc = await Request.findById(id);
+    if (!requestDoc) {
       return res.status(404).json({ message: "Request not found" });
     }
 
-    if (!isAssignedProvider(request, req.user._id) && !isAdmin(req.user)) {
-      return res.status(403).json({ message: "Only assigned provider can do this" });
+    if (!canProviderManageRequest(req.user, requestDoc)) {
+      return res.status(403).json({ message: "Only provider can mark job done" });
     }
 
-    request.providerCompleted = true;
-
-    if (request.userCompleted) {
-      pushStatusHistory(
-        request,
-        "completed",
-        req.user._id,
-        "Provider completed and user had already completed"
-      );
-
-      const result = await releaseEscrowPayment(request);
-      emitRequestEvent(req, "request_updated", result.request);
-
-      return res.json(result);
+    if (normalizeStatus(requestDoc.status) !== "paid") {
+      return res.status(400).json({ message: "Request must be paid before marking job done" });
     }
 
-    request.status = "awaiting_dual_confirmation";
-    await request.save();
-    emitRequestEvent(req, "request_updated", request);
+    if (
+      normalizeStatus(requestDoc.paymentStatus) !== "paid" &&
+      !requestDoc.paymentConfirmedByProvider
+    ) {
+      return res.status(400).json({ message: "Payment must be confirmed before marking job done" });
+    }
+
+    requestDoc.providerCompleted = true;
+    requestDoc.providerCompletedAt = new Date();
+    requestDoc.status = "provider_done";
+    applyStatusTimestamps(requestDoc, "provider_done");
+
+    await requestDoc.save();
+    emitRequestUpdate(req, requestDoc);
+
+    const userId = String(requestDoc.userId || "");
+    if (userId) {
+      emitNotification(req, `user:${userId}`, {
+        id: `provider_done_${requestDoc._id}_${Date.now()}`,
+        type: "request",
+        title: "Provider marked job done",
+        body: "Please confirm if your job is complete.",
+        requestId: String(requestDoc._id),
+        createdAt: new Date().toISOString(),
+      });
+    }
 
     return res.json({
-      message: "Provider marked complete. Waiting for user confirmation.",
-      request,
+      message: "Job marked done successfully",
+      request: requestDoc,
     });
   } catch (err) {
     console.error("Provider complete error:", err);
@@ -869,79 +835,116 @@ router.post("/:id/provider-complete", protect, async (req, res) => {
   }
 });
 
-/**
- * POST /api/requests/:id/user-confirm-complete
- * user confirms completion
- */
+/* =================================================
+   POST /api/requests/:id/user-confirm-complete
+================================================= */
 router.post("/:id/user-confirm-complete", protect, async (req, res) => {
   try {
     const { id } = req.params;
 
-    if (!ensureObjectId(id)) {
+    if (!isValidObjectId(id)) {
       return res.status(400).json({ message: "Invalid request id" });
     }
 
-    const request = await Request.findById(id);
-    if (!request) {
+    const requestDoc = await Request.findById(id);
+    if (!requestDoc) {
       return res.status(404).json({ message: "Request not found" });
     }
 
-    if (!isRequestOwner(request, req.user._id) && !isAdmin(req.user)) {
-      return res.status(403).json({ message: "Only request owner can do this" });
+    if (!canUserManageRequest(req.user, requestDoc)) {
+      return res.status(403).json({ message: "Only user can confirm completion" });
     }
 
-    request.userCompleted = true;
-
-    if (request.providerCompleted) {
-      pushStatusHistory(
-        request,
-        "completed",
-        req.user._id,
-        "User completed and provider had already completed"
-      );
-
-      const result = await releaseEscrowPayment(request);
-      emitRequestEvent(req, "request_updated", result.request);
-
-      return res.json(result);
+    if (normalizeStatus(requestDoc.status) !== "provider_done") {
+      return res.status(400).json({ message: "Request is not awaiting your confirmation" });
     }
 
-    request.status = "awaiting_dual_confirmation";
-    await request.save();
-    emitRequestEvent(req, "request_updated", request);
+    if (!requestDoc.providerCompleted) {
+      return res.status(400).json({ message: "Provider has not marked the job done yet" });
+    }
+
+    requestDoc.userCompleted = true;
+    requestDoc.userCompletedAt = new Date();
+    requestDoc.status = "completed";
+    applyStatusTimestamps(requestDoc, "completed");
+
+    await requestDoc.save();
+    emitRequestUpdate(req, requestDoc);
+
+    const providerId = String(requestDoc.assignedProviderId || requestDoc.assignedTo || "");
+    if (providerId) {
+      emitNotification(req, `provider:${providerId}`, {
+        id: `request_completed_${requestDoc._id}_${Date.now()}`,
+        type: "request",
+        title: "Request completed",
+        body: "The user confirmed the job is complete.",
+        requestId: String(requestDoc._id),
+        createdAt: new Date().toISOString(),
+      });
+    }
 
     return res.json({
-      message: "User confirmed completion. Waiting for provider confirmation.",
-      request,
+      message: "Job completion confirmed successfully",
+      request: requestDoc,
     });
   } catch (err) {
-    console.error("User confirm completion error:", err);
+    console.error("User confirm complete error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });
 
-/**
- * GET /api/requests/:id/location
- */
-router.get("/:id/location", protect, async (req, res) => {
+/* =================================================
+   GET /api/requests/:id
+================================================= */
+router.get("/:id", protect, async (req, res) => {
   try {
     const { id } = req.params;
 
-    if (!ensureObjectId(id)) {
+    if (!isValidObjectId(id)) {
       return res.status(400).json({ message: "Invalid request id" });
     }
 
-    const request = await Request.findById(id);
-    if (!request) {
+    const requestDoc = await Request.findById(id);
+    if (!requestDoc) {
       return res.status(404).json({ message: "Request not found" });
     }
 
-    const lat = request.userLocation?.lat ?? 0;
-    const lng = request.userLocation?.lng ?? 0;
+    const actor = getActorType(req.user, requestDoc);
+    if (actor === "unknown") {
+      return res.status(403).json({ message: "Access denied" });
+    }
 
-    return res.json({ lat, lng });
+    return res.json(requestDoc);
   } catch (err) {
-    console.error("Get user location error:", err);
+    console.error("Get request by id error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* =================================================
+   GET /api/requests/:id/full
+================================================= */
+router.get("/:id/full", protect, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ message: "Invalid request id" });
+    }
+
+    const requestDoc = await Request.findById(id);
+    if (!requestDoc) {
+      return res.status(404).json({ message: "Request not found" });
+    }
+
+    const actor = getActorType(req.user, requestDoc);
+    if (actor === "unknown") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    return res.json(requestDoc);
+  } catch (err) {
+    console.error("Get full request error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 });

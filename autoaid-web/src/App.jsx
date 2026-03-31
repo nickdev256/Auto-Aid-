@@ -104,11 +104,7 @@ export default function App() {
     <div className="app-root">
       {!hideUI && <Navbar />}
 
-      <main
-        className={`main-content ${
-          isFullWidth ? "full-layout" : "standard-layout"
-        }`}
-      >
+      <main className={`main-content ${isFullWidth ? "full-layout" : "standard-layout"}`}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
@@ -150,11 +146,7 @@ export default function App() {
           <Route path="/garage/active" element={<ActiveRequest />} />
           <Route path="/garage/track/:id" element={<TrackRequest />} />
           <Route path="/nearby-garages" element={<NearbyGarages />} />
-
-          <Route
-            path="/garage/chat/:requestId"
-            element={<UniversalUserChat />}
-          />
+          <Route path="/garage/chat/:requestId" element={<UniversalUserChat />} />
 
           <Route path="/provider/signup" element={<ProviderSignup />} />
           <Route path="/provider/subscription" element={<ProviderSubscription />} />
@@ -163,10 +155,7 @@ export default function App() {
           <Route path="/provider/rejected" element={<ProviderRejected />} />
           <Route path="/provider/details/:id" element={<ProviderRequestDetails />} />
           <Route path="/provider/map/:id" element={<ProviderMap />} />
-          <Route
-            path="/provider/chat/:requestId"
-            element={<UniversalProviderChatWrapper />}
-          />
+          <Route path="/provider/chat/:requestId" element={<UniversalProviderChatWrapper />} />
 
           <Route
             path="/provider/dashboard"
