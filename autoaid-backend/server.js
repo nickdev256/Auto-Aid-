@@ -146,6 +146,10 @@ const FRONTEND_ALLOWED = [
   "http://127.0.0.1:5173",
   "http://localhost:5174",
   "http://127.0.0.1:5174",
+
+  // Production frontend
+  "https://your-frontend-domain.vercel.app",
+  "https://your-frontend-domain.onrender.com",
 ];
 
 const LAN_REGEX = /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/;
