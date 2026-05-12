@@ -8,21 +8,31 @@ if (!JWT_SECRET) {
   throw new Error("JWT_SECRET is missing in environment (.env)");
 }
 
+/**
+ * Extract token from:
+ * - Authorization header (Bearer token)
+ * - Cookies (fallback)
+ */
 function extractToken(req) {
-  const authHeader = req.headers.authorization || "";
-  const bearerToken = authHeader.startsWith("Bearer ")
-    ? authHeader.slice(7)
-    : null;
+  const authHeader = req.headers.authorization;
 
-  const cookieToken = req.cookies?.token || null;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    return authHeader.split(" ")[1];
+  }
 
-  return bearerToken || cookieToken || null;
+  return req.cookies?.token || null;
 }
 
+/**
+ * Normalize roles for safe comparison
+ */
 function normalizeRole(role) {
   return String(role || "").trim().toLowerCase();
 }
 
+/**
+ * AUTH MIDDLEWARE (PROTECTED ROUTES)
+ */
 export const protect = async (req, res, next) => {
   try {
     if (req.method === "OPTIONS") return next();
@@ -31,15 +41,41 @@ export const protect = async (req, res, next) => {
 
     if (!token) {
       return res.status(401).json({
-        message: "Not authenticated (missing token)",
+        success: false,
+        message: "Authentication required (no token provided)",
       });
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET);
+    let decoded;
+
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+    } catch (err) {
+      // 🔥 Handle JWT-specific errors cleanly
+      if (err.name === "TokenExpiredError") {
+        return res.status(401).json({
+          success: false,
+          message: "Session expired. Please login again.",
+        });
+      }
+
+      if (err.name === "JsonWebTokenError") {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid authentication token",
+        });
+      }
+
+      return res.status(401).json({
+        success: false,
+        message: "Authentication failed",
+      });
+    }
 
     if (!decoded?.id) {
       return res.status(401).json({
-        message: "Invalid token payload",
+        success: false,
+        message: "Invalid token structure",
       });
     }
 
@@ -47,50 +83,45 @@ export const protect = async (req, res, next) => {
 
     if (!user) {
       return res.status(401).json({
-        message: "User not found",
+        success: false,
+        message: "User not found or deleted",
       });
     }
 
     req.user = user;
     next();
   } catch (err) {
-    console.error("Auth error:", err.message);
+    console.error("AUTH MIDDLEWARE ERROR:", err);
 
-    if (err.name === "TokenExpiredError") {
-      return res.status(401).json({
-        message: "Token expired",
-      });
-    }
-
-    if (err.name === "JsonWebTokenError") {
-      return res.status(401).json({
-        message: "Invalid token",
-      });
-    }
-
-    return res.status(401).json({
-      message: "Authentication failed",
+    return res.status(500).json({
+      success: false,
+      message: "Internal authentication error",
     });
   }
 };
 
+/**
+ * ROLE-BASED ACCESS CONTROL
+ */
 export const authorize = (...roles) => {
-  const normalizedRoles = roles.map((r) => normalizeRole(r));
+  const allowedRoles = roles.map(normalizeRole);
 
   return (req, res, next) => {
     if (req.method === "OPTIONS") return next();
 
     if (!req.user || !req.user.role) {
       return res.status(403).json({
-        message: "Access denied",
+        success: false,
+        message: "Access denied (no role found)",
       });
     }
 
     const userRole = normalizeRole(req.user.role);
 
-    if (!normalizedRoles.includes(userRole)) {
+    if (!allowedRoles.includes(userRole)) {
       return res.status(403).json({
-        message: "Access denied",
+        success: false,
+        message: "You do not have permission to access this resource",
       });
     }
 

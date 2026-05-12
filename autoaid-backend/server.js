@@ -45,7 +45,7 @@ import providerVerificationRoutes from "./routes/providerVerification.js";
 
 // MODELS
 import User from "./models/User.js";
-import ChatMessage from "./models/chat.js";
+import ChatMessage from "./models/Chat.js";
 import Request from "./models/Request.js";
 import Settings from "./models/Settings.js";
 
