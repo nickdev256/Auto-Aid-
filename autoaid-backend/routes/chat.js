@@ -1,7 +1,7 @@
 import express from "express";
 import mongoose from "mongoose";
 import Request from "../models/Request.js";
-import ChatMessage from "../models/chat.js";
+import ChatMessage from "../models/Chat.js";
 import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
